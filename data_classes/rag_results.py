@@ -13,7 +13,7 @@ class RetrievalResult:
 
 
 @dataclass
-class GenerationResult:
+class AugmentedGenerationResult:
     """This class holds the output from a generation system."""
     # The query that was used to generate the answer
     query: str
@@ -25,6 +25,6 @@ class GenerationResult:
 class RAGResult:
     """This class holds the output from a RAG system."""
     retrieval_result: RetrievalResult
-    generation_result: GenerationResult
+    generation_result: AugmentedGenerationResult
     
     
