@@ -5,7 +5,7 @@ import models
 from data_classes.rag_results import RetrievalResult
 from data_classes.eval_scores import RetrievalScore
 
-class UMBERLAMetric(RetrievalMetric):
+class UMBRELAMetric(RetrievalMetric):
     """ This metric is based on the UMBRELA: UMbrela is the (Open-Source Reproduction of the) 
         Bing RELevance Assessor paper: https://arxiv.org/pdf/2406.06519"""        
     

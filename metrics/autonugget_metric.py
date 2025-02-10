@@ -1,11 +1,11 @@
+import ast
+
 from metrics.base_metrics import AugmentedGenerationMetric
 from models import LLMJudgeModel
 from data_classes.rag_results import RAGResult
 from typing import List, Dict, Optional
 from enum import Enum
 from dataclasses import dataclass
-import json
-import ast
 
 
 class NuggetImportance(Enum):
@@ -71,21 +71,9 @@ class AutoNuggetMetric(AugmentedGenerationMetric):
             if len(nuggets) >= self.max_nuggets:
                 break
 
-
-
-
-
-
+        return nuggets
 
 class AutoNuggetizer:
-
-    def _create_nugget_prompt(self, query: str, context_segments: List[str], 
-                            initial_nuggets: Optional[List[str]] = None) -> str:
-        """Create the nuggetization prompt as shown in the paper."""
-        context = "\n".join(f"[{i+1}] {seg}" for i, seg in enumerate(context_segments))
-        
-        prompt = f
-        return prompt
 
     def _create_importance_prompt(self, query: str, nuggets: List[str]) -> str:
         """Create the importance labeling prompt as shown in the paper."""
