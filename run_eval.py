@@ -1,5 +1,7 @@
 from data_classes.rag_results import RAGResult, RetrievalResult, AugmentedGenerationResult
 from evaluators.trec_evaluator import TRECEvaluator
+from models.models import OpenAIModel
+import os
 
 def create_dummy_data():
     query = "What is "
@@ -33,7 +35,7 @@ def run_eval():
     rag_result = create_dummy_data()
 
     # Create an evaluator with the model you need as the judge.
-    evaluator = TRECEvaluator()
+    evaluator = TRECEvaluator(model=OpenAIModel(model_name="gpt-4o-mini", api_key=os.getenv("OPENAI_API_KEY")))
 
     # Run the evaluation, this can be done in a batch or on a single example. Single threaded or multi-threaded.
     metrics = evaluator.evaluate(rag_result)
