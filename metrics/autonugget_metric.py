@@ -3,24 +3,7 @@ import ast
 from metrics.base_metrics import AugmentedGenerationMetric
 from models import LLMJudgeModel
 from data_classes.rag_results import RAGResult
-from typing import List, Dict, Optional
-from enum import Enum
-from dataclasses import dataclass
-
-
-class NuggetImportance(Enum):
-    VITAL = "vital"
-    OKAY = "okay"
-
-class NuggetSupport(Enum):
-    SUPPORT = "support"
-    PARTIAL_SUPPORT = "partial_support"
-    NOT_SUPPORT = "not_support"
-
-@dataclass
-class Nugget:
-    text: str
-    importance: NuggetImportance
+from typing import List, Dict, Tuple
 
 
 class AutoNuggetMetric(AugmentedGenerationMetric):
@@ -50,6 +33,41 @@ class AutoNuggetMetric(AugmentedGenerationMetric):
         Updated Nugget List:
         """
     
+    _NUGGET_IMPORTANCE_PROMPT = """
+        You are NuggetizeScoreLLM, an intelligent assistant that can label a list of atomic nuggets
+        based on their importance for a given search query
+
+        Based on the query, label each of the {len_nuggets} nuggets either as vital or okay based on the
+        following criteria. Vital nuggets represent concepts that must be present in a “good” answer; on the other
+        hand, okay nuggets contribute worthwhile information about the target but are not essential. Return the
+        list of labels in a Pythonic list format (type: List[str]). The list should be in the same order as the input
+        nuggets. Make sure to provide a label for each nugget.
+        Search Query: {query}
+        Nugget List: {nuggets}
+        Only return the list of labels (List[str]). Do not explain your answer.
+        Labels:                
+    """
+
+    _NUGGET_ASSIGNMENT_PROMPT = """
+        You are NuggetizeAssignerLLM, an intelligent assistant that can label a list of atomic nuggets
+        based on if they are captured by a given passage.
+
+        Based on the query and passage, label each of the {len_nuggets} nuggets either as support, partial_support, or not_support using the following criteria.
+        A nugget that is fully captured in the passage should be labeled as support. A nugget that is partially captured in the passage should be labeled as
+        partial_support. If the nugget is not captured at all, label it as not_support. Return the list of labels in a
+        Pythonic list format (type: List[str]). The list should be in the same order as the input nuggets. Make sure
+        to provide a label for each nugget.
+        Search Query: {query}
+
+        Passage: {generated_passage}
+
+        Nugget List: {nuggets}
+
+        Only return the list of labels (List[str]). Do not explain.
+
+        Labels:
+    """
+    
     def __init__(self, model: LLMJudgeModel, nugget_creation_iters: int = 5):
         self.model = model        
         self.nugget_creation_iters = nugget_creation_iters
@@ -57,12 +75,18 @@ class AutoNuggetMetric(AugmentedGenerationMetric):
 
     def compute(self, rag_result: RAGResult, umbrela_scores: dict[str, int]) -> dict[str, int]:
         retrieval_result = rag_result.retrieval_result
+
         nuggets = self._create_nuggets(retrieval_result.query, retrieval_result.retrieved_passages, umbrela_scores)
+        sorted_nuggets, sorted_labels  = self._score_and_sort_nuggest(retrieval_result.query, nuggets)
+        nugget_assignments = self._assign_nuggets(rag_result.generation_result.query, rag_result.generation_result.generated_answer, sorted_nuggets)
+        scores = self._evaluate_answer(sorted_nuggets, sorted_labels, nugget_assignments)
 
+        return scores
 
-    def _create_nuggets(self, query: str, retrieved_passages: dict[str, str], umbrela_scores: dict[str, int]) -> List[Nugget]:
-        #TODO: Filter the retrieved passages based on the umbrela scores.
-        context = "\n".join(f"[{i+1}] {seg}" for i, (_, seg) in enumerate(retrieved_passages.items()))
+    def _create_nuggets(self, query: str, retrieved_passages: dict[str, str], umbrela_scores: dict[str, int]) -> List[str]:
+        # Iterate over retrieved passages and umbrela scores together and filter out the passages with score <= 1
+        filtered_passages = {k: v for k, v in retrieved_passages.items() if umbrela_scores[k] >= 1}
+        context = "\n".join(f"[{i+1}] {seg}" for i, (_, seg) in enumerate(filtered_passages.items()))
         nuggets = []
         for _ in range(self.nugget_creation_iters):
             prompt = self._NUGGET_CREATION_PROMPT.format(query=query, context=context, initial_nuggets=nuggets, initial_nuggets_length=len(nuggets), max_nuggets=self.max_nuggets)
@@ -72,165 +96,85 @@ class AutoNuggetMetric(AugmentedGenerationMetric):
                 break
 
         return nuggets
+    
+    def _score_and_sort_nuggest(self, query: str, nuggets: List[str]) -> Tuple[List[str], List[str]]:
+        prompt = self._NUGGET_IMPORTANCE_PROMPT.format(query=query, len_nuggets=len(nuggets), nuggets=nuggets)
+        # Call the model on at most 10 nuggets at a time.
+        labels = []
+        for i in range(0, len(nuggets), 10):
+            prompt = self._NUGGET_IMPORTANCE_PROMPT.format(query=query, len_nuggets=len(nuggets[i:i+10]), nuggets=nuggets[i:i+10])
+            response = self.model.call(prompt)
+            labels.extend(ast.literal_eval(response))
 
-class AutoNuggetizer:
+        # Sort based on the labels, prioritizing "vital" over "okay"
+        sorted_pairs = sorted(zip(nuggets, labels), key=lambda x: x[1] == "okay")
 
-    def _create_importance_prompt(self, query: str, nuggets: List[str]) -> str:
-        """Create the importance labeling prompt as shown in the paper."""
-        return f"""You are NuggetizeScoreLLM, an intelligent assistant that can label a list of atomic nuggets based on their importance for a given search query.
+        # Unzip the sorted pairs back into separate lists
+        sorted_nuggets, sorted_labels = zip(*sorted_pairs)
+        return sorted_nuggets[:20], sorted_labels[:20]
+    
+    def _assign_nuggets(self, query: str, generated_passage: str, nuggets: List[str]) -> List[str]:
+        prompt = self._NUGGET_ASSIGNMENT_PROMPT.format(query=query, len_nuggets=len(nuggets), nuggets=nuggets, generated_passage=generated_passage)
+        # Call the model on at most 10 nuggets at a time.
+        assignments = []
+        for i in range(0, len(nuggets), 10):
+            prompt = self._NUGGET_ASSIGNMENT_PROMPT.format(query=query, len_nuggets=len(nuggets[i:i+10]), nuggets=nuggets[i:i+10], generated_passage=generated_passage)
+            response = self.model.call(prompt)
+            assignments.extend(ast.literal_eval(response))
+        return assignments
 
-Based on the query, label each of the {len(nuggets)} nuggets either a vital or okay based on the following criteria. Vital nuggets represent concepts that must be present in a "good" answer; on the other hand, okay nuggets contribute worthwhile information about the target but are not essential. Return the list of labels in a Pythonic list format (type: List[str]). The list should be in the same order as the input nuggets. Make sure to provide a label for each nugget.
-
-Search Query: {query}
-Nugget List: {nuggets}
-
-Only return the list of labels (List[str]). Do not explain."""
-
-    def _create_assignment_prompt(self, query: str, answer: str, nuggets: List[str]) -> str:
-        """Create the nugget assignment prompt as shown in the paper."""
-        return f"""You are NuggetizeAssignerLLM, an intelligent assistant that can label a list of atomic nuggets based on if they are captured by a given passage.
-
-Based on the query and passage, label each of the {len(nuggets)} nuggets either as support, partial_support, or not_support using the following criteria. A nugget that is fully captured in the passage should be labeled as support. A nugget that is partially captured in the passage should be labeled as partial_support. If the nugget is not captured at all, label it as not_support. Return the list of labels in a Pythonic list format (type: List[str]). The list should be in the same order as the input nuggets. Make sure to provide a label for each nugget.
-
-Search Query: {query}
-Passage: {answer}
-Nugget List: {nuggets}
-
-Only return the list of labels (List[str]). Do not explain."""
-
-    def _process_llm_chunks(self, items: List, chunk_size: int, process_func) -> List:
-        """Process items in chunks to avoid token limits."""
-        results = []
-        for i in range(0, len(items), chunk_size):
-            chunk = items[i:i + chunk_size]
-            results.extend(process_func(chunk))
-        return results
-
-    def generate_nuggets(self, query: str, context_segments: List[str]) -> List[Nugget]:
-        """
-        Generate nuggets for a query using the provided context.
-        
-        Args:
-            query: The search query
-            context_segments: List of relevant document segments
-            
-        Returns:
-            List of Nugget objects
-        """
-        # First generate raw nuggets
-        prompt = self._create_nugget_prompt(query, context_segments)
-        response = self.client.chat.completions.create(
-            model=self.deployment,
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0
-        )
-        
-        try:
-            nugget_texts = ast.literal_eval(response.choices[0].message.content)
-        except:
-            nugget_texts = []
-            
-        # Then determine importance for each nugget
-        def process_importance_chunk(nugget_chunk):
-            prompt = self._create_importance_prompt(query, nugget_chunk)
-            response = self.client.chat.completions.create(
-                model=self.deployment,
-                messages=[{"role": "user", "content": prompt}],
-                temperature=0
-            )
-            return ast.literal_eval(response.choices[0].message.content)
-            
-        importance_labels = self._process_llm_chunks(nugget_texts, 10, process_importance_chunk)
-        
-        # Create Nugget objects
-        nuggets = []
-        for text, importance in zip(nugget_texts, importance_labels):
-            nuggets.append(Nugget(
-                text=text,
-                importance=NuggetImportance(importance)
-            ))
-            
-        # Sort by importance (vital first) and limit to 20
-        nuggets.sort(key=lambda x: x.importance == NuggetImportance.OKAY)
-        return nuggets[:20]
-
-    def assign_nuggets(self, query: str, answer: str, nuggets: List[Nugget]) -> List[NuggetSupport]:
-        """
-        Assign support levels to nuggets for a given answer.
-        
-        Args:
-            query: The search query
-            answer: The system's answer text
-            nuggets: List of Nugget objects
-            
-        Returns:
-            List of NuggetSupport values
-        """
-        nugget_texts = [n.text for n in nuggets]
-        
-        def process_assignment_chunk(nugget_chunk):
-            prompt = self._create_assignment_prompt(query, answer, nugget_chunk)
-            response = self.client.chat.completions.create(
-                model=self.deployment,
-                messages=[{"role": "user", "content": prompt}],
-                temperature=0
-            )
-            return ast.literal_eval(response.choices[0].message.content)
-            
-        assignments = self._process_llm_chunks(nugget_texts, 10, process_assignment_chunk)
-        return [NuggetSupport(a) for a in assignments]
-
-class NuggetEvaluator:
-    def __init__(self, nuggets: List[Nugget]):
-        """Initialize the evaluator with a list of nuggets."""
-        self.nuggets = nuggets
-        
-    def evaluate_answer(self, nugget_assignments: List[NuggetSupport]) -> Dict:
+    def _evaluate_answer(self, nuggets: List[str], labels: List[str], nugget_assignments: List[str]) -> Dict:
         """Evaluate an answer based on nugget assignments."""
-        if len(nugget_assignments) != len(self.nuggets):
-            raise ValueError("Number of assignments must match number of nuggets")
+        if len(nugget_assignments) != len(nuggets):
+            raise ValueError("Nugget assignments length must match nuggets length.")
         
-        # Count nuggets by importance and support level
-        vital_supported = 0
-        vital_partial = 0
-        vital_total = 0
-        okay_supported = 0
-        okay_partial = 0
-        okay_total = 0
+        # Define scoring rules
+        score_map = {
+            "support": 1.0,
+            "partial_support": 0.5,
+            "not_support": 0.0
+        }
         
-        for nugget, support in zip(self.nuggets, nugget_assignments):
-            if nugget.importance == NuggetImportance.VITAL:
-                vital_total += 1
-                if support == NuggetSupport.SUPPORT:
-                    vital_supported += 1
-                elif support == NuggetSupport.PARTIAL_SUPPORT:
-                    vital_partial += 1
-            else:  # OKAY
-                okay_total += 1
-                if support == NuggetSupport.SUPPORT:
-                    okay_supported += 1
-                elif support == NuggetSupport.PARTIAL_SUPPORT:
-                    okay_partial += 1
+        # Separate vital and okay nuggets
+        vital_scores = []
+        okay_scores = []
+        strict_vital_scores = []
+        strict_okay_scores = []
+        all_scores = []
+        all_strict_scores = []
         
-        # Calculate scores
-        vital_score = (vital_supported + 0.5 * vital_partial) / vital_total if vital_total > 0 else 0
-        okay_score = (okay_supported + 0.5 * okay_partial) / okay_total if okay_total > 0 else 0
+        for label, assignment in zip(labels, nugget_assignments):
+            score = score_map.get(assignment, 0.0)
+            strict_score = 1.0 if assignment == "support" else 0.0
+            
+            all_scores.append(score)
+            all_strict_scores.append(strict_score)
+            
+            if label == "vital":
+                vital_scores.append(score)
+                strict_vital_scores.append(strict_score)
+            elif label == "okay":
+                okay_scores.append(score)
+                strict_okay_scores.append(strict_score)
         
-        # Calculate weighted combined score (vital nuggets weighted more heavily)
-        combined_score = (0.7 * vital_score + 0.3 * okay_score) if (vital_total + okay_total) > 0 else 0
+        # Compute final scores
+        num_nuggets = len(nuggets) if nuggets else 1
+        num_vital = len(vital_scores) if vital_scores else 1
+        num_okay = len(okay_scores) if okay_scores else 1
+        
+        all_score = sum(all_scores) / num_nuggets
+        all_strict_score = sum(all_strict_scores) / num_nuggets
+        vital_score = sum(vital_scores) / num_vital
+        vital_strict_score = sum(strict_vital_scores) / num_vital
+        weighted_score = (sum(vital_scores) + 0.5 * sum(okay_scores)) / (num_vital + 0.5 * num_okay)
+        weighted_strict_score = (sum(strict_vital_scores) + 0.5 * sum(strict_okay_scores)) / (num_vital + 0.5 * num_okay)
         
         return {
-            "vital_score": vital_score,
-            "okay_score": okay_score,
-            "combined_score": combined_score,
-            "vital_stats": {
-                "supported": vital_supported,
-                "partial": vital_partial,
-                "total": vital_total
-            },
-            "okay_stats": {
-                "supported": okay_supported,
-                "partial": okay_partial,
-                "total": okay_total
-            }
-        }    
+            "All": all_score,
+            "All Strict": all_strict_score,
+            "Vital": vital_score,
+            "Vital Strict": vital_strict_score,
+            "Weighted": weighted_score,
+            "Weighted Strict": weighted_strict_score
+        }
+            

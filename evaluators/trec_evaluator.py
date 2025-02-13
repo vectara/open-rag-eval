@@ -1,7 +1,7 @@
 from typing import List
 
 from data_classes.rag_results import RAGResult
-from data_classes.eval_scores import RetrievalScore 
+from data_classes.eval_scores import RetrievalScores 
 from evaluators.base_evaluator import Evaluator
 import metrics
 import models
@@ -17,7 +17,7 @@ class TRECEvaluator(Evaluator):
         retrieval_scores = self.retrieval_metric.compute(rag_results.retrieval_result)
         # augmented_generation_scores = self.augmented_generation_metric.compute(rag_results)
 
-        evaluation_scores = RetrievalScore()
+        evaluation_scores = RetrievalScores()
         evaluation_scores.retrieval_score = {"umbrela_scores": retrieval_scores}
 
         return evaluation_scores

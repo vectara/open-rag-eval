@@ -3,7 +3,7 @@ from typing import List
 from base_metrics import RetrievalMetric
 import models
 from data_classes.rag_results import RetrievalResult
-from data_classes.eval_scores import RetrievalScore
+from data_classes.eval_scores import RetrievalScores
 
 class UMBRELAMetric(RetrievalMetric):
     """ This metric is based on the UMBRELA: UMbrela is the (Open-Source Reproduction of the) 

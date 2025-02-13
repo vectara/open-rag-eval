@@ -1,6 +1,7 @@
 # This method defines classes to hold results from a RAG system which need to be evaluated.
-
 from typing import List, Optional
+
+from dataclasses import dataclass
 
 @dataclass
 class RetrievalResult:
