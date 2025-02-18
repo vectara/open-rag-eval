@@ -8,14 +8,14 @@ class RetrievalScores():
     scores: dict[str, Any]
 
 @dataclass
-class AugmentedGenerationScore():
+class AugmentedGenerationScores():
     """Holds the scores obtained from a generation evaluation metric."""
     # Maps the metric name to the actual scores defined by the metric.
     scores: dict[str, Any]
 
 
 @dataclass
-class RAGScore():
+class RAGScores():
     """Holds the scores obtained from a RAG evaluation metric."""
     retrieval_score: RetrievalScores
-    generation_score: AugmentedGenerationScore
+    generation_score: AugmentedGenerationScores

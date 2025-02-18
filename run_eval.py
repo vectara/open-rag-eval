@@ -1,10 +1,11 @@
-from data_classes.rag_results import RAGResult, RetrievalResult, AugmentedGenerationResult
-from evaluators.trec_evaluator import TRECEvaluator
-from models.models import OpenAIModel
 import os
 
+from data_classes.rag_results import AugmentedGenerationResult, RAGResult, RetrievalResult
+from evaluators.trec_evaluator import TRECEvaluator
+from models.llm_judges import OpenAIModel
+
 def create_dummy_data():
-    query = "What is "
+    query = "What is the capital of France?"
     retrieved_passages = {
         "doc1": "France is a country in Western Europe.",
         "doc2": "Paris is the capital and most populous city of France. Situated on the Seine River, in the north of the country, it is in the centre of the Île-de-France region",
@@ -12,6 +13,9 @@ def create_dummy_data():
         "doc4": "Paris is known for its Eiffel Tower.",
         "doc5": "Spain is a country in Western Europe.",
     }
+
+    # The original output may be "Paris is the capital of France. [2]"
+    # but gets converted to this kev: value format.
     generated_answer = {"doc2": "Paris is the capital of France."}
 
     retrieval_result = RetrievalResult(

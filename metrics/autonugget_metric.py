@@ -1,9 +1,12 @@
+
+from typing import List, Dict, Tuple
+
 import ast
 
 from metrics.base_metrics import AugmentedGenerationMetric
-from models import LLMJudgeModel
+from models.llm_judges import LLMJudgeModel
 from data_classes.rag_results import RAGResult
-from typing import List, Dict, Tuple
+
 
 
 class AutoNuggetMetric(AugmentedGenerationMetric):
@@ -63,7 +66,7 @@ class AutoNuggetMetric(AugmentedGenerationMetric):
 
         Nugget List: {nuggets}
 
-        Only return the list of labels (List[str]). Do not explain.
+        Only return the list of labels (List[str]). Do not explain your answer.
 
         Labels:
     """
