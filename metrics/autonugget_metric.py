@@ -3,9 +3,9 @@ from typing import List, Dict, Tuple
 
 import ast
 
+from data_classes.rag_results import RAGResult
 from metrics.base_metrics import AugmentedGenerationMetric
 from models.llm_judges import LLMJudgeModel
-from data_classes.rag_results import RAGResult
 
 
 
@@ -70,108 +70,145 @@ class AutoNuggetMetric(AugmentedGenerationMetric):
 
         Labels:
     """
-    
     def __init__(self, model: LLMJudgeModel, nugget_creation_iters: int = 5):
         self.model = model        
         self.nugget_creation_iters = nugget_creation_iters
         self.max_nuggets = 30
 
-    def compute(self, rag_result: RAGResult, umbrela_scores: dict[str, int]) -> dict[str, int]:
+    def compute(self, rag_result: RAGResult, umbrela_scores: Dict[str, int]) -> Dict[str, int]:
         retrieval_result = rag_result.retrieval_result
+        try:
+            nuggets = self._create_nuggets(retrieval_result.query, retrieval_result.retrieved_passages, umbrela_scores)
+            sorted_nuggets, sorted_labels = self._score_and_sort_nuggets(retrieval_result.query, nuggets)
+            nugget_assignments = self._assign_nuggets(rag_result.generation_result.query,
+                                                      rag_result.generation_result.generated_answer,
+                                                      sorted_nuggets)
+            scores = self._evaluate_answer(sorted_nuggets, sorted_labels, nugget_assignments)
+            return scores
+        except Exception as e:
+            raise RuntimeError(f"Error computing AutoNuggetMetric: {e}")
 
-        nuggets = self._create_nuggets(retrieval_result.query, retrieval_result.retrieved_passages, umbrela_scores)
-        sorted_nuggets, sorted_labels  = self._score_and_sort_nuggest(retrieval_result.query, nuggets)
-        nugget_assignments = self._assign_nuggets(rag_result.generation_result.query, rag_result.generation_result.generated_answer, sorted_nuggets)
-        scores = self._evaluate_answer(sorted_nuggets, sorted_labels, nugget_assignments)
+    def _create_nuggets(self, query: str, retrieved_passages: Dict[str, str], umbrela_scores: Dict[str, int]) -> List[str]:        
+        """
+        Creates nuggets (concise information units) from retrieved passages based on a query.
 
-        return scores
-
-    def _create_nuggets(self, query: str, retrieved_passages: dict[str, str], umbrela_scores: dict[str, int]) -> List[str]:
-        # Iterate over retrieved passages and umbrela scores together and filter out the passages with score <= 1
-        filtered_passages = {k: v for k, v in retrieved_passages.items() if umbrela_scores[k] >= 1}
+        This method filters passages based on umbrella scores and iteratively generates nuggets
+        using a language model until the maximum number of nuggets is reached or iterations complete.
+      
+        """
+        if not query.strip():
+            raise ValueError("Query cannot be empty.")
+        filtered_passages = {k: v for k, v in retrieved_passages.items() if umbrela_scores.get(k, 0) >= 1}
         context = "\n".join(f"[{i+1}] {seg}" for i, (_, seg) in enumerate(filtered_passages.items()))
         nuggets = []
         for _ in range(self.nugget_creation_iters):
-            prompt = self._NUGGET_CREATION_PROMPT.format(query=query, context=context, initial_nuggets=nuggets, initial_nuggets_length=len(nuggets), max_nuggets=self.max_nuggets)
-            response = self.model.call(prompt)
-            nuggets = ast.literal_eval(response)
+            prompt = self._NUGGET_CREATION_PROMPT.format(
+                query=query,
+                context=context,
+                initial_nuggets=nuggets,
+                initial_nuggets_length=len(nuggets),
+                max_nuggets=self.max_nuggets
+            )
+            try:
+                response = self.model.call(prompt)
+                nuggets = ast.literal_eval(response)
+            except (SyntaxError, ValueError) as e:
+                raise ValueError(f"Failed to parse nugget creation response: {e}")
+
             if len(nuggets) >= self.max_nuggets:
                 break
-
         return nuggets
     
-    def _score_and_sort_nuggest(self, query: str, nuggets: List[str]) -> Tuple[List[str], List[str]]:
-        prompt = self._NUGGET_IMPORTANCE_PROMPT.format(query=query, len_nuggets=len(nuggets), nuggets=nuggets)
-        # Call the model on at most 10 nuggets at a time.
+    def _score_and_sort_nuggets(self, query: str, nuggets: List[str]) -> Tuple[List[str], List[str]]:
+        """
+        Evaluates and ranks a list of text nuggets based on their relevance to a query.
+        Processes nuggets in batches of 10, scores them using an LLM, and returns the top 
+        20 most relevant nuggets along with their importance labels.
+        """
+        if not query.strip():
+            raise ValueError("Query cannot be empty.")
+        if not nuggets:
+            return [], []
         labels = []
-        for i in range(0, len(nuggets), 10):
-            prompt = self._NUGGET_IMPORTANCE_PROMPT.format(query=query, len_nuggets=len(nuggets[i:i+10]), nuggets=nuggets[i:i+10])
-            response = self.model.call(prompt)
-            labels.extend(ast.literal_eval(response))
+        try:
+            for i in range(0, len(nuggets), 10):
+                prompt = self._NUGGET_IMPORTANCE_PROMPT.format(
+                    query=query,
+                    len_nuggets=len(nuggets[i:i+10]),
+                    nuggets=nuggets[i:i+10]
+                )
+                response = self.model.call(prompt)
+                labels.extend(ast.literal_eval(response))
+        except (SyntaxError, ValueError) as e:
+            raise ValueError(f"Failed to parse nugget importance response: {e}")
 
-        # Sort based on the labels, prioritizing "vital" over "okay"
+        if len(labels) != len(nuggets):
+            raise ValueError("Number of labels does not match number of nuggets.")
         sorted_pairs = sorted(zip(nuggets, labels), key=lambda x: x[1] == "okay")
-
-        # Unzip the sorted pairs back into separate lists
         sorted_nuggets, sorted_labels = zip(*sorted_pairs)
-        return sorted_nuggets[:20], sorted_labels[:20]
+        return list(sorted_nuggets[:20]), list(sorted_labels[:20])
     
     def _assign_nuggets(self, query: str, generated_passage: str, nuggets: List[str]) -> List[str]:
-        prompt = self._NUGGET_ASSIGNMENT_PROMPT.format(query=query, len_nuggets=len(nuggets), nuggets=nuggets, generated_passage=generated_passage)
-        # Call the model on at most 10 nuggets at a time.
+        """Evaluates how well each nugget is covered in the generated passage by assigning 
+        support/partial_support/not_support labels"""
+        if not query.strip():
+            raise ValueError("Query cannot be empty.")
+        if not generated_passage.strip():
+            raise ValueError("Generated passage cannot be empty.")
+        if not nuggets:
+            return []
         assignments = []
-        for i in range(0, len(nuggets), 10):
-            prompt = self._NUGGET_ASSIGNMENT_PROMPT.format(query=query, len_nuggets=len(nuggets[i:i+10]), nuggets=nuggets[i:i+10], generated_passage=generated_passage)
-            response = self.model.call(prompt)
-            assignments.extend(ast.literal_eval(response))
+        try:
+            for i in range(0, len(nuggets), 10):
+                prompt = self._NUGGET_ASSIGNMENT_PROMPT.format(
+                    query=query,
+                    len_nuggets=len(nuggets[i:i+10]),
+                    nuggets=nuggets[i:i+10],
+                    generated_passage=generated_passage
+                )
+                response = self.model.call(prompt)
+                assignments.extend(ast.literal_eval(response))
+        except (SyntaxError, ValueError) as e:
+            raise ValueError(f"Failed to parse nugget assignment response: {e}")
+
+        if len(assignments) != len(nuggets):
+            raise ValueError("Number of assignments does not match number of nuggets.")
         return assignments
 
-    def _evaluate_answer(self, nuggets: List[str], labels: List[str], nugget_assignments: List[str]) -> Dict:
-        """Evaluate an answer based on nugget assignments."""
+    def _evaluate_answer(self, nuggets: List[str], labels: List[str], nugget_assignments: List[str]) -> Dict[str, float]:
+        """
+        Calculates various nugget evaluation scores by comparing nugget assignments with their labels.
+        Computes both strict and lenient scores, with weighted versions accounting for vital and okay labels.
+        """
         if len(nugget_assignments) != len(nuggets):
-            raise ValueError("Nugget assignments length must match nuggets length.")
-        
-        # Define scoring rules
-        score_map = {
-            "support": 1.0,
-            "partial_support": 0.5,
-            "not_support": 0.0
-        }
-        
-        # Separate vital and okay nuggets
-        vital_scores = []
-        okay_scores = []
-        strict_vital_scores = []
-        strict_okay_scores = []
-        all_scores = []
-        all_strict_scores = []
-        
+            raise ValueError(f"Nugget assignments length ({len(nugget_assignments)}) must match nuggets length ({len(nuggets)}).")
+        score_map = {"support": 1.0, "partial_support": 0.5, "not_support": 0.0}
+        vital_scores, okay_scores = [], []
+        strict_vital_scores, strict_okay_scores = [], []
+        all_scores, all_strict_scores = [], []
+
         for label, assignment in zip(labels, nugget_assignments):
             score = score_map.get(assignment, 0.0)
             strict_score = 1.0 if assignment == "support" else 0.0
-            
             all_scores.append(score)
             all_strict_scores.append(strict_score)
-            
             if label == "vital":
                 vital_scores.append(score)
                 strict_vital_scores.append(strict_score)
             elif label == "okay":
                 okay_scores.append(score)
                 strict_okay_scores.append(strict_score)
-        
-        # Compute final scores
-        num_nuggets = len(nuggets) if nuggets else 1
-        num_vital = len(vital_scores) if vital_scores else 1
-        num_okay = len(okay_scores) if okay_scores else 1
-        
+
+        num_nuggets = max(len(nuggets), 1)
+        num_vital = max(len(vital_scores), 1)
+        num_okay = max(len(okay_scores), 1)
         all_score = sum(all_scores) / num_nuggets
         all_strict_score = sum(all_strict_scores) / num_nuggets
         vital_score = sum(vital_scores) / num_vital
         vital_strict_score = sum(strict_vital_scores) / num_vital
         weighted_score = (sum(vital_scores) + 0.5 * sum(okay_scores)) / (num_vital + 0.5 * num_okay)
         weighted_strict_score = (sum(strict_vital_scores) + 0.5 * sum(strict_okay_scores)) / (num_vital + 0.5 * num_okay)
-        
+
         return {
             "All": all_score,
             "All Strict": all_strict_score,
