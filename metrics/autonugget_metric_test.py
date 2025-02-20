@@ -43,16 +43,22 @@ class TestAutoNuggetMetric(unittest.TestCase):
         nugget_assignments = ["support", "partial_support"]
 
         scores = self.metric._evaluate_answer(nuggets, labels, nugget_assignments)
-        print(scores)
         expected_scores = {
             "All": 0.75,
             "All Strict": 0.5,
             "Vital": 1.0,
             "Vital Strict": 1.0,
-            "Weighted": 0.75,
-            "Weighted Strict": 0.5
+            "Weighted": 0.83333,
+            "Weighted Strict": 0.66666,
         }
-        self.assertEqual(scores, expected_scores)
+    
+        for key in expected_scores:
+            self.assertAlmostEqual(
+                scores[key], 
+                expected_scores[key], 
+                places=3,  # Number of decimal places to check
+                msg=f"Mismatch for {key}"
+            )
 
 if __name__ == "__main__":
     unittest.main()

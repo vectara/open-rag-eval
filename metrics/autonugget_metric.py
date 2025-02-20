@@ -2,6 +2,7 @@
 from typing import List, Dict, Tuple
 
 import ast
+import logging
 
 from data_classes.rag_results import RAGResult
 from metrics.base_metrics import AugmentedGenerationMetric
@@ -81,12 +82,18 @@ class AutoNuggetMetric(AugmentedGenerationMetric):
             nuggets = self._create_nuggets(retrieval_result.query, retrieval_result.retrieved_passages, umbrela_scores)
             sorted_nuggets, sorted_labels = self._score_and_sort_nuggets(retrieval_result.query, nuggets)
             nugget_assignments = self._assign_nuggets(rag_result.generation_result.query,
-                                                      rag_result.generation_result.generated_answer,
+                                                      rag_result.generation_result.generated_answer,                                                      
                                                       sorted_nuggets)
-            scores = self._evaluate_answer(sorted_nuggets, sorted_labels, nugget_assignments)
+            
+            scores = {}
+            scores["nuggetizer_scores"] = self._evaluate_answer(sorted_nuggets, sorted_labels, nugget_assignments)
+            scores["nuggets"] = sorted_nuggets
+            scores["labels"] = sorted_labels
+            scores["assignments"] = nugget_assignments
+
             return scores
         except Exception as e:
-            raise RuntimeError(f"Error computing AutoNuggetMetric: {e}")
+            raise
 
     def _create_nuggets(self, query: str, retrieved_passages: Dict[str, str], umbrela_scores: Dict[str, int]) -> List[str]:        
         """
@@ -113,7 +120,7 @@ class AutoNuggetMetric(AugmentedGenerationMetric):
                 response = self.model.call(prompt)
                 nuggets = ast.literal_eval(response)
             except (SyntaxError, ValueError) as e:
-                raise ValueError(f"Failed to parse nugget creation response: {e}")
+                raise
 
             if len(nuggets) >= self.max_nuggets:
                 break
@@ -148,9 +155,13 @@ class AutoNuggetMetric(AugmentedGenerationMetric):
         sorted_nuggets, sorted_labels = zip(*sorted_pairs)
         return list(sorted_nuggets[:20]), list(sorted_labels[:20])
     
-    def _assign_nuggets(self, query: str, generated_passage: str, nuggets: List[str]) -> List[str]:
+    def _assign_nuggets(self, query: str, generated_answer: Dict[str, str], nuggets: List[str]) -> List[str]:
         """Evaluates how well each nugget is covered in the generated passage by assigning 
         support/partial_support/not_support labels"""
+
+        # Generated passage maps passage ID to passage text, we need to convert this to a single string.
+        generated_passage = " ".join(generated_answer.values())
+
         if not query.strip():
             raise ValueError("Query cannot be empty.")
         if not generated_passage.strip():
@@ -169,7 +180,7 @@ class AutoNuggetMetric(AugmentedGenerationMetric):
                 response = self.model.call(prompt)
                 assignments.extend(ast.literal_eval(response))
         except (SyntaxError, ValueError) as e:
-            raise ValueError(f"Failed to parse nugget assignment response: {e}")
+            raise
 
         if len(assignments) != len(nuggets):
             raise ValueError("Number of assignments does not match number of nuggets.")
@@ -202,6 +213,7 @@ class AutoNuggetMetric(AugmentedGenerationMetric):
         num_nuggets = max(len(nuggets), 1)
         num_vital = max(len(vital_scores), 1)
         num_okay = max(len(okay_scores), 1)
+                                                                                                  
         all_score = sum(all_scores) / num_nuggets
         all_strict_score = sum(all_strict_scores) / num_nuggets
         vital_score = sum(vital_scores) / num_vital
