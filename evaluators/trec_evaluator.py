@@ -3,10 +3,10 @@ from typing import List
 import logging 
 
 from data_classes.rag_results import RAGResult
-from data_classes.eval_scores import AugmentedGenerationScores, RetrievalScores, RAGScores
+from data_classes.eval_scores import AugmentedGenerationScores, RetrievalScores, RAGScores, ScoredRAGResult
 from evaluators.base_evaluator import Evaluator
 from models.llm_judges import LLMJudgeModel
-from metrics import AutoNuggetMetric, UMBRELAMetric
+from metrics import AutoNuggetMetric, HallucinationMetric, UMBRELAMetric
 
 
 class TRECEvaluator(Evaluator):
@@ -14,25 +14,29 @@ class TRECEvaluator(Evaluator):
         self.model = model
         self.retrieval_metric = UMBRELAMetric(model)
         self.generation_metric = AutoNuggetMetric(model)
+        self.hallucination_metric = HallucinationMetric()
 
-    def evaluate(self, rag_results: RAGResult) -> dict[str, int]:
+    def evaluate(self, rag_results: RAGResult) -> ScoredRAGResult:
         try:
             umbrela_scores = self.retrieval_metric.compute(rag_results.retrieval_result)
             autonugget_scores = self.generation_metric.compute(rag_results, umbrela_scores)
+            hallucination_scores = self.hallucination_metric.compute(rag_results)
 
             rag_scores= RAGScores(
                 RetrievalScores(scores={"umbrela_scores": umbrela_scores}),
-                AugmentedGenerationScores(scores={"autonugget_scores": autonugget_scores}))
+                AugmentedGenerationScores(scores={"autonugget_scores": autonugget_scores,
+                                                  "hhem_scores": hallucination_scores}))
+            
+            return ScoredRAGResult(rag_result=rag_results, scores=rag_scores)
 
-            return rag_scores
         except Exception as e:
             logging.exception(f"Error in TRECEvaluator.evaluate: {str(e)}")
-            # Return empty scores on error.
-            return RetrievalScores(scores={"umbrela_scores": {}})
+            return ScoredRAGResult(rag_result=rag_results, scores=None)               
+            
         
-    def evaluate_batch(self, rag_results: List[RAGResult]) -> dict[str, int]:
+    def evaluate_batch(self, rag_results: List[RAGResult]) -> List[ScoredRAGResult]:
         eval_scores = []
         for result in rag_results:
             eval_scores.append(self.evaluate(result))
-
+            
         return eval_scores        

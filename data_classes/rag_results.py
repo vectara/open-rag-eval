@@ -1,4 +1,4 @@
-# This method defines classes to hold results from a RAG system which need to be evaluated.
+# This file defines classes to hold results from a RAG system which need to be evaluated.
 from dataclasses import dataclass
 
 @dataclass
@@ -25,5 +25,3 @@ class RAGResult:
     """This class holds the output from a RAG system."""
     retrieval_result: RetrievalResult
     generation_result: AugmentedGenerationResult
-    
-    
