@@ -18,7 +18,7 @@ def create_dummy_data():
 
     # The original output may be "Paris is the capital of France. [2]"
     # but gets converted to this kev: value format.
-    generated_answer = {"doc2": "Paris is not the capital of France."}
+    generated_answer = {"doc2": "Paris is the capital of France."}
 
     retrieval_result = RetrievalResult(
         query=query,
@@ -51,6 +51,4 @@ def run_eval():
 
 
 if __name__ == "__main__":
-    run_eval()
-
-    
+    run_eval()    

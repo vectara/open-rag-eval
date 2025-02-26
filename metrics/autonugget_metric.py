@@ -75,6 +75,7 @@ class AutoNuggetMetric(AugmentedGenerationMetric):
         self.model = model        
         self.nugget_creation_iters = nugget_creation_iters
         self.max_nuggets = 30
+        self.assignment_score_map = {"support": 1.0, "partial_support": 0.5, "not_support": 0.0}
 
     def compute(self, rag_result: RAGResult, umbrela_scores: Dict[str, int]) -> Dict[str, int]:
         retrieval_result = rag_result.retrieval_result
@@ -90,6 +91,7 @@ class AutoNuggetMetric(AugmentedGenerationMetric):
             scores["nuggets"] = sorted_nuggets
             scores["labels"] = sorted_labels
             scores["assignments"] = nugget_assignments
+            scores["assignment_scores"] = [self.assignment_score_map[assignment] for assignment in nugget_assignments]
 
             return scores
         except Exception as e:
@@ -193,13 +195,12 @@ class AutoNuggetMetric(AugmentedGenerationMetric):
         """
         if len(nugget_assignments) != len(nuggets):
             raise ValueError(f"Nugget assignments length ({len(nugget_assignments)}) must match nuggets length ({len(nuggets)}).")
-        score_map = {"support": 1.0, "partial_support": 0.5, "not_support": 0.0}
         vital_scores, okay_scores = [], []
         strict_vital_scores, strict_okay_scores = [], []
         all_scores, all_strict_scores = [], []
 
         for label, assignment in zip(labels, nugget_assignments):
-            score = score_map.get(assignment, 0.0)
+            score = self.assignment_score_map.get(assignment, 0.0)
             strict_score = 1.0 if assignment == "support" else 0.0
             all_scores.append(score)
             all_strict_scores.append(strict_score)

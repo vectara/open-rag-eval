@@ -31,7 +31,7 @@ class ScoredRAGResult():
     rag_result: RAGResult
     scores: RAGScores
 
-
+    
 def to_csv(scored_results: List[ScoredRAGResult], file_path: str) -> None:
     """Saves the scored results to a CSV file."""
     results_dict = []
