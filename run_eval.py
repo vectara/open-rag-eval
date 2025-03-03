@@ -1,5 +1,7 @@
 import os
 
+from data_classes import eval_scores
+
 from data_classes.rag_results import AugmentedGenerationResult, RAGResult, RetrievalResult
 from evaluators.trec_evaluator import TRECEvaluator
 from models.llm_judges import OpenAIModel
@@ -42,13 +44,11 @@ def run_eval():
     evaluator = TRECEvaluator(model=OpenAIModel(model_name="gpt-4o-mini", api_key=os.getenv("OPENAI_API_KEY")))
 
     # Run the evaluation, this can be done in a batch or on a single example. Single threaded or multi-threaded.
-    metrics = evaluator.evaluate(rag_result)
+    scored_results = evaluator.evaluate_batch([rag_result])
 
     # Save the results, we need to provide options to save as CSV/JSON or other formats.
-    print(metrics)
+    eval_scores.to_csv(scored_results, "results.csv")
 
 
 if __name__ == "__main__":
-    run_eval()
-
-    
+    run_eval()    

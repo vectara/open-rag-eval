@@ -1,0 +1,92 @@
+from typing import List, Dict
+
+from models.llm_judges import LLMJudgeModel
+from metrics.base_metrics import AugmentedGenerationMetric
+from data_classes.rag_results import RAGResult
+
+class CitationMetric(AugmentedGenerationMetric):
+    """ This metric uses LLM as a judge to determine if the generated answer is supported by the retrieved passages
+        that it cites.  """
+
+    _CITATION_PROMPT = """
+        In this task, you will evaluate whether each statement is
+        supported by its corresponding citations. Note that the system
+        responses may appear very fluent and well-formed, but contain
+        slight inaccuracies that are not easy to discern at first glance.
+        Pay close attention to the text.
+
+        You will be provided with a statement and its corresponding
+        citation. It may be helpful to ask yourself whether it is
+        accurate to say "according to the citation" with a
+        statement following this phrase. Be sure to check all of the
+        information in the statement. You will be given three options:
+
+        - Full Support: All of the information in the statement is
+        supported in the citation.
+
+        - Partial Support: Some parts of the information are supported in
+        the citation, but other parts are missing from the citation.
+
+        - No Support: This citation does not support any part of the
+        statement.
+
+        Please provide your response based on the information in the
+        citation. If you are unsure, use your best judgment. Respond as
+        either ``full_support'', ``partial_support'', or ``no_support''
+        with no additional information.
+
+        Statement: {statement}
+
+        Citation: {citation}
+    """
+
+    def __init__(self, model: LLMJudgeModel):
+        """Initialize the Citation metric.
+        
+        Args:
+            model (LLMJudgeModel): The model to use for the metric assessment.
+        """
+        self.model = model
+        self.score_map = {
+            "full_support": 1,
+            "partial_support": 0.5,
+            "no_support": 0
+        }
+
+    def compute(self, rag_result: RAGResult) -> Dict[str, str]:
+        scores = {}
+        retrieval_result = rag_result.retrieval_result
+        generation_result = rag_result.generation_result
+
+        for key, answer_sentence in generation_result.generated_answer.items():
+            try:
+                passage = retrieval_result.retrieved_passages.get(key, "")
+                if not passage:
+                    raise ValueError(f"No corresponding passage found for key: {key}")
+
+                prompt = self._CITATION_PROMPT.format(
+                    statement=answer_sentence,
+                    citation=passage
+                )
+                response = self.model.call(prompt)
+                label = response.strip().lower()
+
+                if label not in self.score_map.keys():
+                    raise ValueError(f"Invalid label {label}. Must be 'full_support', 'partial_support', or 'no_support'.")
+
+                scores[f"citation_score_{key}"] = self.score_map[label]
+            except Exception as e:
+                raise Exception(f"Error computing Citation score: {str(e)}")
+            
+        # Weighted precision i.e.the weighted proportion of “citations” that support the answer sentence.
+        p = sum(scores.values()) / len(scores)
+        # Weighted recall i.e. proportion of answer sentences that are correctly cited.
+        r = sum(scores.values()) / len(generation_result.generated_answer)
+
+        scores["weighted_precision"] = p
+        scores["weighted_recall"] = r
+
+        scores["f1"] = 2 * (scores["weighted_precision"] * scores["weighted_recall"]) / (scores["weighted_precision"] + scores["weighted_recall"])
+      
+
+        return scores
