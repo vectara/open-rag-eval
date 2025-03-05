@@ -1,3 +1,4 @@
+from dotenv import load_dotenv
 import os
 
 from data_classes import eval_scores
@@ -37,6 +38,7 @@ def create_dummy_data():
 
 def run_eval():
 
+    load_dotenv()
     # Get some data to evaluate. We need to support import from a database, CSV and JSON formats.
     rag_result = create_dummy_data()
 
