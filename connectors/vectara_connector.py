@@ -10,7 +10,8 @@ class VectaraConnector:
         self._api_key = api_key
         self._corpus_key = corpus_key
 
-    def fetch_data(self, num_results=5, input_csv="queries.csv", output_csv="results.csv"):
+    def fetch_data(self, num_results=5, input_csv="queries.csv",
+        output_csv="results.csv"):
         if not all([self._api_key, self._corpus_key, self._customer_id]):
             raise ValueError(
                 "Missing Vectara API configuration (api_key, corpus_key, or customer_id)"
@@ -45,57 +46,29 @@ class VectaraConnector:
 
             # Process each query individually.
             for query in queries:
-                data = self.query(endpoint_url, headers, query, num_results)
+                try:
+                    data = self.query(endpoint_url, headers, query, num_results)
+                except Exception as e:
+                    print(f"Failed to process query {query['queryId']}: {e}")
+                    continue
 
                 # Get the overall summary (generated answer).
                 generated_answer = data.get("summary", "")
 
+                if not generated_answer:
+                    # Skip queries with no generated answer.
+                    continue
+
                 # Get the search results.
                 search_results = data.get("search_results", [])
-                # If no search results, output one row with an empty passage but include summary.
-                if not search_results:
-                    writer.writerow({
-                        "query_id": query["queryId"],
-                        "query": query["query"],
-                        "passage_id": "[1]",
-                        "passage": "",
-                        "generated_answer": generated_answer
-                    })
-                else:
-                    for idx, result in enumerate(search_results, start=1):
-                        row = {"query_id": query["queryId"],
-                               "query": query["query"],
-                               "passage_id": f"[{idx}]",
-                               "passage": result.get("text", ""),
-                               "generated_answer": generated_answer if idx == 1 else ""}
-                        # Only include the generated summary in the first row.
-                        writer.writerow(row)
-                # # Parse generated_answer for citation numbers (e.g., [1], [3], [5]).
-                # citations = re.findall(r'\[(\d+)\]', generated_answer)
-                # # Remove duplicates while preserving order.
-                # seen = set()
-                # citations = [int(c) for c in citations if
-                #              c not in seen and not seen.add(c)]
-                #
-                # # If no citations are found, do not write anything for this query.
-                # if not citations:
-                #     continue
-                #
-                # # Only include search results that correspond to the cited numbers.
-                # for idx, citation in enumerate(citations, start=1):
-                #     # Convert citation number (1-based) to index (0-based).
-                #     search_index = citation - 1
-                #     # Only add if there is a corresponding search result.
-                #     if search_index < len(search_results):
-                #         row = {
-                #             "query_id": query["queryId"],
-                #             "query": query["query"],
-                #             "passage_id": f"[{citation}]",
-                #             "passage": search_results[search_index].get("text",
-                #                                                         ""),
-                #             "generated_answer": generated_answer if idx == 1 else ""
-                #         }
-                #         writer.writerow(row)
+                for idx, result in enumerate(search_results, start=1):
+                    # Only include the generated summary in the first row.
+                    row = {"query_id": query["queryId"],
+                           "query": query["query"],
+                           "passage_id": f"[{idx}]",
+                           "passage": result.get("text", ""),
+                           "generated_answer": generated_answer if idx == 1 else ""}
+                    writer.writerow(row)
 
     def query(self, endpoint_url, headers, query, num_results):
         payload = {
