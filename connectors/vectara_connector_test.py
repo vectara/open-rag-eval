@@ -51,7 +51,7 @@ class TestVectaraConnector(unittest.TestCase):
         mock_post.return_value = mock_response
 
         # Call the fetch_data method.
-        self.connector.fetch_data(str(self.test_csv_path), self.output_csv)
+        self.connector.fetch_data(input_csv=str(self.test_csv_path), output_csv=self.output_csv)
 
         # Now read the output CSV and validate its contents.
         with open(self.output_csv, newline='', encoding='utf-8') as csvfile:
@@ -59,7 +59,7 @@ class TestVectaraConnector(unittest.TestCase):
             rows = list(reader)
 
         # We expect two rows since our dummy response returns 1 search result with citations.
-        self.assertEqual(len(rows), 1)
+        self.assertEqual(len(rows), 2)
 
         # Check the first row: it should have the generated summary and passage_id "[1]"
         row1 = rows[0]
@@ -68,6 +68,13 @@ class TestVectaraConnector(unittest.TestCase):
         self.assertEqual(row1["passage_id"], "[1]")
         self.assertEqual(row1["passage"], "Passage one")
         self.assertEqual(row1["generated_answer"], "Test summary[1]")
+
+        row2 = rows[1]
+        self.assertEqual(row2["query_id"], "query_1")
+        self.assertEqual(row2["query"], "What is the meaning of life?")
+        self.assertEqual(row2["passage_id"], "[2]")
+        self.assertEqual(row2["passage"], "Passage two")
+        self.assertEqual(row2["generated_answer"], "")
 
 
 if __name__ == '__main__':

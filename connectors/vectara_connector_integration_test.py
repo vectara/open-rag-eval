@@ -37,7 +37,7 @@ class TestVectaraConnectorIntegration(unittest.TestCase):
 
     def test_fetch_data_integration(self):
         # This integration test hits the real Vectara API.
-        self.connector.fetch_data(str(self.test_csv_path), self.output_csv)
+        self.connector.fetch_data(input_csv=str(self.test_csv_path), output_csv=self.output_csv)
 
         # Verify that the output CSV file exists.
         output_path = Path(self.output_csv)
