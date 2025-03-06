@@ -1,0 +1,8 @@
+﻿query_id,query,passage_id,passage,generated_answer
+query_1,What is a blackhole?,[1],Blackholes are big.,Black holes are dense [1] They are also big and round [2][3] My name is x[4]
+query_1,What is a blackhole?,[2],Blackholes are dense.,
+query_1,What is a blackhole?,[3],The earth is round.,
+query_2,How big is the sun?,[1],The sun is several million kilometers in diameter.,The sun is several million kilometers in diameter [1]
+query_3,How many planets have moons?,[2],Seven planets have a moon.,Seven [2]
+query_3,How many planets have moons?,[3],Earth has a moon.,
+
