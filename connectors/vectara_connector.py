@@ -1,11 +1,10 @@
+import re
 import uuid
 import csv
 import requests
 
-from connectors.base_connector import Connector
 
-
-class VectaraConnector(Connector):
+class VectaraConnector:
     def __init__(self, customer_id, api_key, corpus_key):
         self._customer_id = customer_id
         self._api_key = api_key
@@ -53,32 +52,38 @@ class VectaraConnector(Connector):
 
                 # Get the search results.
                 search_results = data.get("search_results", [])
-                # If no search results, output one row with an empty passage but include summary.
-                if not search_results:
-                    writer.writerow({
-                        "query_id": query["queryId"],
-                        "query": query["query"],
-                        "passage_id": "[1]",
-                        "passage": "",
-                        "generated_answer": generated_answer
-                    })
-                else:
-                    for idx, result in enumerate(search_results, start=1):
-                        row = {"query_id": query["queryId"],
-                               "query": query["query"],
-                               "passage_id": f"[{idx}]",
-                               "passage": result.get("text", ""),
-                               "generated_answer": generated_answer if idx == 1 else ""}
-                        # Only include the generated summary in the first row.
+                # Parse generated_answer for citation numbers (e.g., [1], [3], [5]).
+                citations = re.findall(r'\[(\d+)\]', generated_answer)
+                # Remove duplicates while preserving order.
+                seen = set()
+                citations = [int(c) for c in citations if
+                             c not in seen and not seen.add(c)]
+
+                # If no citations are found, do not write anything for this query.
+                if not citations:
+                    continue
+
+                # Only include search results that correspond to the cited numbers.
+                for idx, citation in enumerate(citations, start=1):
+                    # Convert citation number (1-based) to index (0-based).
+                    search_index = citation - 1
+                    # Only add if there is a corresponding search result.
+                    if search_index < len(search_results):
+                        row = {
+                            "query_id": query["queryId"],
+                            "query": query["query"],
+                            "passage_id": f"[{citation}]",
+                            "passage": search_results[search_index].get("text",
+                                                                        ""),
+                            "generated_answer": generated_answer if idx == 1 else ""
+                        }
                         writer.writerow(row)
 
     def query(self, endpoint_url, headers, query):
         payload = {
-            "customerId": self._customer_id,
             "query": query["query"],
-            "queryId": query["queryId"],
             "search": {
-                "limit": 10,
+                "limit": 5,
                 "context_configuration": {
                     "characters_before": 30,
                     "characters_after": 30,
