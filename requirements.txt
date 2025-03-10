@@ -5,3 +5,6 @@ torch==2.6.0
 requests~=2.32.3
 dotenv~=0.9.9
 python-dotenv~=1.0.1
+flask==3.0.3
+flask-cors==4.0.1
+pydantic==2.7.4
