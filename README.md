@@ -21,7 +21,6 @@ Several data classes are used to represent the RAG system output (which is the i
 The framework provides a Flask-based web server that exposes endpoints for evaluation:
 - `/api/v1/evaluate`: Evaluate a single RAG output
 - `/api/v1/evaluate_batch`: Evaluate multiple RAG outputs
-- `/api/v1/evaluate_csv`: Evaluate RAG outputs from a CSV file
 
 To run the server:
 ```
