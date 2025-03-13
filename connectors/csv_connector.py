@@ -3,16 +3,18 @@ import pandas as pd
 from pathlib import Path
 import re
 import uuid
+
+from connectors.connector import Connector
 from data_classes.rag_results import RAGResult, RetrievalResult, AugmentedGenerationResult
 
 from typing import Dict, List
 
-class CSVConnector:
+class CSVConnector(Connector):
     def __init__(self, csv_path: str):
         """Initialize the CSV connector with path to CSV file."""
         self.csv_path = Path(csv_path)
         
-    def read(self) -> List[RAGResult]:
+    def fetch_data(self) -> List[RAGResult]:
         """Read the CSV file and convert to RAGResult objects."""
         # Read CSV file
         df = pd.read_csv(self.csv_path)
