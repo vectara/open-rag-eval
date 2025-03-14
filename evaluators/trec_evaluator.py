@@ -8,6 +8,8 @@ from evaluators.base_evaluator import Evaluator
 from models.llm_judges import LLMJudgeModel
 from metrics import AutoNuggetMetric, CitationMetric, HallucinationMetric, UMBRELAMetric
 
+from tqdm import tqdm
+
 
 class TRECEvaluator(Evaluator):
     def __init__(self, model: LLMJudgeModel):
@@ -48,12 +50,13 @@ class TRECEvaluator(Evaluator):
 
         except Exception as e:
             logging.exception(f"Error in TRECEvaluator.evaluate: {str(e)}")
-            return ScoredRAGResult(rag_result=rag_results, scores=None)               
+            rag_scores = RAGScores(RetrievalScores(scores={}), AugmentedGenerationScores(scores={}))
+            return ScoredRAGResult(rag_result=rag_results, scores=rag_scores)
             
         
     def evaluate_batch(self, rag_results: List[RAGResult]) -> List[ScoredRAGResult]:
         eval_scores = []
-        for result in rag_results:
+        for result in tqdm(rag_results):
             eval_scores.append(self.evaluate(result))
             
         return eval_scores

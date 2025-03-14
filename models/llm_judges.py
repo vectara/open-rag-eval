@@ -1,4 +1,6 @@
 from abc import ABC
+from pydantic import BaseModel
+
 import openai
 
 class LLMJudgeModel(ABC):
@@ -39,7 +41,7 @@ class OpenAIModel(LLMJudgeModel):
         try:
             response = self.client.chat.completions.create(
                 model=self.model_name,
-                messages=[{"role": "user", "content": prompt}],
+                messages=[{"role": "user", "content": prompt}],                    
                 **model_kwargs                
             )
             return response.choices[0].message.content
@@ -51,3 +53,18 @@ class OpenAIModel(LLMJudgeModel):
             raise openai.APIError(f"OpenAI API error: {str(e)}")
         except Exception as e:
             raise Exception(f"Unexpected error: {str(e)}")
+        
+    def parse(self, prompt: str, response_format: BaseModel):
+        completion = self.client.beta.chat.completions.parse(
+            model="gpt-4o-2024-08-06",  # Use appropriate model
+            messages=[
+                {"role": "system", "content": "You are a helpful assistant that categorizes items as either 'vital' or 'okay'."},
+                {"role": "user", "content": prompt}
+            ],
+            response_format=response_format,       
+        )
+
+        message = completion.choices[0].message
+                
+        return message
+    
