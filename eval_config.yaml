@@ -10,7 +10,6 @@ evaluator:
     name: "gpt-4o-mini"
     api_key: ${oc.env:OPENAI_API_KEY}  # Reads from environment variable.
 
-
 # connector:
 #   type: "VectaraConnector"
 #   options:
