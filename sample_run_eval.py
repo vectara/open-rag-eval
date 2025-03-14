@@ -1,3 +1,5 @@
+import os
+
 import connectors
 import evaluators
 
@@ -102,8 +104,7 @@ def run_eval(config_path: str):
     scored_results = evaluator.evaluate_batch(rag_results)
 
     # Save the results to the configured output folder
-    output_path = Path(config.connector.output_folder)
-    eval_scores.to_csv(scored_results, str(output_path))
+    eval_scores.to_csv(scored_results, config.output_folder)
 
 if __name__ == "__main__":
     import argparse

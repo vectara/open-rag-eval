@@ -1,8 +1,19 @@
 from typing import List
+from pydantic import BaseModel, Field
+from enum import Enum
 
 from models.llm_judges import LLMJudgeModel
 from metrics.base_metrics import RetrievalMetric
 from data_classes.rag_results import RetrievalResult
+
+class UMBRELAScoreValues(str, Enum):
+    NO_RELEVANCE = "0"
+    RELATED = "1"
+    PARTIAL_ANSWER = "2"
+    EXACT_ANSWER = "3"
+
+class UMBRELAScore(BaseModel):
+    score: UMBRELAScoreValues
 
 class UMBRELAMetric(RetrievalMetric):
     """ This metric is based on the UMBRELA: UMbrela is the (Open-Source Reproduction of the) 
@@ -35,7 +46,7 @@ class UMBRELAMetric(RetrievalMetric):
                         and decide on a final score (O). Final score must be an integer
                         value only.
                         Do not provide any code in result. Provide each score in the
-                        format of: ##final score: score without providing any reasoning."""
+                        format of: a single integer without any reasoning."""
 
     def __init__(self, model: LLMJudgeModel):
         """Initialize the UMBRELA metric.
@@ -57,29 +68,27 @@ class UMBRELAMetric(RetrievalMetric):
 
     def compute(self, retrieval_result: RetrievalResult) -> dict[str, int]:
         scores = {}
+        score_map = {
+            "0": 0,
+            "1": 1,
+            "2": 2,
+            "3": 3
+        }
+        
         for key, passage in retrieval_result.retrieved_passages.items():
             try:
                 query = retrieval_result.query
                 prompt = self.prompt.format(query=query, passage=passage)
-                raw_score = self.model.call(prompt, self.model_kwargs)
+                response = self.model.parse(prompt, response_format=UMBRELAScore)
                 
-                # Extract numeric score from the response
-                try:
-                    # Look for "##final score: X" pattern and extract X
-                    score_str = raw_score.split("##final score:")[-1].strip()
-                    score = int(score_str)
-                    
-                    # Validate score range
-                    if score not in [0, 1, 2, 3]:
-                        raise ValueError(f"Invalid score {score}. Must be between 0 and 3.")
-                    
-                    scores[key] = score
-                except (ValueError, IndexError) as e:
-                    raise ValueError(f"Failed to parse valid score from model response: {raw_score}. Error: {str(e)}")
+                if not response.parsed:
+                    raise ValueError(f"Failed to parse response: {response.refusal}")
+                
+                scores[key] = score_map[response.parsed.score.value]
                     
             except Exception as e:
                 raise Exception(f"Error computing UMBRELA score: {str(e)}")
                 
         return scores
-            
-            
+
+
