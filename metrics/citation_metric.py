@@ -95,7 +95,10 @@ class CitationMetric(AugmentedGenerationMetric):
         scores["weighted_precision"] = p
         scores["weighted_recall"] = r
 
-        scores["f1"] = 2 * (scores["weighted_precision"] * scores["weighted_recall"]) / (scores["weighted_precision"] + scores["weighted_recall"])
+        if scores["weighted_precision"] + scores["weighted_recall"] == 0:
+            scores["f1"] = 0.0
+        else:
+            scores["f1"] = 2 * (scores["weighted_precision"] * scores["weighted_recall"]) / (scores["weighted_precision"] + scores["weighted_recall"])
       
 
         return scores

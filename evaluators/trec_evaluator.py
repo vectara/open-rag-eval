@@ -56,7 +56,7 @@ class TRECEvaluator(Evaluator):
         
     def evaluate_batch(self, rag_results: List[RAGResult]) -> List[ScoredRAGResult]:
         eval_scores = []
-        for result in tqdm(rag_results):
+        for result in tqdm(rag_results, desc="Evaluating using TRECRAG evaluator."):
             eval_scores.append(self.evaluate(result))
             
         return eval_scores

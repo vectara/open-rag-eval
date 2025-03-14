@@ -3,6 +3,8 @@ import uuid
 import csv
 import requests
 
+from tqdm import tqdm
+
 from connectors.connector import Connector
 
 class VectaraConnector(Connector):
@@ -24,7 +26,7 @@ class VectaraConnector(Connector):
             "generation": {
                 "generation_preset_name": "vectara-summary-ext-v1.2.0",
                 "max_used_search_results": 5,
-                "max_response_characters": 300,
+                "max_response_characters": 1000,
                 "response_language": "auto",
             }
         }
@@ -63,7 +65,7 @@ class VectaraConnector(Connector):
             writer.writeheader()
 
             # Process each query individually.
-            for query in queries:
+            for query in tqdm(queries, desc="Running Vectara queries"):
                 try:
                     data = self.query(endpoint_url, headers, query, query_config)
                 except Exception as e:
@@ -114,7 +116,16 @@ class VectaraConnector(Connector):
                                                   self.default_config['search']['context_configuration']['end_tag'])
                 }
             },
-            "generation": generation_config,
+            "generation": {
+                "generation_preset_name": generation_config.get('generation_preset_name',
+                                                               self.default_config['generation']['generation_preset_name']),
+                "max_used_search_results": generation_config.get('max_used_search_results',
+                                                                 self.default_config['generation']['max_used_search_results']),
+                "max_response_characters": generation_config.get('max_response_characters',
+                                                                self.default_config['generation']['max_response_characters']),
+                "response_language": generation_config.get('response_language',
+                                                          self.default_config['generation']['response_language'])
+            },
             "stream_response": False,
             "save_history": False,
             "intelligent_query_rewriting": False

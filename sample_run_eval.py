@@ -91,7 +91,7 @@ def run_eval(config_path: str):
     connector = get_connector(config)
 
     if connector:
-        config["input_results"] = config.options.output_csv
+        config["input_results"] = config.connector.options.output_csv
         # Run queries and save results using connector if one is present.
         connector.fetch_data(
             config.connector.options.query_config,
@@ -104,7 +104,7 @@ def run_eval(config_path: str):
     scored_results = evaluator.evaluate_batch(rag_results)
 
     # Save the results to the configured output folder
-    eval_scores.to_csv(scored_results, config.output_folder)
+    eval_scores.to_csv(scored_results, config.output_results)
 
 if __name__ == "__main__":
     import argparse

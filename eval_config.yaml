@@ -1,7 +1,7 @@
-# input_resultss need to be specified if a connector is not present,
+# input_results need to be specified if a connector is not present,
 # and we already have retrieved results from a RAG system.
-input_results: "/home/suleman/vectara/vectara-eval/responses_eng_eng.csv"
-output_folder: "/home/suleman/vectara/vectara-eval/results.csv"
+# input_results: ""
+output_results: "/home/suleman/vectara/vectara-eval/results.csv"
 
 evaluator:
   type: "TRECEvaluator"  
@@ -10,24 +10,24 @@ evaluator:
     name: "gpt-4o-mini"
     api_key: ${oc.env:OPENAI_API_KEY}  # Reads from environment variable.
 
-# connector:
-#   type: "VectaraConnector"
-#   options:
-#     customer_id: 12345
-#     api_key: ${oc.env:VECTARA_API_KEY}         
-#     corpus_key: "sample_corpus"                      
-#     input_csv: "queries.csv"                    
-#     output_csv: "vectara_results.csv"
-#     query_config:
-#       search:
-#         num_results: 5        
-#         limit: ${num_results}
-#         context_configuration:
-#           sentences_before: 3
-#           sentences_after: 3
-#       generation:
-#         generation_preset_name: "vectara-summary-ext-v1.2.0"
-#         max_used_search_results: 5
-#         max_response_characters: 300
+connector:
+  type: "VectaraConnector"
+  options:
+    customer_id: 159623606
+    api_key: ${oc.env:VECTARA_API_KEY}         
+    corpus_key: "fiqa"                      
+    input_csv: "queries.csv"                    
+    output_csv: "vectara_results.csv"
+    query_config:
+      search:
+        num_results: 5        
+        limit: ${num_results}
+        context_configuration:
+          sentences_before: 3
+          sentences_after: 3
+      generation:
+        generation_preset_name: "mockingbird-1.0-2024-07-16"
+        max_used_search_results: 5
+        max_response_characters: 1000
 
   
