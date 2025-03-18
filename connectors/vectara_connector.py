@@ -3,15 +3,35 @@ import uuid
 import csv
 import requests
 
+from tqdm import tqdm
 
-class VectaraConnector:
+from connectors.connector import Connector
+
+class VectaraConnector(Connector):
     def __init__(self, customer_id, api_key, corpus_key):
         self._customer_id = customer_id
         self._api_key = api_key
         self._corpus_key = corpus_key
 
-    def fetch_data(self, num_results=5, input_csv="queries.csv",
-        output_csv="results.csv"):
+        self.default_config = {
+            "search": {
+                "num_results": 5,
+                "context_configuration": {
+                    "sentences_before": 3,
+                    "sentences_after": 3,
+                    "start_tag": "<em>",
+                    "end_tag": "</em>"
+                }
+            },
+            "generation": {
+                "generation_preset_name": "vectara-summary-ext-v1.2.0",
+                "max_used_search_results": 5,
+                "max_response_characters": 1000,
+                "response_language": "auto",
+            }
+        }
+
+    def fetch_data(self, query_config = {}, input_csv="queries.csv", output_csv="results.csv"):
         if not all([self._api_key, self._corpus_key, self._customer_id]):
             raise ValueError(
                 "Missing Vectara API configuration (api_key, corpus_key, or customer_id)"
@@ -45,9 +65,9 @@ class VectaraConnector:
             writer.writeheader()
 
             # Process each query individually.
-            for query in queries:
+            for query in tqdm(queries, desc="Running Vectara queries"):
                 try:
-                    data = self.query(endpoint_url, headers, query, num_results)
+                    data = self.query(endpoint_url, headers, query, query_config)
                 except Exception as e:
                     print(f"Failed to process query {query['queryId']}: {e}")
                     continue
@@ -70,26 +90,41 @@ class VectaraConnector:
                            "generated_answer": generated_answer if idx == 1 else ""}
                     writer.writerow(row)
 
-    def query(self, endpoint_url, headers, query, num_results):
+    def query(self, endpoint_url, headers, query, query_config):
+        # Get configs or use defaults
+        search_config = query_config.get('search',
+                                          self.default_config['search'])
+        num_results = search_config.get('num_results',
+                                         self.default_config['search']['num_results'])
+        context_config = search_config.get('context_configuration',
+                                            self.default_config['search']['context_configuration'])
+        generation_config = query_config.get('generation',
+                                              self.default_config['generation'])
+
         payload = {
             "query": query["query"],
             "search": {
                 "limit": num_results,
-                "context_configuration": {
-                    "characters_before": 30,
-                    "characters_after": 30,
-                    "sentences_before": 3,
-                    "sentences_after": 3,
-                    "start_tag": "<em>",
-                    "end_tag": "</em>"
+                "context_configuration": {                    
+                    "sentences_before": context_config.get('sentences_before',
+                                                           self.default_config['search']['context_configuration']['sentences_before']),
+                    "sentences_after": context_config.get('sentences_after',
+                                                          self.default_config['search']['context_configuration']['sentences_after']),
+                    "start_tag": context_config.get('start_tag',
+                                                    self.default_config['search']['context_configuration']['start_tag']),
+                    "end_tag": context_config.get('end_tag',
+                                                  self.default_config['search']['context_configuration']['end_tag'])
                 }
             },
             "generation": {
-                "generation_preset_name": "vectara-summary-ext-v1.2.0",
-                "max_used_search_results": num_results,
-                "max_response_characters": 300,
-                "response_language": "auto",
-                "enable_factual_consistency_score": False
+                "generation_preset_name": generation_config.get('generation_preset_name',
+                                                               self.default_config['generation']['generation_preset_name']),
+                "max_used_search_results": generation_config.get('max_used_search_results',
+                                                                 self.default_config['generation']['max_used_search_results']),
+                "max_response_characters": generation_config.get('max_response_characters',
+                                                                self.default_config['generation']['max_response_characters']),
+                "response_language": generation_config.get('response_language',
+                                                          self.default_config['generation']['response_language'])
             },
             "stream_response": False,
             "save_history": False,

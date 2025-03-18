@@ -4,10 +4,33 @@ from typing import List, Dict, Tuple
 import ast
 import logging
 
+from enum import Enum
+from pydantic import BaseModel
+
 from data_classes.rag_results import RAGResult
 from metrics.base_metrics import AugmentedGenerationMetric
 from models.llm_judges import LLMJudgeModel
 
+
+# These classes are used to ensure structured output from the Judge LLM.
+class Nuggets(BaseModel):
+    nuggets: list[str]
+
+class NuggetImportanceValues(str, Enum):
+    VITAL = "vital"
+    OKAY = "okay"
+
+class NuggetImportance(BaseModel):
+    importance: list[NuggetImportanceValues]
+
+
+class NuggetAssignmentValues(str, Enum):
+    SUPPORT = "support"
+    PARTIAL_SUPPORT = "partial_support"
+    NOT_SUPPORT = "not_support"
+
+class NuggetAssignment(BaseModel):
+    assignment: list[NuggetAssignmentValues]
 
 
 class AutoNuggetMetric(AugmentedGenerationMetric):
@@ -119,13 +142,20 @@ class AutoNuggetMetric(AugmentedGenerationMetric):
                 max_nuggets=self.max_nuggets
             )
             try:
-                response = self.model.call(prompt)
-                nuggets = ast.literal_eval(response)
-            except (SyntaxError, ValueError) as e:
-                raise
+                response = self.model.parse(prompt, response_format=Nuggets)
+            except Exception as e:
+                logging.error(f"Failed to create nuggets: {e}")
+                raise e
+            
+            if response.parsed:
+                nuggets = response.parsed.nuggets                        
+            else:
+                logging.error(f"Failed to parse nuggets from response: {response.refusal} for query {query}.")                 
+                raise ValueError(f"Failed to parse nuggets from response: {response.refusal} for query {query}.")                    
 
             if len(nuggets) >= self.max_nuggets:
                 break
+
         return nuggets
     
     def _score_and_sort_nuggets(self, query: str, nuggets: List[str]) -> Tuple[List[str], List[str]]:
@@ -139,18 +169,24 @@ class AutoNuggetMetric(AugmentedGenerationMetric):
         if not nuggets:
             return [], []
         labels = []
-        try:
-            for i in range(0, len(nuggets), 10):
-                prompt = self._NUGGET_IMPORTANCE_PROMPT.format(
-                    query=query,
-                    len_nuggets=len(nuggets[i:i+10]),
-                    nuggets=nuggets[i:i+10]
-                )
-                response = self.model.call(prompt)
-                labels.extend(ast.literal_eval(response))
-        except (SyntaxError, ValueError) as e:
-            raise ValueError(f"Failed to parse nugget importance response: {e}")
-
+        for i in range(0, len(nuggets), 10):
+            prompt = self._NUGGET_IMPORTANCE_PROMPT.format(
+                query=query,
+                len_nuggets=len(nuggets[i:i+10]),
+                nuggets=nuggets[i:i+10]
+            )
+            try:
+                response = self.model.parse(prompt, response_format=NuggetImportance)
+            except Exception as e:
+                logging.error(f"Failed to create nuggets: {e}")
+                raise e
+            
+            if response.parsed:
+                labels.extend(response.parsed.importance)
+            else:
+                logging.error(f"Failed to score nuggets from response: {response.refusal} for query {query}.")                 
+                raise ValueError(f"Failed to score nuggets from response: {response.refusal} for query {query}.")                                
+                        
         if len(labels) != len(nuggets):
             raise ValueError("Number of labels does not match number of nuggets.")
         sorted_pairs = sorted(zip(nuggets, labels), key=lambda x: x[1] == "okay")
@@ -171,18 +207,23 @@ class AutoNuggetMetric(AugmentedGenerationMetric):
         if not nuggets:
             return []
         assignments = []
-        try:
-            for i in range(0, len(nuggets), 10):
-                prompt = self._NUGGET_ASSIGNMENT_PROMPT.format(
-                    query=query,
-                    len_nuggets=len(nuggets[i:i+10]),
-                    nuggets=nuggets[i:i+10],
-                    generated_passage=generated_passage
-                )
-                response = self.model.call(prompt)
-                assignments.extend(ast.literal_eval(response))
-        except (SyntaxError, ValueError) as e:
-            raise
+        for i in range(0, len(nuggets), 10):
+            prompt = self._NUGGET_ASSIGNMENT_PROMPT.format(
+                query=query,
+                len_nuggets=len(nuggets[i:i+10]),
+                nuggets=nuggets[i:i+10],
+                generated_passage=generated_passage
+            )
+            try:
+                response = self.model.parse(prompt, response_format=NuggetAssignment)
+            except Exception as e:
+                logging.error(f"Failed to create nuggets: {e}")
+                raise e
+            if response.parsed:
+                assignments.extend(response.parsed.assignment)
+            else:
+                logging.error(f"Failed to assign nuggets from response: {response.refusal} for query {query}.")                 
+                raise ValueError(f"Failed to assign nuggets from response: {response.refusal} for query {query}.")              
 
         if len(assignments) != len(nuggets):
             raise ValueError("Number of assignments does not match number of nuggets.")

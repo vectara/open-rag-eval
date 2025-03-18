@@ -1,7 +1,14 @@
 import unittest
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, Mock
 
-from metrics.autonugget_metric import AutoNuggetMetric
+from metrics.autonugget_metric import (
+    AutoNuggetMetric, 
+    Nuggets,
+    NuggetImportance, 
+    NuggetAssignment,
+    NuggetImportanceValues,
+    NuggetAssignmentValues
+)
 from models.llm_judges import OpenAIModel
 
 class TestAutoNuggetMetric(unittest.TestCase):
@@ -14,7 +21,11 @@ class TestAutoNuggetMetric(unittest.TestCase):
         query = "test query"
         retrieved_passages = {"1": "passage one", "2": "passage two", "3": "passage 3"}
         umbrela_scores = {"1": 2, "2": 1 ,"3": 0}
-        self.model.call.return_value = '["nugget1", "nugget2"]'
+        
+        mock_response = Mock()
+        mock_response.parsed = Nuggets(nuggets=["nugget1", "nugget2"])
+        mock_response.refusal = None
+        self.model.parse.return_value = mock_response
 
         nuggets = self.metric._create_nuggets(query, retrieved_passages, umbrela_scores)
         self.assertEqual(nuggets, ["nugget1", "nugget2"])
@@ -22,7 +33,15 @@ class TestAutoNuggetMetric(unittest.TestCase):
     def test_score_and_sort_nuggets(self):
         query = "test query"
         nuggets = ["nugget1", "nugget2", "nugget3"]
-        self.model.call.return_value = '["vital", "okay", "vital"]'
+        
+        mock_response = Mock()
+        mock_response.parsed = NuggetImportance(importance=[
+            NuggetImportanceValues.VITAL,
+            NuggetImportanceValues.OKAY,
+            NuggetImportanceValues.VITAL
+        ])
+        mock_response.refusal = None
+        self.model.parse.return_value = mock_response
 
         sorted_nuggets, sorted_labels = self.metric._score_and_sort_nuggets(query, nuggets)
         self.assertEqual(sorted_nuggets, ["nugget1", "nugget3", "nugget2"])
@@ -30,11 +49,18 @@ class TestAutoNuggetMetric(unittest.TestCase):
 
     def test_assign_nuggets(self):
         query = "test query"
-        generated_passage = "generated passage"
+        generated_answer = {"1": "generated passage"}
         nuggets = ["nugget1", "nugget2"]
-        self.model.call.return_value = '["support", "partial_support"]'
+        
+        mock_response = Mock()
+        mock_response.parsed = NuggetAssignment(assignment=[
+            NuggetAssignmentValues.SUPPORT,
+            NuggetAssignmentValues.PARTIAL_SUPPORT
+        ])
+        mock_response.refusal = None
+        self.model.parse.return_value = mock_response
 
-        assignments = self.metric._assign_nuggets(query, generated_passage, nuggets)
+        assignments = self.metric._assign_nuggets(query, generated_answer, nuggets)
         self.assertEqual(assignments, ["support", "partial_support"])
 
     def test_evaluate_answer(self):

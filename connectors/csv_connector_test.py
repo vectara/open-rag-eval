@@ -8,7 +8,7 @@ class TestCSVConnector(unittest.TestCase):
         self.connector = CSVConnector(test_csv_path)
         
     def test_read_results(self):
-        results = self.connector.read()
+        results = self.connector.fetch_data()
         
         # Should return 3 RAGResults (one per query_id)
         self.assertEqual(len(results), 3)

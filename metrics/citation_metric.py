@@ -1,8 +1,18 @@
 from typing import List, Dict
+from enum import Enum
+from pydantic import BaseModel
 
 from models.llm_judges import LLMJudgeModel
 from metrics.base_metrics import AugmentedGenerationMetric
 from data_classes.rag_results import RAGResult
+
+class CitationSupportValues(str, Enum):
+    FULL = "full_support"
+    PARTIAL = "partial_support"
+    NONE = "no_support"
+
+class CitationSupport(BaseModel):
+    support: CitationSupportValues
 
 class CitationMetric(AugmentedGenerationMetric):
     """ This metric uses LLM as a judge to determine if the generated answer is supported by the retrieved passages
@@ -68,12 +78,11 @@ class CitationMetric(AugmentedGenerationMetric):
                     statement=answer_sentence,
                     citation=passage
                 )
-                response = self.model.call(prompt)
-                label = response.strip().lower()
-
-                if label not in self.score_map.keys():
-                    raise ValueError(f"Invalid label {label}. Must be 'full_support', 'partial_support', or 'no_support'.")
-
+                response = self.model.parse(prompt, response_format=CitationSupport)
+                if not response.parsed:
+                    raise ValueError(f"Failed to parse response: {response.refusal}")
+                
+                label = response.parsed.support.value
                 scores[f"citation_score_{key}"] = self.score_map[label]
             except Exception as e:
                 raise Exception(f"Error computing Citation score: {str(e)}")
@@ -86,7 +95,10 @@ class CitationMetric(AugmentedGenerationMetric):
         scores["weighted_precision"] = p
         scores["weighted_recall"] = r
 
-        scores["f1"] = 2 * (scores["weighted_precision"] * scores["weighted_recall"]) / (scores["weighted_precision"] + scores["weighted_recall"])
+        if scores["weighted_precision"] + scores["weighted_recall"] == 0:
+            scores["f1"] = 0.0
+        else:
+            scores["f1"] = 2 * (scores["weighted_precision"] * scores["weighted_recall"]) / (scores["weighted_precision"] + scores["weighted_recall"])
       
 
         return scores
