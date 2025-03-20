@@ -1,6 +1,7 @@
 import unittest
 from pathlib import Path
 from connectors.csv_connector import CSVConnector
+from data_classes.rag_results import GeneratedAnswerPart
 
 class TestCSVConnector(unittest.TestCase):
     def setUp(self):
@@ -28,10 +29,15 @@ class TestCSVConnector(unittest.TestCase):
         self.assertEqual(
             result1.retrieval_result.retrieved_passages["[3]"],
             "The earth is round."
-        )                
+        )
+        print(result1.generation_result.generated_answer)
         self.assertEqual(
             result1.generation_result.generated_answer,
-            {"[1]": "Black holes are dense", "[2]": "They are also big and round", '[4]': 'My name is x'}
+            [
+                GeneratedAnswerPart(text="Black holes are dense", citations=["[1]"]),
+                GeneratedAnswerPart(text="They are also big and round", citations=["[2]", "[3]"]),
+                GeneratedAnswerPart(text="My name is x", citations=['[4]'])
+            ]
         )
 
         # Test second result (query_2) 
@@ -44,7 +50,7 @@ class TestCSVConnector(unittest.TestCase):
         )        
         self.assertEqual(
             result2.generation_result.generated_answer,
-            {"[1]": "The sun is several million kilometers in diameter"}
+            [GeneratedAnswerPart(text="The sun is several million kilometers in diameter", citations=["[1]"])]
         )
 
         # Test third result (query_3)
@@ -61,7 +67,7 @@ class TestCSVConnector(unittest.TestCase):
         )                        
         self.assertEqual(
             result3.generation_result.generated_answer,
-            {"[2]": "Seven"}
+            [GeneratedAnswerPart(text="Seven", citations=["[2]"])]
         )
 
 if __name__ == '__main__':

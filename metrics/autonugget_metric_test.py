@@ -10,6 +10,7 @@ from metrics.autonugget_metric import (
     NuggetAssignmentValues
 )
 from models.llm_judges import OpenAIModel
+from data_classes.rag_results import GeneratedAnswerPart
 
 class TestAutoNuggetMetric(unittest.TestCase):
 
@@ -49,7 +50,7 @@ class TestAutoNuggetMetric(unittest.TestCase):
 
     def test_assign_nuggets(self):
         query = "test query"
-        generated_answer = {"1": "generated passage"}
+        generated_answer = [GeneratedAnswerPart(text="generated passage", citations=["1"])]
         nuggets = ["nugget1", "nugget2"]
         
         mock_response = Mock()

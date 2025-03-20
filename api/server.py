@@ -67,6 +67,15 @@ def convert_scored_results_to_dict(scored_results: List[ScoredRAGResult]) -> Lis
     """Convert ScoredRAGResult objects to JSON-serializable dictionaries."""
     results = []
     for result in scored_results:
+        # Convert generated answer parts to dict for JSON serialization
+        generated_answer = result.rag_result.generation_result.generated_answer
+        generated_answer_list = []
+        for generated_answer_part in generated_answer:
+            generated_answer_list.append({
+                "text": generated_answer_part.text,
+                "citations": generated_answer_part.citations
+            })
+
         if result.scores:
             # Convert the rag_result and scores to dict for JSON serialization
             result_dict = {
@@ -77,7 +86,7 @@ def convert_scored_results_to_dict(scored_results: List[ScoredRAGResult]) -> Lis
                     },
                     "generation_result": {
                         "query": result.rag_result.generation_result.query,
-                        "generated_answer": result.rag_result.generation_result.generated_answer
+                        "generated_answer": generated_answer_list
                     }
                 },
                 "scores": {
@@ -96,7 +105,7 @@ def convert_scored_results_to_dict(scored_results: List[ScoredRAGResult]) -> Lis
                     },
                     "generation_result": {
                         "query": result.rag_result.generation_result.query,
-                        "generated_answer": result.rag_result.generation_result.generated_answer
+                        "generated_answer": generated_answer_list
                     }
                 },
                 "scores": None
