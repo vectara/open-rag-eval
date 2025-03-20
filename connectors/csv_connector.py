@@ -5,9 +5,9 @@ import re
 import uuid
 
 from connectors.connector import Connector
-from data_classes.rag_results import RAGResult, RetrievalResult, AugmentedGenerationResult
+from data_classes.rag_results import RAGResult, RetrievalResult, GeneratedAnswerPart, AugmentedGenerationResult
 
-from typing import Dict, List
+from typing import List
 
 class CSVConnector(Connector):
     def __init__(self, csv_path: str):
@@ -63,22 +63,39 @@ class CSVConnector(Connector):
             results.append(rag_result)
             
         return results
-    
-    def _parse_generated_answer(self, text: str) -> Dict[str, str]:
-        """Extracts text associated with numbered reference markers from a given string."""        
-        # Dictionary to store results
-        references = {}
-        
-        # Split text into segments
-        segments = re.split(r'\[(\d+)\]', text)
-        
-        # Iterate through segments in pairs (text, marker)
-        for i in range(0, len(segments)-1, 2):
-            text_segment = segments[i].strip()
-            marker = f'[{segments[i+1]}]'
-            
-            # Only add non-empty text segments
-            if text_segment:
-                references[marker] = text_segment
-        
-        return references
+
+    def _parse_generated_answer(self, text: str) -> List[GeneratedAnswerPart]:
+        """Extracts text associated with numbered reference markers from a given string."""
+        # Find all citation blocks
+        citation_blocks = list(re.finditer(r'(?:\[\d+\])+', text))
+        if not citation_blocks:
+            return [GeneratedAnswerPart(text=text, citations=[])]
+
+        # List to store results
+        results = []
+
+        # Process each segment between citation blocks
+        for i, block in enumerate(citation_blocks):
+            # Determine start and end of text segment
+            if i == 0:
+                text_start = 0
+            else:
+                text_start = citation_blocks[i-1].end()
+
+            text_end = block.start()
+            text_part = text[text_start:text_end].strip()
+
+            # Extract individual citations from the block
+            citations = re.findall(r'\[\d+\]', block.group())
+
+            # Add the segment with its citations if it's not empty
+            if text_part:
+                results.append(GeneratedAnswerPart(text=text_part, citations=citations))
+
+        # Process the last segment (after the last citation)
+        # Only add it if it's longer than 1 character (a punctuation)
+        last_segment = text[citation_blocks[-1].end():].strip()
+        if len(last_segment) > 1:
+            results.append(GeneratedAnswerPart(text=last_segment, citations=[]))
+
+        return results
