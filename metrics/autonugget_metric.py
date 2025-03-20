@@ -199,7 +199,6 @@ class AutoNuggetMetric(AugmentedGenerationMetric):
 
         # Generated passage maps passage ID to passage text, we need to convert this to a single string.
         generated_passage = " ".join([generated_answer_part.text for generated_answer_part in generated_answer])
-        print(generated_answer)
 
         if not query.strip():
             raise ValueError("Query cannot be empty.")
