@@ -7,9 +7,14 @@ class RetrievalResultSchema(BaseModel):
     retrieved_passages: Dict[str, str]
 
 
+class GeneratedAnswerPartSchema(BaseModel):
+    text: str
+    citations: List[str]
+
+
 class AugmentedGenerationResultSchema(BaseModel):
     query: str
-    generated_answer: Dict[str, str]
+    generated_answer: List[GeneratedAnswerPartSchema]
 
 
 class RAGResultSchema(BaseModel):

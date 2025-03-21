@@ -24,9 +24,7 @@ class HallucinationMetric(AugmentedGenerationMetric):
         for id, passage in retrieval_results.retrieved_passages.items():
             passage_text_collection.append(passage)
 
-        summary_text_collection = []
-        for id, sentence in rag_result.generation_result.generated_answer.items():
-            summary_text_collection.append(sentence)
+        summary_text_collection = [generated_answer_part.text for generated_answer_part in rag_result.generation_result.generated_answer]
 
         sources = " ".join(passage_text_collection)
         summary = " ".join(summary_text_collection)

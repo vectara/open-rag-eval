@@ -68,7 +68,11 @@ class CitationMetric(AugmentedGenerationMetric):
         retrieval_result = rag_result.retrieval_result
         generation_result = rag_result.generation_result
 
-        for key, answer_sentence in generation_result.generated_answer.items():
+        for generated_answer_part in generation_result.generated_answer:
+            answer_sentence, citations = generated_answer_part.text, generated_answer_part.citations
+            if len(citations) == 0:
+                continue
+            key = citations[0]
             try:
                 passage = retrieval_result.retrieved_passages.get(key, "")
                 if not passage:
@@ -81,7 +85,7 @@ class CitationMetric(AugmentedGenerationMetric):
                 response = self.model.parse(prompt, response_format=CitationSupport)
                 if not response.parsed:
                     raise ValueError(f"Failed to parse response: {response.refusal}")
-                
+
                 label = response.parsed.support.value
                 scores[f"citation_score_{key}"] = self.score_map[label]
             except Exception as e:
