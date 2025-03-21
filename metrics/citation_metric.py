@@ -91,10 +91,10 @@ class CitationMetric(AugmentedGenerationMetric):
             except Exception as e:
                 raise Exception(f"Error computing Citation score: {str(e)}")
             
-        # Weighted precision i.e.the weighted proportion of “citations” that support the answer sentence.
-        p = sum(scores.values()) / len(scores)
+        # Weighted precision i.e.the weighted proportion of "citations" that support the answer sentence.
+        p = sum(scores.values()) / len(scores) if scores else 0.0
         # Weighted recall i.e. proportion of answer sentences that are correctly cited.
-        r = sum(scores.values()) / len(generation_result.generated_answer)
+        r = sum(scores.values()) / len(generation_result.generated_answer) if generation_result.generated_answer else 0.0
 
         scores["weighted_precision"] = p
         scores["weighted_recall"] = r
