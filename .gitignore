@@ -163,12 +163,3 @@ cython_debug/
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 .idea/
 results.csv
-
-# Used by Renyi for testing
-connectors/vectara_connector_mockeval.py
-data/queries/
-data/responses/
-data/results/
-get_responses*
-mock_run_eval.py
-draft.ipynb

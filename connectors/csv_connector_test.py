@@ -30,7 +30,6 @@ class TestCSVConnector(unittest.TestCase):
             result1.retrieval_result.retrieved_passages["[3]"],
             "The earth is round."
         )
-        print(result1.generation_result.generated_answer)
         self.assertEqual(
             result1.generation_result.generated_answer,
             [

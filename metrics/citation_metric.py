@@ -72,24 +72,24 @@ class CitationMetric(AugmentedGenerationMetric):
             answer_sentence, citations = generated_answer_part.text, generated_answer_part.citations
             if len(citations) == 0:
                 continue
-            for key in citations:
-                try:
-                    passage = retrieval_result.retrieved_passages.get(key, "")
-                    if not passage:
-                        raise ValueError(f"No corresponding passage found for key: {key}")
+            key = citations[0]
+            try:
+                passage = retrieval_result.retrieved_passages.get(key, "")
+                if not passage:
+                    raise ValueError(f"No corresponding passage found for key: {key}")
 
-                    prompt = self._CITATION_PROMPT.format(
-                        statement=answer_sentence,
-                        citation=passage
-                    )
-                    response = self.model.parse(prompt, response_format=CitationSupport)
-                    if not response.parsed:
-                        raise ValueError(f"Failed to parse response: {response.refusal}")
+                prompt = self._CITATION_PROMPT.format(
+                    statement=answer_sentence,
+                    citation=passage
+                )
+                response = self.model.parse(prompt, response_format=CitationSupport)
+                if not response.parsed:
+                    raise ValueError(f"Failed to parse response: {response.refusal}")
 
-                    label = response.parsed.support.value
-                    scores[f"citation_score_{key}"] = self.score_map[label]
-                except Exception as e:
-                    raise Exception(f"Error computing Citation score: {str(e)}")
+                label = response.parsed.support.value
+                scores[f"citation_score_{key}"] = self.score_map[label]
+            except Exception as e:
+                raise Exception(f"Error computing Citation score: {str(e)}")
             
         # Weighted precision i.e.the weighted proportion of “citations” that support the answer sentence.
         p = sum(scores.values()) / len(scores)
