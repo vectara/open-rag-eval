@@ -1,7 +1,7 @@
 # input_results need to be specified if a connector is not present,
 # and we already have retrieved results from a RAG system.
 # input_results: ""
-output_results: "/home/suleman/vectara/vectara-eval/results.csv"
+output_results: "results.csv"
 
 evaluator:
   type: "TRECEvaluator"  

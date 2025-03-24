@@ -11,17 +11,55 @@ Vectara is the trusted GenAI platform providing simple [APIs](https://docs.vecta
 
 Vectara-eval is an open source python RAG evaluation toolkit used to evaluate RAG pipelines. The toolkit is modular in the sense that it is designed to be easy to add any custom metrics and evaluate the output of any RAG pipeline. 
 
-In addition, out of the box we provide an implementation of the evaluation metrics used in TREC-RAG and also provide a connector to the Vectara RAG platform. Both of these can be used as templates to implement your own metrics and connectors.
+In addition, out of the box we provide an implementation of the evaluation metrics used in TREC-RAG and also provide a connector to the Vectara RAG platform. Both of these can be used as templates to implement your own metrics and connectors to other RAG providers.
 
 # Getting Started Guide
 
-While the framework supports integration into your RAG pipeline programatically or usage via a Flask API, the simple quick start guide shows you how to do an end to end evalution using our sample code. For this purpose we will be using Vectara as the platform running our RAG and the TRECRAG evaluator as our evaluator of choice. If you want to use your own RAG solution instead of Vectara skip to step 3.
+The evaluation framework supports integration into your RAG pipeline programatically or usage via a Flask API. This simple quick start guide however is shows you how to do an end to end evalution using our sample code. For this purpose we will be using Vectara as the platform running our RAG and the TRECRAG evaluator as our evaluator of choice. If you want to use your own RAG solution instead of Vectara skip to step 2.
 
 ## Prerequisites
-* (Optional, if using Vectara as the RAG provider) A [Vectara account](https://console.vectara.com/signup) and corpus with an [API key](https://docs.vectara.com/docs/api-keys) that provides querying permissions
-* [Python 3.8 (or higher)](https://www.python.org/downloads/)
+* (Optional, if using Vectara as the RAG provider) A [Vectara account](https://console.vectara.com/signup) and corpus with an [API key](https://docs.vectara.com/docs/api-keys) that provides querying permissions.
+* [Python 3.8 (or higher)](https://www.python.org/downloads/) with the requirements from `requirements.txt` installed in a virtual env.
+* An OPENAI API Key for the LLM as a judge model.
 
-## Step 1. 
+## Step 1. Set up the Connector
+
+This assumes you already have a Vectara account and corpus with some data indexed. Get your `customer ID` `Corpus ID` and `API Key` from the Vectara console. Update the `eval_config.yaml` file with this information. 
+
+## Step 2. Set up the pipeline
+
+### If using your own RAG pipeline results.
+If you are joining us in step 2 with RAG outputs from your own pipeline, make sure to put your RAG output in a format that is readable by the toolkit (See `data/test_csv_connector.csv` as a sample). Update the `eval_config.yaml` file to comment out or delete the `connector` section, and instead uncomment `input_results` with the path to where your results are stored.`
+
+### If using Vectara
+ If you are following from step 1. and 2. you don't need your own RAG output, the Vectara connector will handle it for you! On the commandline, put your Vectara API key in an env variable called `VECTARA_API_KEY` (export VECTARA_API_KEY=......) the Vectara Connector will handle putting your RAG results into the right format for you. 
+
+
+ In both cases, put your OpenAI API key (needed by the judge LLM) under a `OPENAI_API_KEY` env variable.
+
+## Step 3. Set up queries to evaluate
+
+Create a file called `queries.csv` with a column called `query`. Add the sample queries (one per row) that you want to test under this column. Here is what your CSV should look like:
+
+| query                             |
+|:---------------------------------:|
+| What is a blackhole?              | 
+| How big is the sun?               |
+| How many moons does jupiter have? |
+
+## Step 4. Run evaluation!
+
+With everything configured, now is the time to run evaluation! Run the following command:
+
+```
+python sample_run_eval.py --config eval_config.yaml
+```
+
+and you should see the evaluation progress on your command line. Once it's done, detailed results will be saved to a local CSV file where you can see the score assigned to each sample along with intermediate output useful for debugging and explainability.
+
+## Step 5. Visualize results
+
+Coming soon....
 
 
 # Overview
