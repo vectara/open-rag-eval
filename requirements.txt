@@ -9,3 +9,5 @@ flask==3.0.3
 flask-cors==4.0.1
 pydantic==2.7.4
 omegaconf~=2.3.0
+seaborn~=0.13.2
+matplotlib~=3.10.1
