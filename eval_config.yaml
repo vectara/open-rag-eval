@@ -1,7 +1,7 @@
 # input_results need to be specified if a connector is not present,
 # and we already have retrieved results from a RAG system.
 # input_results: ""
-output_results: "results_non_fiqa.csv"
+output_results: "/home/suleman/vectara/vectara-eval/results.csv"
 
 evaluator:
   type: "TRECEvaluator"  
@@ -16,8 +16,8 @@ connector:
     customer_id: 159623606
     api_key: ${oc.env:VECTARA_API_KEY}         
     corpus_key: "fiqa"                      
-    input_csv: "queries_non_fiqa.csv"                    
-    output_csv: "vectara_results_non_fiqa.csv"
+    input_csv: "queries.csv"                    
+    output_csv: "vectara_results.csv"
     query_config:
       search:
         num_results: 5        
