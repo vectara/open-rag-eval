@@ -135,7 +135,6 @@ class TRECEvaluator(Evaluator):
         # Adjust layout and save
         plt.tight_layout()
         plt.savefig(output_file, dpi=300, bbox_inches='tight')
-        # plt.show()
         plt.close()  # Close the figure to free up memory
         
         print(f"Graph saved to {output_file}")    
