@@ -1,7 +1,10 @@
 # input_results need to be specified if a connector is not present,
-# and we already have retrieved results from a RAG system.
+# and we already have retrieved results from a RAG system. In this case
+# this file is produced by the connector below.
 # input_results: ""
-output_results: "results.csv"
+
+# Evaluation results are written to this CSV.
+evaluation_results: "results.csv"
 
 evaluator:
   type: "TRECEvaluator"  
@@ -16,8 +19,8 @@ connector:
     customer_id: 159623606
     api_key: ${oc.env:VECTARA_API_KEY}         
     corpus_key: "fiqa"                      
-    input_csv: "queries.csv"                    
-    output_csv: "vectara_results.csv"
+    input_queries: "queries.csv"                    
+    generated_answers: "vectara_results.csv"
     query_config:
       search:
         num_results: 5        
