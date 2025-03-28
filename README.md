@@ -120,7 +120,7 @@ python plot_results.py metrics_1.csv metrics_2.csv
 The `vectara-eval` framework follows these general steps during an evaluation:
 
 1.  **(Optional) Data Retrieval:** If configured with a connector (like the Vectara connector), call the specified RAG provider with a set of input queries to generate answers and retrieve relevant document passages/contexts. If using pre-existing results (`input_results`), load them from the specified file.
-2.  **Evaluation:** Use a configured **Evaluator** (e.g., `TRECRAGEvaluator`) to assess the quality of the RAG results (query, answer, contexts). The Evaluator applies one or more **Metrics**.
+2.  **Evaluation:** Use a configured **Evaluator** to assess the quality of the RAG results (query, answer, contexts). The Evaluator applies one or more **Metrics**.
 3.  **Scoring:** Metrics calculate scores based on different quality dimensions (e.g., faithfulness, relevance, context utilization). Some metrics may employ judge **Models** (like LLMs) for their assessment.
 4.  **Reporting:** Generate a detailed report (typically CSV) containing the scores for each query, along with intermediate data useful for analysis and debugging.
 
