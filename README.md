@@ -7,47 +7,69 @@
 
 [![Open in Dev Containers](https://img.shields.io/static/v1?label=Dev%20Containers&message=Open&color=blue&logo=visualstudiocode)](https://vscode.dev/redirect?url=vscode://ms-vscode-remote.remote-containers/cloneInVolume?url=https://github.com/vectara/vectara-eval)
 
-Vectara is the trusted GenAI platform providing simple [APIs](https://docs.vectara.com/docs/) to create conversational experiences—such as chatbots, semantic search, and question answering—from your data.
+**Evaluate and improve your Retrieval-Augmented Generation (RAG) pipelines with `vectara-eval`, an open-source Python evaluation toolkit.**
 
-Vectara-eval is an open source python RAG evaluation toolkit used to evaluate RAG pipelines. The toolkit is modular in the sense that it is designed to be easy to add any custom metrics and evaluate the output of any RAG pipeline. 
+Evaluating RAG quality can be complex. `vectara-eval` provides a flexible and extensible framework to measure the performance of your RAG system, helping you identify areas for improvement. Its modular design allows easy integration of custom metrics and connectors for various RAG implementations.
 
-In addition, out of the box we provide an implementation of the evaluation metrics used in TREC-RAG and also provide a connector to the Vectara RAG platform. Both of these can be used as templates to implement your own metrics and connectors to other RAG providers.
+Out-of-the-box, the toolkit includes:
+* An implementation of the evaluation metrics used in the **TREC-RAG benchmark**.
+* A connector for the **Vectara RAG platform**.
+
+# Key Features
+
+* **Standard Metrics:** Provides TREC-RAG evaluation metrics ready to use.
+* **Vectara Integration:** Seamlessly evaluate pipelines built on the Vectara platform.
+* **Modular Architecture:** Easily add custom evaluation metrics or integrate with any RAG pipeline.
+* **Detailed Reporting:** Generates per-query scores and intermediate outputs for debugging and analysis.
+* **Visualization:** Compare results across different configurations or runs with plotting utilities.
 
 # Getting Started Guide
 
-The evaluation framework supports integration into your RAG pipeline programatically or usage via a Flask API. This simple quick start guide however is shows you how to do an end to end evalution using our sample code. For this purpose we will be using Vectara as the platform running our RAG and the TRECRAG evaluator as our evaluator of choice. If you want to use your own RAG solution instead of Vectara skip to step 2.
+This guide walks you through an end-to-end evaluation using the toolkit. We'll use Vectara as the example RAG platform and the TRECRAG evaluator.
+
+**(Optional) If you want to evaluate results from your own RAG solution instead of Vectara, see Step 2b.**
 
 ## Prerequisites
-* (Optional, if using Vectara as the RAG provider) A [Vectara account](https://console.vectara.com/signup) and corpus with an [API key](https://docs.vectara.com/docs/api-keys) that provides querying permissions.
-* [Python 3.8 (or higher)](https://www.python.org/downloads/) with the requirements from `requirements.txt` installed in a virtual env.
-* An OPENAI API Key for the LLM as a judge model.
 
-## Step 1. Set up the Connector
+* **Python:** Version 3.9 or higher. Install dependencies using `pip install -r requirements.txt` (preferably in a virtual environment).
+* **OpenAI API Key:** Required for the default LLM judge model used in some metrics. Set this as an environment variable: `export OPENAI_API_KEY='your-api-key'`
+* **Vectara Account:** If using the Vectara connector (Step 2a), you need:
+    * A [Vectara account](https://console.vectara.com/signup).
+    * A corpus containing your indexed data.
+    * An [API key](https://docs.vectara.com/docs/api-keys) with querying permissions.
+    * Your Customer ID and Corpus key.
 
-This assumes you already have a Vectara account and corpus with some data indexed. Get your `customer ID` `Corpus ID` and `API Key` from the Vectara console. Update the `eval_config.yaml` file with this information. 
+## Using vectara-eval with the Vectara connector
 
-## Step 2. Set up the pipeline
+**Step 1**. Configure Evaluation Settings
 
-### If using your own RAG pipeline results.
-If you are joining us in step 2 with RAG outputs from your own pipeline, make sure to put your RAG output in a format that is readable by the toolkit (See `data/test_csv_connector.csv` as a sample). Update the `eval_config.yaml` file to comment out or delete the `connector` section, and instead uncomment `input_results` with the path to where your results are stored.`
+Edit the [eval_config.yaml](https://github.com/vectara/vectara-eval/blob/main/eval_config.yaml) file. This file controls the evaluation process, including connector details, evaluator choices, and metric settings. Update the `connector` section with your Vectara `customer_id` and `corpus_key`.
 
-### If using Vectara
- If you are following from step 1. and 2. you don't need your own RAG output, the Vectara connector will handle it for you! On the commandline, put your Vectara API key in an env variable called `VECTARA_API_KEY` (export VECTARA_API_KEY=......) the Vectara Connector will handle putting your RAG results into the right format for you. 
+In addition, make sure you have `VECTARA_API_KEY` and `OPENAI_API_KEY` available in your environment. For example:
+* export VECTARA_API_KEY='your-vectara-api-key'
+* export OPENAI_API_KEY='your-openai-api-key'
 
+**Step 2**. Prepare RAG Output
 
- In both cases, put your OpenAI API key (needed by the judge LLM) under a `OPENAI_API_KEY` env variable.
+You need the results (answers and retrieved contexts) from your RAG system for the queries you want to evaluate.
 
-## Step 3. Set up queries to evaluate
+vectara-eval will automatically query your Vectara corpus and retrieve the results, as defined in your `eval_config.yaml` file.
+Note that you can also include your Vectara API Key as an environment variable: `export VECTARA_API_KEY='your-vectara-api-key'`. The toolkit prioritizes the environment variable over the config file for this specific key.
 
-Create a file called `queries.csv` with a column called `query`. Add the sample queries (one per row) that you want to test under this column. Here is what your CSV should look like:
+**Step 3**. Define Queries for Evaluation
 
-| query                             |
-|:---------------------------------:|
-| What is a blackhole?              | 
-| How big is the sun?               |
-| How many moons does jupiter have? |
+Create a CSV file named `queries.csv` in the root directory. It should contain a single column named `query`, with each row representing a query you want to test against your RAG system.
 
-## Step 4. Run evaluation!
+Example `queries.csv`:
+
+```csv
+query
+"What is a blackhole?"
+"How big is the sun?"
+"How many moons does jupiter have?"
+```
+
+**Step 4.** Run evaluation!
 
 With everything configured, now is the time to run evaluation! Run the following command:
 
@@ -57,7 +79,7 @@ python run_eval.py --config eval_config.yaml
 
 and you should see the evaluation progress on your command line. Once it's done, detailed results will be saved to a local CSV file where you can see the score assigned to each sample along with intermediate output useful for debugging and explainability.
 
-## Step 5. Visualize results
+**Step 5.** Visualize results
 
 You can use the `plot_results.py` script to plot results from your eval runs. Multiple different runs can be plotted on the same plot allowing for easy comparison of different configurations or RAG providers:
 
@@ -65,50 +87,78 @@ You can use the `plot_results.py` script to plot results from your eval runs. Mu
 python plot_results.py metrics_1.csv metrics_2.csv 
 ```
 
-# Overview
+## Using vectara-eval with your own RAG outputs
+If you are using RAG outputs from your own pipeline, make sure to put your RAG output in a format that is readable by the toolkit (See data/test_csv_connector.csv as an example). 
+
+**Step 1.** Configure Evaluation Settings
+Update the `eval_config.yaml` as follows:
+* Comment out or delete the connector section
+* uncomment input_results and point it to the CSV file where your RAG results are stored.
+
+**Step 2**. Define Queries for Evaluation
+Create a CSV file named `queries.csv` in the root directory. 
+It should contain a single column named `query`, with each row representing a query you want to test against your RAG system.
+
+Example `queries.csv`:
+
+```csv
+query
+"What is a blackhole?"
+"How big is the sun?"
+"How many moons does jupiter have?"
+```
+
+**Step 3.** Run evaluation!
+
+With everything configured, now is the time to run evaluation! Run the following command:
+
+```
+python run_eval.py --config eval_config.yaml
+```
+
+and you should see the evaluation progress on your command line. Once it's done, detailed results will be saved to a local CSV file where you can see the score assigned to each sample along with intermediate output useful for debugging and explainability.
+
+**Step 4.** Visualize results
+
+You can use the `plot_results.py` script to plot results from your eval runs. Multiple different runs can be plotted on the same plot allowing for easy comparison of different configurations or RAG providers:
+
+```
+python plot_results.py metrics_1.csv metrics_2.csv 
+```
+
+# How does Vectara-eval work?
 
 ## Evaluation Workflow
 
-The series of steps taken by the evaluation framework during an evaluation process are:
+The `vectara-eval` framework follows these general steps during an evaluation:
 
-1. (Optionally) Call a RAG provider, where your data has already been indexed, with a set of queries to get the output results i.e. generated answers and retreived passages/documents.
+1.  **(Optional) Data Retrieval:** If configured with a connector (like the Vectara connector), call the specified RAG provider with a set of input queries to generate answers and retrieve relevant document passages/contexts. If using pre-existing results (`input_results`), load them from the specified file.
+2.  **Evaluation:** Use a configured **Evaluator** (e.g., `TRECRAGEvaluator`) to assess the quality of the RAG results (query, answer, contexts). The Evaluator applies one or more **Metrics**.
+3.  **Scoring:** Metrics calculate scores based on different quality dimensions (e.g., faithfulness, relevance, context utilization). Some metrics may employ judge **Models** (like LLMs) for their assessment.
+4.  **Reporting:** Generate a detailed report (typically CSV) containing the scores for each query, along with intermediate data useful for analysis and debugging.
 
-3. Use an Evaluator to score your outputs along multiple different dimensions using one or more mertics.
+## Core Abstractions
 
-4. Generate a detailed per-sample report of the scores given to the results of each query.
-
-## Abstractions
-
-In short **Evaluators** use one or more **Metrics** to evaluate the quality of RAG pipeline output in the form of **RAGResults**. Some evaluation metrics use judge **Models**, others may not. Evaluators produce output evaluation metrics represented as ScoredRAGResult**ScoredRAGResult** which can be written to disk as reports, for example in the CSV format.
-
-## Metrics
-
-Metrics are the core of the evaluation. They are used to measure the quality of the RAG system, each metric has a different focus and is used to evaluate different aspects of the RAG system. Metrics can be used to evaluate the quality of the retrieval, the quality of the (augmented) generation, the quality of the RAG system as a whole.
-
-## Models
-
-Models are the underlying judgement models used by some of the metrics. They are used to judge the quality of the RAG system. Models can be diverse. They may be LLMs, classifiers, rule based systems, etc.
-
-## Evaluators
-
-Evaluators can chain together a series of metrics to evaluate the quality of the RAG system.
-
-## Data Classes
-Several data classes are used to represent the RAG system output (which is the input for the evaluators) and the results of the evaluation.
+* **Metrics:** Metrics are the core of the evaluation. They are used to measure the quality of the RAG system, each metric has a different focus and is used to evaluate different aspects of the RAG system. Metrics can be used to evaluate the quality of the retrieval, the quality of the (augmented) generation, the quality of the RAG system as a whole.
+* **Models:** Models are the underlying judgement models used by some of the metrics. They are used to judge the quality of the RAG system. Models can be diverse: they may be LLMs, classifiers, rule based systems, etc.
+* **Evaluators:** Evaluators can chain together a series of metrics to evaluate the quality of the RAG system. 
+* **RAGResults:** Data class representing the output of a RAG pipeline for a single query (input query, generated answer, retrieved contexts/documents). This is the primary input for evaluation.
+* **ScoredRAGResult:** Data class holding the original `RAGResults` plus the scores assigned by the `Evaluator` and its `Metrics`. These are typically collected and saved to the output report file.
 
 # Web API
 
-The framework provides a Flask-based web server that exposes endpoints for evaluation:
-- `/api/v1/evaluate`: Evaluate a single RAG output
-- `/api/v1/evaluate_batch`: Evaluate multiple RAG outputs
+For programmatic integration, the framework provides a Flask-based web server.
 
-To run the server:
-```
+**Endpoints:**
+* `/api/v1/evaluate`: Evaluate a single RAG output provided in the request body.
+* `/api/v1/evaluate_batch`: Evaluate multiple RAG outputs in a single request.
+
+**Run the Server:**
+```bash
 python run_server.py
 ```
 
 See the [API README](/api/README.md) for detailed documentation for the API.
-
 
 ## Author
 
@@ -123,7 +173,8 @@ See the [API README](/api/README.md) for detailed documentation for the API.
 ## 🤝 Contributing
 
 Contributions, issues and feature requests are welcome and appreciated!<br />
-Feel free to check [issues page](https://github.com/vectara/vectara-ingest/issues). You can also take a look at the [contributing guide](https://github.com/vectara/vectara-ingest/blob/master/CONTRIBUTING.md).
+
+Feel free to check [issues page](https://github.com/vectara/vectara-eval/issues). You can also take a look at the [contributing guide](https://github.com/vectara/vectara-eval/blob/master/CONTRIBUTING.md).
 
 ## Show your support
 
@@ -131,5 +182,5 @@ Give a ⭐️ if this project helped you!
 
 ## 📝 License
 
-Copyright © 2024 [Vectara](https://github.com/vectara).<br />
-This project is [Apache 2.0](https://github.com/vectara/vectara-ingest/blob/master/LICENSE) licensed.
+Copyright © 2025 [Vectara](https://github.com/vectara).<br />
+This project is [Apache 2.0](https://github.com/vectara/vectara-eval/blob/master/LICENSE) licensed.
