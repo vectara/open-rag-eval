@@ -25,22 +25,22 @@ class TestVectaraConnectorIntegration(unittest.TestCase):
         # Create a temporary CSV file with one test query.
         cls.test_csv_path = Path(
             "../data/test_vectara_connector_integration.csv")
-        cls.output_csv = "results_integration.csv"
+        cls.generated_answers = "results_integration.csv"
         cls.connector = VectaraConnector(cls.customer_id, cls.api_key,
                                          cls.corpus_key)
 
     @classmethod
     def tearDownClass(cls):
-        output_path = Path(cls.output_csv)
+        output_path = Path(cls.generated_answers)
         if output_path.exists():
             output_path.unlink()
 
     def test_fetch_data_integration(self):
         # This integration test hits the real Vectara API.
-        self.connector.fetch_data(input_csv=str(self.test_csv_path), output_csv=self.output_csv)
+        self.connector.fetch_data(input_csv=str(self.test_csv_path), output_csv=self.generated_answers)
 
         # Verify that the output CSV file exists.
-        output_path = Path(self.output_csv)
+        output_path = Path(self.generated_answers)
         self.assertTrue(output_path.exists(), "Output CSV was not created.")
 
         # Read the output CSV and check that it contains at least one row.

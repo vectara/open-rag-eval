@@ -33,14 +33,14 @@ class TestVectaraConnector(unittest.TestCase):
         self.connector = VectaraConnector(customer_id, api_key, corpus_key)
 
         # Output CSV file for testing.
-        self.output_csv = "results.csv"
+        self.generated_answers = "results.csv"
 
     def tearDown(self):
         # Cleanup the temporary test CSV and output CSV.
         if self.test_csv_path.exists():
             self.test_csv_path.unlink()
-        if Path(self.output_csv).exists():
-            Path(self.output_csv).unlink()
+        if Path(self.generated_answers).exists():
+            Path(self.generated_answers).unlink()
 
     @patch("requests.post")
     def test_fetch_data(self, mock_post):
@@ -51,10 +51,10 @@ class TestVectaraConnector(unittest.TestCase):
         mock_post.return_value = mock_response
 
         # Call the fetch_data method.
-        self.connector.fetch_data(input_csv=str(self.test_csv_path), output_csv=self.output_csv)
+        self.connector.fetch_data(input_csv=str(self.test_csv_path), output_csv=self.generated_answers)
 
         # Now read the output CSV and validate its contents.
-        with open(self.output_csv, newline='', encoding='utf-8') as csvfile:
+        with open(self.generated_answers, newline='', encoding='utf-8') as csvfile:
             reader = csv.DictReader(csvfile)
             rows = list(reader)
 

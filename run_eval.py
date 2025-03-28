@@ -91,12 +91,12 @@ def run_eval(config_path: str):
     connector = get_connector(config)
 
     if connector:
-        config["input_results"] = config.connector.options.output_csv
+        config["input_results"] = config.connector.options.generated_answers
         # Run queries and save results using connector if one is present.
         connector.fetch_data(
             config.connector.options.query_config,
-            config.connector.options.input_csv,
-            config.connector.options.output_csv)
+            config.connector.options.input_queries,
+            config.connector.options.generated_answers)
         
     rag_results = connectors.CSVConnector(config.input_results).fetch_data()
 
@@ -104,7 +104,7 @@ def run_eval(config_path: str):
     scored_results = evaluator.evaluate_batch(rag_results)
 
     # Save the results to the configured output folder
-    eval_scores.to_csv(scored_results, config.output_results)
+    eval_scores.to_csv(scored_results, config.evaluation_results)
 
 if __name__ == "__main__":
     import argparse
