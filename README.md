@@ -18,7 +18,6 @@ Out-of-the-box, the toolkit includes:
 # Key Features
 
 * **Standard Metrics:** Provides TREC-RAG evaluation metrics ready to use.
-* **Vectara Integration:** Seamlessly evaluate pipelines built on the Vectara platform.
 * **Modular Architecture:** Easily add custom evaluation metrics or integrate with any RAG pipeline.
 * **Detailed Reporting:** Generates per-query scores and intermediate outputs for debugging and analysis.
 * **Visualization:** Compare results across different configurations or runs with plotting utilities.
@@ -27,13 +26,11 @@ Out-of-the-box, the toolkit includes:
 
 This guide walks you through an end-to-end evaluation using the toolkit. We'll use Vectara as the example RAG platform and the TRECRAG evaluator.
 
-**(Optional) If you want to evaluate results from your own RAG solution instead of Vectara, see Step 2b.**
-
 ## Prerequisites
 
 * **Python:** Version 3.9 or higher. Install dependencies using `pip install -r requirements.txt` (preferably in a virtual environment).
 * **OpenAI API Key:** Required for the default LLM judge model used in some metrics. Set this as an environment variable: `export OPENAI_API_KEY='your-api-key'`
-* **Vectara Account:** If using the Vectara connector (Step 2a), you need:
+* **Vectara Account:** To enable the Vectara connector, you need:
     * A [Vectara account](https://console.vectara.com/signup).
     * A corpus containing your indexed data.
     * An [API key](https://docs.vectara.com/docs/api-keys) with querying permissions.
@@ -41,7 +38,7 @@ This guide walks you through an end-to-end evaluation using the toolkit. We'll u
 
 ## Using vectara-eval with the Vectara connector
 
-**Step 1**. Configure Evaluation Settings
+### Step 1. Configure Evaluation Settings
 
 Edit the [eval_config.yaml](https://github.com/vectara/vectara-eval/blob/main/eval_config.yaml) file. This file controls the evaluation process, including connector details, evaluator choices, and metric settings. Update the `connector` section with your Vectara `customer_id` and `corpus_key`.
 
@@ -49,14 +46,13 @@ In addition, make sure you have `VECTARA_API_KEY` and `OPENAI_API_KEY` available
 * export VECTARA_API_KEY='your-vectara-api-key'
 * export OPENAI_API_KEY='your-openai-api-key'
 
-**Step 2**. Prepare RAG Output
+### Step 2. Prepare RAG Output
 
 You need the results (answers and retrieved contexts) from your RAG system for the queries you want to evaluate.
 
 vectara-eval will automatically query your Vectara corpus and retrieve the results, as defined in your `eval_config.yaml` file.
-Note that you can also include your Vectara API Key as an environment variable: `export VECTARA_API_KEY='your-vectara-api-key'`. The toolkit prioritizes the environment variable over the config file for this specific key.
 
-**Step 3**. Define Queries for Evaluation
+### Step 3. Define Queries for Evaluation
 
 Create a CSV file named `queries.csv` in the root directory. It should contain a single column named `query`, with each row representing a query you want to test against your RAG system.
 
@@ -64,12 +60,12 @@ Example `queries.csv`:
 
 ```csv
 query
-"What is a blackhole?"
-"How big is the sun?"
-"How many moons does jupiter have?"
+What is a blackhole?
+How big is the sun?
+How many moons does jupiter have?
 ```
 
-**Step 4.** Run evaluation!
+### Step 4. Run evaluation!
 
 With everything configured, now is the time to run evaluation! Run the following command:
 
@@ -79,7 +75,7 @@ python run_eval.py --config eval_config.yaml
 
 and you should see the evaluation progress on your command line. Once it's done, detailed results will be saved to a local CSV file where you can see the score assigned to each sample along with intermediate output useful for debugging and explainability.
 
-**Step 5.** Visualize results
+### Step 5. Visualize results
 
 You can use the `plot_results.py` script to plot results from your eval runs. Multiple different runs can be plotted on the same plot allowing for easy comparison of different configurations or RAG providers:
 
@@ -90,12 +86,12 @@ python plot_results.py metrics_1.csv metrics_2.csv
 ## Using vectara-eval with your own RAG outputs
 If you are using RAG outputs from your own pipeline, make sure to put your RAG output in a format that is readable by the toolkit (See data/test_csv_connector.csv as an example). 
 
-**Step 1.** Configure Evaluation Settings
+### Step 1. Configure Evaluation Settings
 Update the `eval_config.yaml` as follows:
 * Comment out or delete the connector section
-* uncomment input_results and point it to the CSV file where your RAG results are stored.
+* uncomment input_results and point it to the CSV file where your RAG results are stored. Please add single ticks around the file name for better formatting: See data/test_csv_connector.csv as an example
 
-**Step 2.** Run evaluation!
+### Step 2. Run evaluation!
 
 With everything configured, now is the time to run evaluation! Run the following command:
 
@@ -105,7 +101,7 @@ python run_eval.py --config eval_config.yaml
 
 and you should see the evaluation progress on your command line. Once it's done, detailed results will be saved to a local CSV file where you can see the score assigned to each sample along with intermediate output useful for debugging and explainability.
 
-**Step 3.** Visualize results
+### Step 3. Visualize results
 
 You can use the `plot_results.py` script to plot results from your eval runs. Multiple different runs can be plotted on the same plot allowing for easy comparison of different configurations or RAG providers:
 
