@@ -69,7 +69,7 @@ How many moons does jupiter have?
 
 With everything configured, now is the time to run evaluation! Run the following command:
 
-```
+```bash
 python run_eval.py --config eval_config.yaml
 ```
 
@@ -79,7 +79,7 @@ and you should see the evaluation progress on your command line. Once it's done,
 
 You can use the `plot_results.py` script to plot results from your eval runs. Multiple different runs can be plotted on the same plot allowing for easy comparison of different configurations or RAG providers:
 
-```
+```bash
 python plot_results.py metrics_1.csv metrics_2.csv 
 ```
 
@@ -95,7 +95,7 @@ Update the `eval_config.yaml` as follows:
 
 With everything configured, now is the time to run evaluation! Run the following command:
 
-```
+```bash
 python run_eval.py --config eval_config.yaml
 ```
 
@@ -105,7 +105,7 @@ and you should see the evaluation progress on your command line. Once it's done,
 
 You can use the `plot_results.py` script to plot results from your eval runs. Multiple different runs can be plotted on the same plot allowing for easy comparison of different configurations or RAG providers:
 
-```
+```bash
 python plot_results.py metrics_1.csv metrics_2.csv 
 ```
 
