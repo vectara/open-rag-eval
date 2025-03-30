@@ -1,0 +1,19 @@
+[FORMAT]
+max-line-length=120
+
+[DESIGN]
+min-public-methods=1
+max-attributes=12
+max-args=20
+max-locals=25
+
+[MESSAGES CONTROL]
+disable = 
+    missing-class-docstring,
+    missing-module-docstring,
+    broad-exception-caught,
+    broad-exception-raised,
+    too-few-public-methods,
+    missing-function-docstring,
+    unnecessary-pass,
+    line-too-long,

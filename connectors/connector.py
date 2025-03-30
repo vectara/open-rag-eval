@@ -1,2 +1,0 @@
-class Connector:
-    pass

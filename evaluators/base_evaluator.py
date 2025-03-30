@@ -1,2 +1,0 @@
-class Evaluator():
-    pass

@@ -1,11 +1,10 @@
-dotenv~=0.9.9
 flask==3.0.3
 flask-cors==4.0.1
 matplotlib~=3.10.1
 omegaconf~=2.3.0
 openai==1.61.1
 pandas==2.2.3
-pydantic==2.7.4
+pydantic==2.10.6
 python-dotenv~=1.0.1
 requests~=2.32.3
 seaborn~=0.13.2
