@@ -89,7 +89,7 @@ If you are using RAG outputs from your own pipeline, make sure to put your RAG o
 ### Step 1. Configure Evaluation Settings
 Update the `eval_config.yaml` as follows:
 * Comment out or delete the connector section
-* uncomment input_results and point it to the CSV file where your RAG results are stored. Please add single ticks around the file name for better formatting: See data/test_csv_connector.csv as an example
+* uncomment input_results and point it to the CSV file where your RAG results are stored.
 
 ### Step 2. Run evaluation!
 
@@ -103,7 +103,7 @@ and you should see the evaluation progress on your command line. Once it's done,
 
 ### Step 3. Visualize results
 
-You can use the `plot_results.py` script to plot results from your eval runs. Multiple different runs can be plotted on the same plot allowing for easy comparison of different configurations or RAG providers:
+You can use the `plot_results.py` script to plot results from your eval runs. Multiple different runs can be plotted on the same plot allowing for easy comparison of different configurations or RAG providers. For example if the output evaluation results from two runs are saved in metrics_1.csv and metrics_2.csv you can plot both of them as follows:
 
 ```bash
 python plot_results.py metrics_1.csv metrics_2.csv 
