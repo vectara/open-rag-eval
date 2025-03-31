@@ -23,8 +23,7 @@ connector:
     generated_answers: "vectara_results.csv"
     query_config:
       search:
-        num_results: 5        
-        limit: ${num_results}
+        limit: 5
         context_configuration:
           sentences_before: 3
           sentences_after: 3

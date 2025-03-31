@@ -8,16 +8,9 @@ import argparse
 from pathlib import Path
 from omegaconf import OmegaConf
 
-import connectors
-import evaluators
+from vectara_eval import connectors, evaluators, data_classes, models
 
-from data_classes import eval_scores
-from connectors.connector import Connector
-from evaluators.base_evaluator import Evaluator
-from models.llm_judges import OpenAIModel
-
-
-def get_evaluator(config: Dict[str, Any]) -> Evaluator:
+def get_evaluator(config: Dict[str, Any]) -> evaluators.Evaluator:
     """
     Dynamically import and instantiate an evaluator class based on configuration.
 
@@ -33,13 +26,13 @@ def get_evaluator(config: Dict[str, Any]) -> Evaluator:
         evaluator_class = getattr(evaluators, evaluator_type)
 
         # Verify it's a subclass of Evaluator
-        if not issubclass(evaluator_class, Evaluator):
+        if not issubclass(evaluator_class, evaluators.Evaluator):
             raise TypeError(f"{evaluator_type} is not a subclass of Evaluator")
 
         # Create the model instance based on config
         model_config = config.evaluator.model
         if model_config.type.lower() == "openai":
-            model = OpenAIModel(
+            model = models.OpenAIModel(
                 model_name=model_config.name,
                 api_key=model_config.api_key
             )
@@ -52,7 +45,7 @@ def get_evaluator(config: Dict[str, Any]) -> Evaluator:
     except (ImportError, AttributeError) as e:
         raise ImportError(f"Could not load evaluator {evaluator_type}: {str(e)}") from e
 
-def get_connector(config: Dict[str, Any]) -> Connector:
+def get_connector(config: Dict[str, Any]) -> connectors.Connector:
     """
     Dynamically import and instantiate a connector class based on configuration.
 
@@ -113,7 +106,7 @@ def run_eval(config_path: str):
     scored_results = evaluator.evaluate_batch(rag_results)
 
     # Save the results to the configured output folder
-    eval_scores.to_csv(scored_results, config.evaluation_results)
+    data_classes.eval_scores.to_csv(scored_results, config.evaluation_results)
 
 
 if __name__ == "__main__":

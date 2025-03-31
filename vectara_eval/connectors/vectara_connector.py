@@ -1,10 +1,12 @@
 import uuid
 import csv
 import requests
+import json
 
 from tqdm import tqdm
+import omegaconf
 
-from .connector import Connector
+from vectara_eval.connectors.connector import Connector
 
 class VectaraConnector(Connector):
     def __init__(self, customer_id, api_key, corpus_key):
@@ -59,6 +61,7 @@ class VectaraConnector(Connector):
             for row in reader:
                 query_text = row.get("query")
                 if not query_text:
+                    print(f"Skipping row without query: {row}")
                     continue  # skip rows without a query
                 # Use provided query_id or generate one if not present.
                 query_id = row.get("query_id") or str(uuid.uuid4())
@@ -114,10 +117,15 @@ class VectaraConnector(Connector):
             search = query_config.get('search', self.default_config['search'])
             generation = query_config.get('generation', self.default_config['generation'])
 
+        if isinstance(search, omegaconf.dictconfig.DictConfig):
+            search_dict = omegaconf.OmegaConf.to_container(search, resolve=True)
+        if isinstance(generation, omegaconf.dictconfig.DictConfig):
+            generation_dict = omegaconf.OmegaConf.to_container(generation, resolve=True)
+
         payload = {
             "query": query["query"],
-            "search": search,
-            "generation": generation,
+            "search": search_dict,
+            "generation": generation_dict,
             "stream_response": False,
             "save_history": True,
             "intelligent_query_rewriting": False
