@@ -11,7 +11,7 @@ The plot is saved by default to a 'metrics_comparison.png' file.
 """
 
 import argparse
-from evaluators.plot import plot_metrics
+from evaluators.trec_evaluator import TRECEvaluator
 
 def main():
     """
@@ -34,7 +34,7 @@ def main():
     args = parser.parse_args()
 
     # Plot the metrics
-    plot_metrics(args.csv_files, args.output)
+    TRECEvaluator.plot_metrics(args.csv_files, args.output)
 
 
 if __name__ == '__main__':

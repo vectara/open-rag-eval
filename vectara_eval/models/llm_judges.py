@@ -45,18 +45,18 @@ class OpenAIModel(LLMJudgeModel):
                 **model_kwargs
             )
             return response.choices[0].message.content
-        except openai.RateLimitError as e:
-            raise openai.RateLimitError(f"Rate limit exceeded: {str(e)}")
-        except openai.APIConnectionError as e:
-            raise openai.APIConnectionError(f"Network error: {str(e)}")
-        except openai.APIError as e:
-            raise openai.APIError(f"OpenAI API error: {str(e)}")
+        except openai.RateLimitError:
+            raise
+        except openai.APIConnectionError:
+            raise
+        except openai.APIError:
+            raise
         except Exception as e:
-            raise Exception(f"Unexpected error: {str(e)}")
+            raise Exception(f"Unexpected error: {str(e)}") from e
 
     def parse(self, prompt: str, response_format: BaseModel):
         completion = self.client.beta.chat.completions.parse(
-            model="gpt-4o-2024-08-06",  # Use appropriate model
+            model="gpt-4o-mini",  # Use appropriate model
             messages=[
                 {
                     "role": "system",

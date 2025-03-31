@@ -118,8 +118,8 @@ class AutoNuggetMetric(AugmentedGenerationMetric):
 
             return scores
         except Exception as e:
-            logging.error(f"Failed to compute nugget metric: {e}")
-            return
+            logging.error("Failed to compute nugget metric: %s", str(e))
+            return {}
 
     def _create_nuggets(self, query: str, retrieved_passages: Dict[str, str], umbrela_scores: Dict[str, int]) -> List[str]:
         """

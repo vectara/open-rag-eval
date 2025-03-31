@@ -17,3 +17,4 @@ disable =
     missing-function-docstring,
     unnecessary-pass,
     line-too-long,
+    logging-fstring-interpolation,

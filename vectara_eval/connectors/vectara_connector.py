@@ -14,23 +14,39 @@ class VectaraConnector(Connector):
 
         self.default_config = {
             "search": {
-                "num_results": 5,
+                "lexical_interpolation": 0.005,
+                "limit": 100,
                 "context_configuration": {
                     "sentences_before": 3,
                     "sentences_after": 3,
                     "start_tag": "<em>",
                     "end_tag": "</em>"
+                },
+                "reranker": {
+                    "type": "chain",
+                    "rerankers": [
+                        {
+                            "type": "customer_reranker",
+                            "reranker_name": "Rerank_Multilingual_v1",
+                            "limit": 50
+                        },
+                        {
+                            "type": "mmr",
+                            "diversity_bias": 0.01,
+                            "limit": 10
+                        }
+                    ]
                 }
             },
             "generation": {
                 "generation_preset_name": "vectara-summary-table-md-query-ext-jan-2025-gpt-4o",
                 "max_used_search_results": 5,
-                "max_response_characters": 1000,
                 "response_language": "auto",
+                "citations": {"style": "numeric"},
             }
         }
 
-    def fetch_data(self, query_config = {}, input_csv="queries.csv", output_csv="results.csv"):
+    def fetch_data(self, query_config=None, input_csv="queries.csv", output_csv="results.csv"):
         if not all([self._api_key, self._corpus_key, self._customer_id]):
             raise ValueError(
                 "Missing Vectara API configuration (api_key, corpus_key, or customer_id)"
@@ -91,37 +107,19 @@ class VectaraConnector(Connector):
 
     def query(self, endpoint_url, headers, query, query_config):
         # Get configs or use defaults
-        search_config = query_config.get('search', self.default_config['search'])
-        num_results = search_config.get('num_results', self.default_config['search']['num_results'])
-
-        # Search context config
-        context_config = search_config.get(
-            'context_configuration',
-            self.default_config['search']['context_configuration']
-        )
-        context_configuration = {
-            key: context_config.get(key, self.default_config['search']['context_configuration'])
-            for key in ['sentences_before', 'sentences_after', 'start_tag', 'end_tag']
-        }
-
-        # Generation config
-        gen_defaults = self.default_config['generation']
-        generation_config = query_config.get('generation', self.default_config['generation'])
-        generation = {
-            key: generation_config.get(key, gen_defaults[key])
-            for key in ['generation_preset_name', 'max_used_search_results',
-                        'max_response_characters', 'response_language']
-        }
+        if query_config is None:
+            search = self.default_config['search']
+            generation = self.default_config['generation']
+        else:
+            search = query_config.get('search', self.default_config['search'])
+            generation = query_config.get('generation', self.default_config['generation'])
 
         payload = {
             "query": query["query"],
-            "search": {
-                "limit": num_results,
-                "context_configuration": context_configuration,
-            },
+            "search": search,
             "generation": generation,
             "stream_response": False,
-            "save_history": False,
+            "save_history": True,
             "intelligent_query_rewriting": False
         }
 
