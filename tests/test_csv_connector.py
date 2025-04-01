@@ -5,7 +5,7 @@ from vectara_eval.data_classes.rag_results import GeneratedAnswerPart
 
 class TestCSVConnector(unittest.TestCase):
     def setUp(self):
-        test_csv_path = Path("data/test_csv_connector.csv")
+        test_csv_path = Path("tests/data/test_csv_connector.csv")
         self.connector = CSVConnector(test_csv_path)
 
     def test_read_results(self):
