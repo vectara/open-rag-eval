@@ -1,7 +1,7 @@
 import unittest
 from pathlib import Path
-from connectors.csv_connector import CSVConnector
-from data_classes.rag_results import GeneratedAnswerPart
+from vectara_eval.connectors.csv_connector import CSVConnector
+from vectara_eval.data_classes.rag_results import GeneratedAnswerPart
 
 class TestCSVConnector(unittest.TestCase):
     def setUp(self):
