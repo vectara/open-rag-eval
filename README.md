@@ -28,13 +28,31 @@ This guide walks you through an end-to-end evaluation using the toolkit. We'll u
 
 ## Prerequisites
 
-* **Python:** Version 3.9 or higher. Install dependencies using `pip install -r requirements.txt` (preferably in a virtual environment).
+* **Python:** Version 3.9 or higher.
 * **OpenAI API Key:** Required for the default LLM judge model used in some metrics. Set this as an environment variable: `export OPENAI_API_KEY='your-api-key'`
 * **Vectara Account:** To enable the Vectara connector, you need:
     * A [Vectara account](https://console.vectara.com/signup).
     * A corpus containing your indexed data.
     * An [API key](https://docs.vectara.com/docs/api-keys) with querying permissions.
     * Your Customer ID and Corpus key.
+
+## Installation
+
+In order to build the library from source, which is the recommended method to follow the sample instructions below you can do:
+
+```
+$ git clone https://github.com/vectara/vectara-eval.git
+$ cd vectara-eval
+$ pip install -e .
+```
+
+If you want to install directly from pip, which is the common method if you want to use the library in your own pipeline instead of running the samples, you can run:
+
+```
+pip install vectara-eval
+```
+
+After installing the library you can follow instructions below to run a sample evaluation and test out the library end to end. 
 
 ## Using vectara-eval with the Vectara connector
 
@@ -67,10 +85,10 @@ How many moons does jupiter have?
 
 ### Step 4. Run evaluation!
 
-With everything configured, now is the time to run evaluation! Run the following command:
+With everything configured, now is the time to run evaluation! Run the following command from the root directory:
 
 ```bash
-python run_eval.py --config eval_config.yaml
+python vectara_eval/run_eval.py --config eval_config.yaml
 ```
 
 and you should see the evaluation progress on your command line. Once it's done, detailed results will be saved to a local CSV file where you can see the score assigned to each sample along with intermediate output useful for debugging and explainability.
@@ -80,11 +98,11 @@ and you should see the evaluation progress on your command line. Once it's done,
 You can use the `plot_results.py` script to plot results from your eval runs. Multiple different runs can be plotted on the same plot allowing for easy comparison of different configurations or RAG providers:
 
 ```bash
-python plot_results.py metrics_1.csv metrics_2.csv 
+python vectara_eval/plot_results.py metrics_1.csv metrics_2.csv 
 ```
 
 ## Using vectara-eval with your own RAG outputs
-If you are using RAG outputs from your own pipeline, make sure to put your RAG output in a format that is readable by the toolkit (See data/test_csv_connector.csv as an example). 
+If you are using RAG outputs from your own pipeline, make sure to put your RAG output in a format that is readable by the toolkit (See `data/test_csv_connector.csv` as an example). 
 
 ### Step 1. Configure Evaluation Settings
 Update the `eval_config.yaml` as follows:
@@ -96,17 +114,17 @@ Update the `eval_config.yaml` as follows:
 With everything configured, now is the time to run evaluation! Run the following command:
 
 ```bash
-python run_eval.py --config eval_config.yaml
+python vectara_eval/run_eval.py --config eval_config.yaml
 ```
 
 and you should see the evaluation progress on your command line. Once it's done, detailed results will be saved to a local CSV file where you can see the score assigned to each sample along with intermediate output useful for debugging and explainability.
 
 ### Step 3. Visualize results
 
-You can use the `plot_results.py` script to plot results from your eval runs. Multiple different runs can be plotted on the same plot allowing for easy comparison of different configurations or RAG providers. For example if the output evaluation results from two runs are saved in metrics_1.csv and metrics_2.csv you can plot both of them as follows:
+You can use the `vectara_eval/plot_results.py` script to plot results from your eval runs. Multiple different runs can be plotted on the same plot allowing for easy comparison of different configurations or RAG providers. For example if the output evaluation results from two runs are saved in `metrics_1.csv` and `metrics_2.csv` you can plot both of them as follows:
 
 ```bash
-python plot_results.py metrics_1.csv metrics_2.csv 
+python vectara_eval/plot_results.py metrics_1.csv metrics_2.csv 
 ```
 
 # How does Vectara-eval work?
@@ -138,7 +156,7 @@ For programmatic integration, the framework provides a Flask-based web server.
 
 **Run the Server:**
 ```bash
-python run_server.py
+python vectara_eval/run_server.py
 ```
 
 See the [API README](/api/README.md) for detailed documentation for the API.

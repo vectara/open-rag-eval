@@ -4,18 +4,14 @@ This module provides a Flask-based web server for the vectara-eval framework. It
 
 ## Installation
 
-Make sure to install all dependencies:
-
-```bash
-pip install -r requirements.txt
-```
+Make sure you have installed the vectara-eval package. See the main README for instructions. Please make sure you have `OPENAI_API_KEY` set as an env variable (or in a .env file) if you want to use OpenAI Judge models.
 
 ## Running the Server
 
 Run the server using the provided script:
 
 ```bash
-python run_server.py [--host HOST] [--port PORT] [--debug]
+python server.py [--host HOST] [--port PORT] [--debug]
 ```
 
 Options:
@@ -43,20 +39,32 @@ POST /api/v1/evaluate
 
 Request Body:
 ```json
-{
-  "rag_result": {
-    "retrieval_result": {
-      "query": "string",
-      "retrieved_passages": {"passage_id": "passage_text", ...}
+
+    "rag_result": {
+      "retrieval_result": {
+        "query": "What is machine learning?",
+        "retrieved_passages": {
+          "p1": "Machine learning is a subset of artificial intelligence that focuses on developing systems that learn from data.",
+          "p2": "Machine learning algorithms build mathematical models based on sample data to make predictions without being explicitly programmed."
+        }
+      },
+      "generation_result": {
+        "query": "What is machine learning?",
+        "generated_answer": [
+          {
+            "text": "Machine learning is a branch of artificial intelligence that enables systems to learn and improve from experience without being explicitly programmed.",
+            "citations": ["p1", "p2"]
+          },
+          {
+            "text": "It works by building mathematical models based on sample data to make predictions or decisions.",
+            "citations": ["p2"]
+          }
+        ]
+      }
     },
-    "generation_result": {
-      "query": "string", 
-      "generated_answer": {"passage_id": "answer_segment", ...}
-    }
-  },
-  "evaluator_name": "trec",
-  "model_name": "gpt-4o-mini"
-}
+    "evaluator_name": "trec",
+    "model_name": "gpt-4o-mini"
+  }
 ```
 
 ### 3. Evaluate a Batch of RAG Outputs
@@ -71,17 +79,28 @@ Request Body:
 ```json
 {
   "rag_results": [
-    {
+     {
       "retrieval_result": {
-        "query": "string",
-        "retrieved_passages": {"passage_id": "passage_text", ...}
+        "query": "What is machine learning?",
+        "retrieved_passages": {
+          "p1": "Machine learning is a subset of artificial intelligence that focuses on developing systems that learn from data.",
+          "p2": "Machine learning algorithms build mathematical models based on sample data to make predictions without being explicitly programmed."
+        }
       },
       "generation_result": {
-        "query": "string", 
-        "generated_answer": {"passage_id": "answer_segment", ...}
+        "query": "What is machine learning?",
+        "generated_answer": [
+          {
+            "text": "Machine learning is a branch of artificial intelligence that enables systems to learn and improve from experience without being explicitly programmed.",
+            "citations": ["p1", "p2"]
+          },
+          {
+            "text": "It works by building mathematical models based on sample data to make predictions or decisions.",
+            "citations": ["p2"]
+          }
+        ]
       }
-    },
-    ...
+    }
   ],
   "evaluator_name": "trec", 
   "model_name": "gpt-4o-mini"

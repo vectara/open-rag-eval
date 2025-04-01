@@ -65,6 +65,7 @@ class TRECEvaluator(Evaluator):
 
         return eval_scores
 
+    @classmethod
     def plot_metrics(self, csv_files, output_file='metrics_comparison.png'):
         """Plot bar graphs for specified metrics across multiple CSV files and save to a file. """
         # Metrics to plot
