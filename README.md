@@ -85,7 +85,7 @@ How many moons does jupiter have?
 
 ### Step 4. Run evaluation!
 
-With everything configured, now is the time to run evaluation! Run the following command from the root directory:
+With everything configured, now is the time to run evaluation! Run the following command from the root folder of vectara-eval:
 
 ```bash
 python vectara_eval/run_eval.py --config eval_config.yaml
