@@ -4,8 +4,8 @@ from pathlib import Path
 import re
 import uuid
 
-from connectors.connector import Connector
-from data_classes.rag_results import RAGResult, RetrievalResult, GeneratedAnswerPart, AugmentedGenerationResult
+from vectara_eval.connectors.connector import Connector
+from vectara_eval.data_classes.rag_results import RAGResult, RetrievalResult, GeneratedAnswerPart, AugmentedGenerationResult
 
 from typing import List
 
