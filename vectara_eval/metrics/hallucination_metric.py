@@ -4,6 +4,10 @@ from transformers import AutoModelForSequenceClassification
 from vectara_eval.metrics.base_metrics import AugmentedGenerationMetric
 from vectara_eval.data_classes.rag_results import RAGResult
 
+# Set number of cores to 2 to avoid heavy CPU usage
+import torch
+torch.set_num_threads(2)
+
 class HallucinationMetric(AugmentedGenerationMetric):
     """ This metric uses the Vectara Hallucination Evaluation Model to detect hallucinations in RAG output. """
 
