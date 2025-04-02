@@ -1,12 +1,12 @@
-
-import re
-import uuid
 from typing import List
 from pathlib import Path
+import re
+import uuid
 import pandas as pd
 
+from vectara_eval.connectors.connector import Connector
 from vectara_eval.data_classes.rag_results import RAGResult, RetrievalResult, GeneratedAnswerPart, AugmentedGenerationResult
-from .connector import Connector
+
 
 class CSVConnector(Connector):
     def __init__(self, csv_path: str):
@@ -65,8 +65,22 @@ class CSVConnector(Connector):
 
     def _parse_generated_answer(self, text: str) -> List[GeneratedAnswerPart]:
         """Extracts text associated with numbered reference markers from a given string."""
-        # Find all citation blocks
+        # First, expand multi-number citations like [1, 2, 3] to [1][2][3]
+        def expand_multi_number_citation(match):
+            numbers = re.findall(r'\d+', match.group())
+            return ''.join([f"[{num}]" for num in numbers])
+
+        # Find and replace [1, 2, 3] format
+        multi_number_pattern = r'\[\d+(?:,\s*\d+)+\]'
+        text = re.sub(multi_number_pattern, expand_multi_number_citation, text)
+
+        # Next, handle [1], [2] format by removing commas between citations
+        comma_separated_pattern = r'\]\s*,\s*\['
+        text = re.sub(comma_separated_pattern, '][', text)
+
+        # Now use the original pattern to find citation blocks
         citation_blocks = list(re.finditer(r'(?:\[\d+\])+', text))
+
         if not citation_blocks:
             return [GeneratedAnswerPart(text=text, citations=[])]
 
@@ -92,7 +106,6 @@ class CSVConnector(Connector):
                 results.append(GeneratedAnswerPart(text=text_part, citations=citations))
 
         # Process the last segment (after the last citation)
-        # Only add it if it's longer than 1 character (a punctuation)
         last_segment = text[citation_blocks[-1].end():].strip()
         if len(last_segment) > 1:
             results.append(GeneratedAnswerPart(text=last_segment, citations=[]))

@@ -27,9 +27,16 @@ def evaluate_single_result():
         },
         "generation_result": {
             "query": "What is the capital of France?",
-            "generated_answer": {
-                "doc2": "Paris is the capital of France."
-            }
+            "generated_answer": [
+                {
+                    "text": "The capital of France is Paris",
+                    "citations": ["doc2", "doc3"]
+                },
+                {
+                    "text": "Paris is the largest city in france.",
+                    "citations": ["doc2"]
+                }
+            ]
         }
     }
 
@@ -71,9 +78,16 @@ def evaluate_batch_results():
             },
             "generation_result": {
                 "query": "What is the capital of France?",
-                "generated_answer": {
-                    "doc2": "Paris is the capital of France."
-                }
+                "generated_answer": [
+                    {
+                        "text": "The capital of France is Paris",
+                        "citations": ["doc2", "doc3"]
+                    },
+                    {
+                        "text": "Paris is the largest city in france.",
+                        "citations": ["doc2"]
+                    }
+                ]
             }
         },
         {
@@ -88,10 +102,16 @@ def evaluate_batch_results():
             },
             "generation_result": {
                 "query": "What is the tallest mountain in the world?",
-                "generated_answer": {
-                    "doc1": "Mount Everest is the tallest mountain in the world",
-                    "doc3": "with a height of 8,848.86 meters (29,031.7 ft)."
-                }
+                "generated_answer": [
+                    {
+                        "text": "Mount Everest is the tallest mountain.",
+                        "citations": ["doc1", "doc2"]
+                    },
+                    {
+                        "text": "It's height is 8848 meters.",
+                        "citations": ["doc3"]
+                    }
+                ]
             }
         }
     ]
@@ -132,8 +152,8 @@ def check_server_health():
 
 if __name__ == "__main__":
     # Check server health
-    # check_server_health()
+    check_server_health()
 
-    # Example usage (uncomment to run)
-    # evaluate_single_result()
+    # Example usage.
+    evaluate_single_result()
     evaluate_batch_results()

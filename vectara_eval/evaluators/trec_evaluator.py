@@ -1,9 +1,5 @@
 from typing import List
 import logging
-import os
-
-import matplotlib.pyplot as plt
-import pandas as pd
 import numpy as np
 from tqdm import tqdm
 
@@ -127,57 +123,3 @@ class TRECEvaluator(Evaluator):
                     if i == 0:
                         bp['medians'][i].set_label(f'Median: {median_val:.4f}')
             ax.legend(fontsize=12 if single else 9)
-
-        # Define the metrics to be plotted.
-        metrics = [
-            'retrieval_score_mean_umbrela_score',
-            'generation_score_vital_nuggetizer_score',
-            'generation_score_hallucination_scores',
-            'generation_score_citation_f1_score'
-        ]
-
-        # Create a 2x2 grid of subplots.
-        fig, axs = plt.subplots(2, 2, figsize=(14, 10))
-        axs = axs.flatten()  # Flatten for easier iteration
-
-        if len(csv_files) == 1:
-            df = pd.read_csv(csv_files[0])
-            for i, metric in enumerate(metrics):
-                ax = axs[i]
-                if metric in df.columns:
-                    # Wrap the single CSV's values in a list
-                    values = df[metric].dropna().values
-                    plot_boxplot(
-                        ax, [values], [os.path.basename(csv_files[0])],
-                        metric.replace("_", " ").title(), single=True
-                    )
-                    if metric == 'retrieval_score_mean_umbrela_score':
-                        ax.set_ylim(0, 3)
-                    else:
-                        ax.set_ylim(0, 1)
-                else:
-                    ax.text(0.5, 0.5, f"No data for {metric}", transform=ax.transAxes,
-                            ha='center', va='center', fontsize=10)
-        else:
-            for i, metric in enumerate(metrics):
-                ax = axs[i]
-                data_list = []
-                labels = []
-                for csv_file in csv_files:
-                    df = pd.read_csv(csv_file)
-                    if metric in df.columns:
-                        data_list.append(df[metric].dropna().values)
-                    else:
-                        data_list.append(np.array([]))
-                    labels.append(os.path.basename(csv_file))
-                plot_boxplot(ax, data_list, labels, metric.replace("_", " ").title(), single=False)
-                if metric == 'retrieval_score_mean_umbrela_score':
-                    ax.set_ylim(0, 3)
-                else:
-                    ax.set_ylim(0, 1)
-
-        fig.suptitle("Vetara-Eval Metrics", fontsize=16)
-        plt.tight_layout(rect=[0, 0.03, 1, 0.95])
-        fig.savefig(output_file, dpi=300, bbox_inches='tight')
-        plt.close(fig)
-        print(f"Graph saved to {output_file}")
