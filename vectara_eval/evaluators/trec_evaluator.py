@@ -69,7 +69,7 @@ class TRECEvaluator(Evaluator):
     def plot_metrics(cls, csv_files: list, output_file: str = 'metrics_comparison.png'):
         """
         Plot metrics from CSV files as subplots in a single figure.
-        
+
         - For a single CSV file, each subplot displays a boxplot for the metric,
         with a horizontal mean line spanning only the width of the box and
         a legend indicating both mean and median values.
@@ -114,8 +114,10 @@ class TRECEvaluator(Evaluator):
                     box_x_data = box_path.vertices[:, 0]
                     left, right = np.min(box_x_data), np.max(box_x_data)
                     if i == 0:
-                        ax.hlines(mean_val, left, right, color='blue', linestyle='--', linewidth=2,
-                                label=f'Mean: {mean_val:.4f}')
+                        ax.hlines(
+                            mean_val, left, right, color='blue', linestyle='--', linewidth=2,
+                            label=f'Mean: {mean_val:.4f}'
+                        )
                     else:
                         ax.hlines(mean_val, left, right, color='blue', linestyle='--', linewidth=2)
                     # Scatter the mean point at the box's center.
@@ -145,8 +147,14 @@ class TRECEvaluator(Evaluator):
                 if metric in df.columns:
                     # Wrap the single CSV's values in a list
                     values = df[metric].dropna().values
-                    plot_boxplot(ax, [values], [os.path.basename(csv_files[0])],
-                                metric.replace("_", " ").title(), single=True)
+                    plot_boxplot(
+                        ax, [values], [os.path.basename(csv_files[0])],
+                        metric.replace("_", " ").title(), single=True
+                    )
+                    if metric == 'retrieval_score_mean_umbrela_score':
+                        ax.set_ylim(0, 3)
+                    else:
+                        ax.set_ylim(0, 1)
                 else:
                     ax.text(0.5, 0.5, f"No data for {metric}", transform=ax.transAxes,
                             ha='center', va='center', fontsize=10)
@@ -163,10 +171,13 @@ class TRECEvaluator(Evaluator):
                         data_list.append(np.array([]))
                     labels.append(os.path.basename(csv_file))
                 plot_boxplot(ax, data_list, labels, metric.replace("_", " ").title(), single=False)
+                if metric == 'retrieval_score_mean_umbrela_score':
+                    ax.set_ylim(0, 3)
+                else:
+                    ax.set_ylim(0, 1)
 
         fig.suptitle("Vetara-Eval Metrics", fontsize=16)
         plt.tight_layout(rect=[0, 0.03, 1, 0.95])
         fig.savefig(output_file, dpi=300, bbox_inches='tight')
         plt.close(fig)
         print(f"Graph saved to {output_file}")
-

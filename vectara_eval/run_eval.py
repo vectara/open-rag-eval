@@ -8,7 +8,9 @@ import argparse
 from pathlib import Path
 from omegaconf import OmegaConf
 
-from vectara_eval import connectors, data_classes, models, Evaluator
+from vectara_eval import connectors, data_classes, models
+from vectara_eval.evaluators.base_evaluator import Evaluator
+import vectara_eval
 
 def get_evaluator(config: Dict[str, Any]) -> Evaluator:
     """
