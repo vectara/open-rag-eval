@@ -8,9 +8,9 @@ import argparse
 from pathlib import Path
 from omegaconf import OmegaConf
 
-from vectara_eval import connectors, evaluators, data_classes, models
+from vectara_eval import connectors, data_classes, models, Evaluator
 
-def get_evaluator(config: Dict[str, Any]) -> evaluators.Evaluator:
+def get_evaluator(config: Dict[str, Any]) -> Evaluator:
     """
     Dynamically import and instantiate an evaluator class based on configuration.
 
@@ -23,10 +23,10 @@ def get_evaluator(config: Dict[str, Any]) -> evaluators.Evaluator:
     evaluator_type = config.evaluator.type
     try:
         # Import the evaluator module
-        evaluator_class = getattr(evaluators, evaluator_type)
+        evaluator_class = getattr(vectara_eval, evaluator_type)
 
         # Verify it's a subclass of Evaluator
-        if not issubclass(evaluator_class, evaluators.Evaluator):
+        if not issubclass(evaluator_class, Evaluator):
             raise TypeError(f"{evaluator_type} is not a subclass of Evaluator")
 
         # Create the model instance based on config

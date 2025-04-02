@@ -34,7 +34,7 @@ def main():
     args = parser.parse_args()
 
     # Plot the metrics
-    TRECEvaluator.plot_metrics(args.csv_files, args.output)
+    TRECEvaluator.plot_metrics(csv_files=args.csv_files, output_file=args.output)
 
 
 if __name__ == '__main__':
