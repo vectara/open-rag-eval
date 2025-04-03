@@ -1,6 +1,4 @@
 # Open RAG Eval
-
-<h1 align="center">Welcome to vectara-ingest</h1>
 <p align="center">
   <img style="max-width: 100%;" alt="logo" src="img/project-logo.png"/>
 </p>
