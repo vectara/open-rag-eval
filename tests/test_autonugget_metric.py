@@ -1,7 +1,7 @@
 import unittest
 from unittest.mock import MagicMock, Mock
 
-from vectara_eval.metrics.autonugget_metric import (
+from open_rag_eval.metrics.autonugget_metric import (
     AutoNuggetMetric,
     Nuggets,
     NuggetImportance,
@@ -9,8 +9,8 @@ from vectara_eval.metrics.autonugget_metric import (
     NuggetImportanceValues,
     NuggetAssignmentValues
 )
-from vectara_eval.models.llm_judges import OpenAIModel
-from vectara_eval.data_classes.rag_results import GeneratedAnswerPart
+from open_rag_eval.models.llm_judges import OpenAIModel
+from open_rag_eval.data_classes.rag_results import GeneratedAnswerPart
 
 class TestAutoNuggetMetric(unittest.TestCase):
 

@@ -6,9 +6,9 @@ import logging
 from enum import Enum
 from pydantic import BaseModel
 
-from vectara_eval.data_classes.rag_results import RAGResult
-from vectara_eval.metrics.base_metrics import AugmentedGenerationMetric
-from vectara_eval.models.llm_judges import LLMJudgeModel
+from open_rag_eval.data_classes.rag_results import RAGResult
+from open_rag_eval.metrics.base_metrics import AugmentedGenerationMetric
+from open_rag_eval.models.llm_judges import LLMJudgeModel
 
 
 # These classes are used to ensure structured output from the Judge LLM.

@@ -1,8 +1,8 @@
 from typing import Dict
 
 from transformers import AutoModelForSequenceClassification
-from vectara_eval.metrics.base_metrics import AugmentedGenerationMetric
-from vectara_eval.data_classes.rag_results import RAGResult
+from open_rag_eval.metrics.base_metrics import AugmentedGenerationMetric
+from open_rag_eval.data_classes.rag_results import RAGResult
 
 # Set number of cores to 2 to avoid heavy CPU usage
 import torch
@@ -11,15 +11,17 @@ torch.set_num_threads(2)
 class HallucinationMetric(AugmentedGenerationMetric):
     """ This metric uses the Vectara Hallucination Evaluation Model to detect hallucinations in RAG output. """
 
-    def __init__(self, model_name: str = 'vectara/hallucination_evaluation_model', detection_threshold: float = 0.5):
+    def __init__(self, model_name: str = 'vectara/hallucination_evaluation_model', detection_threshold: float = 0.5, max_chars: int = 8192):
         """Initialize the Hallucination metric.
 
         Args:
             model_name (str): The name of the model to use for hallucination detection.
             detection_threshold (float): The threshold fordetecting hallucinations.
+            max_chars (int): The maximum number of characters to process. Inputs longer than this will be truncated.
         """
         self.model = AutoModelForSequenceClassification.from_pretrained(model_name, trust_remote_code=True)
         self.detection_threshold = detection_threshold
+        self.max_chars = max_chars
 
     def compute(self, rag_result: RAGResult) -> Dict[str, int]:
         # Create source and summary pair.
@@ -33,10 +35,8 @@ class HallucinationMetric(AugmentedGenerationMetric):
         sources = " ".join(passage_text_collection)
         summary = " ".join(summary_text_collection)
 
-        # Make sure to limit source + summary by size
-        max_chars = 4096
-        if len(sources) > max_chars:
-            sources = sources[:max_chars]
+        if len(sources) > self.max_chars:
+            sources = sources[:self.max_chars]
 
         # Call the hallucination detection model.
         score = self.model.predict([(sources, summary)]).item()

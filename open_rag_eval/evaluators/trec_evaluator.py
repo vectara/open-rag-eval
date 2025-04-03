@@ -7,10 +7,10 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
 
-from vectara_eval.data_classes.rag_results import RAGResult
-from vectara_eval.data_classes.eval_scores import AugmentedGenerationScores, RetrievalScores, RAGScores, ScoredRAGResult
-from vectara_eval.models.llm_judges import LLMJudgeModel
-from vectara_eval.metrics import AutoNuggetMetric, CitationMetric, HallucinationMetric, UMBRELAMetric
+from open_rag_eval.data_classes.rag_results import RAGResult
+from open_rag_eval.data_classes.eval_scores import AugmentedGenerationScores, RetrievalScores, RAGScores, ScoredRAGResult
+from open_rag_eval.models.llm_judges import LLMJudgeModel
+from open_rag_eval.metrics import AutoNuggetMetric, CitationMetric, HallucinationMetric, UMBRELAMetric
 from .base_evaluator import Evaluator
 
 class TRECEvaluator(Evaluator):

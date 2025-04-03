@@ -1,6 +1,7 @@
 from typing import Any, List
 from dataclasses import dataclass
 import pandas as pd
+import json
 
 from .rag_results import RAGResult
 
@@ -38,20 +39,22 @@ def to_csv(scored_results: List[ScoredRAGResult], file_path: str) -> None:
         # Get fields if they exist
         if result.rag_result and result.rag_result.retrieval_result:
             result_dict["query"] = result.rag_result.retrieval_result.query
-            result_dict["retrieved_passages"] = result.rag_result.retrieval_result.retrieved_passages
+            result_dict["retrieved_passages"] = json.dumps(result.rag_result.retrieval_result.retrieved_passages)
 
         if result.rag_result and result.rag_result.generation_result:
             result_dict["query"] = result.rag_result.generation_result.query
-            result_dict["generated_answer"] = result.rag_result.generation_result.generated_answer
+            generated_answer_dict = [{"text": part.text,
+                                     "citations": part.citations} for part in result.rag_result.generation_result.generated_answer]
+            result_dict["generated_answer"] = json.dumps(generated_answer_dict)
 
         # Add scores if they exist
         if result.scores and result.scores.retrieval_score:
             for key, value in result.scores.retrieval_score.scores.items():
-                result_dict[f"retrieval_score_{key}"] = value
+                result_dict[f"retrieval_score_{key}"] = json.dumps(value)
 
         if result.scores and result.scores.generation_score:
             for key, value in result.scores.generation_score.scores.items():
-                result_dict[f"generation_score_{key}"] = value
+                result_dict[f"generation_score_{key}"] = json.dumps(value)
 
         results_dict.append(result_dict)
 

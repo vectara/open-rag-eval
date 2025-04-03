@@ -3,7 +3,7 @@ import os
 import csv
 import unittest
 from pathlib import Path
-from vectara_eval.connectors.vectara_connector import VectaraConnector
+from open_rag_eval.connectors.vectara_connector import VectaraConnector
 
 class TestVectaraConnectorIntegration(unittest.TestCase):
     @classmethod

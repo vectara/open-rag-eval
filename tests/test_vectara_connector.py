@@ -3,7 +3,7 @@ import csv
 import unittest
 from pathlib import Path
 from unittest.mock import patch, MagicMock
-from vectara_eval.connectors.vectara_connector import VectaraConnector
+from open_rag_eval.connectors.vectara_connector import VectaraConnector
 
 # Dummy response JSON to simulate the Vectara API response.
 DUMMY_RESPONSE = {

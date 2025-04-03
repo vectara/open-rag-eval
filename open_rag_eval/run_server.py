@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 import argparse
-from vectara_eval.api.server import run_server
+from open_rag_eval.api.server import run_server
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description="Run the vectara-eval API server"
+        description="Run the open-rag-eval API server"
     )
     parser.add_argument(
         "--host",
@@ -25,5 +25,5 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    print(f"Starting vectara-eval server on {args.host}:{args.port}")
+    print(f"Starting open-rag-eval server on {args.host}:{args.port}")
     run_server(host=args.host, port=args.port, debug=args.debug)

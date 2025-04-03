@@ -1,6 +1,6 @@
-# Contributing to vectara-eval
+# Contributing to open-rag-eval
 
-Thank you for your interest in Vectara-eval and considering contributing to our project! 
+Thank you for your interest in open-rag-eval and considering contributing to our project! 
 Whether it's a bug, a new metric or connector, updates to the README or anything else - we truly appreciate your time and effort.
 
 This document provides guidelines and best practices to help you contribute effectively.

@@ -2,9 +2,9 @@ from enum import Enum
 
 from pydantic import BaseModel
 
-from vectara_eval.models.llm_judges import LLMJudgeModel
-from vectara_eval.metrics.base_metrics import RetrievalMetric
-from vectara_eval.data_classes.rag_results import RetrievalResult
+from open_rag_eval.models.llm_judges import LLMJudgeModel
+from open_rag_eval.metrics.base_metrics import RetrievalMetric
+from open_rag_eval.data_classes.rag_results import RetrievalResult
 
 class UMBRELAScoreValues(str, Enum):
     NO_RELEVANCE = "0"

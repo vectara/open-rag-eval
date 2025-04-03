@@ -1,4 +1,4 @@
-name: Publish vectara-eval Package
+name: Publish open-rag-eval Package
 
 on:
   workflow_dispatch:
@@ -6,7 +6,7 @@ on:
 jobs:
   build-and-publish:
     name: Build and publish to PyPI
-    if: github.repository == 'vectara/vectara-eval'
+    if: github.repository == 'vectara/open-rag-eval'
     runs-on: ubuntu-latest
 
     steps:
@@ -32,8 +32,8 @@ jobs:
     - name: Get version from _version.py
       id: get_version
       run: |
-        # Extract version from vectara_eval/_version.py using grep and sed
-        VERSION=$(grep -o '__version__ = "[^"]*"' vectara_eval/_version.py | sed 's/__version__ = "//;s/"//g')
+        # Extract version from open_rag_eval/_version.py using grep and sed
+        VERSION=$(grep -o '__version__ = "[^"]*"' open_rag_eval/_version.py | sed 's/__version__ = "//;s/"//g')
         echo "VERSION=$VERSION" >> $GITHUB_ENV
         echo "version=$VERSION" >> $GITHUB_OUTPUT
 
@@ -67,7 +67,7 @@ jobs:
         draft: false
         prerelease: false
         body: |
-          Release v${{ env.VERSION }} of vectara-eval
+          Release v${{ env.VERSION }} of open-rag-eval
         
     - name: Install mkdocs and mike
       run: |
