@@ -25,19 +25,19 @@ def evaluate_single_result():
                 "doc3": "France is known for its wine and cheese."
             }
         },
-      "generation_result": {
-        "query": "What is the capital of France?",
-        "generated_answer": [
-          {
-            "text": "The capital of France is Paris",
-            "citations": ["doc2", "doc3"]
-          },
-          {
-            "text": "Paris is the largest city in france.",
-            "citations": ["doc2"]
-          }
-        ]
-      }
+        "generation_result": {
+            "query": "What is the capital of France?",
+            "generated_answer": [
+                {
+                    "text": "The capital of France is Paris",
+                    "citations": ["doc2", "doc3"]
+                },
+                {
+                    "text": "Paris is the largest city in france.",
+                    "citations": ["doc2"]
+                }
+            ]
+        }
     }
 
     # Request body
@@ -76,19 +76,19 @@ def evaluate_batch_results():
                     "doc3": "France is known for its wine and cheese."
                 }
             },
-        "generation_result": {
-            "query": "What is the capital of France?",
-            "generated_answer": [
-            {
-                "text": "The capital of France is Paris",
-                "citations": ["doc2", "doc3"]
-            },
-            {
-                "text": "Paris is the largest city in france.",
-                "citations": ["doc2"]
+            "generation_result": {
+                "query": "What is the capital of France?",
+                "generated_answer": [
+                    {
+                        "text": "The capital of France is Paris",
+                        "citations": ["doc2", "doc3"]
+                    },
+                    {
+                        "text": "Paris is the largest city in france.",
+                        "citations": ["doc2"]
+                    }
+                ]
             }
-            ]
-        }
         },
         {
             "retrieval_result": {
@@ -103,14 +103,14 @@ def evaluate_batch_results():
             "generation_result": {
                 "query": "What is the tallest mountain in the world?",
                 "generated_answer": [
-                {
-                    "text": "Mount Everest is the tallest mountain.",
-                    "citations": ["doc1", "doc2"]
-                },
-                {
-                    "text": "It's height is 8848 meters.",
-                    "citations": ["doc3"]
-                }
+                    {
+                        "text": "Mount Everest is the tallest mountain.",
+                        "citations": ["doc1", "doc2"]
+                    },
+                    {
+                        "text": "It's height is 8848 meters.",
+                        "citations": ["doc3"]
+                    }
                 ]
             }
         }

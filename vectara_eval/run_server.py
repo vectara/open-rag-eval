@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 import argparse
-from api.server import run_server
+from vectara_eval.api.server import run_server
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(

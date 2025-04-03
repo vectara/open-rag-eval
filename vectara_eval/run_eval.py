@@ -8,7 +8,8 @@ import argparse
 from pathlib import Path
 from omegaconf import OmegaConf
 
-from vectara_eval import connectors, evaluators, data_classes, models
+from vectara_eval import connectors, data_classes, models
+import vectara_eval.evaluators as evaluators
 
 def get_evaluator(config: Dict[str, Any]) -> evaluators.Evaluator:
     """
@@ -22,8 +23,7 @@ def get_evaluator(config: Dict[str, Any]) -> evaluators.Evaluator:
     """
     evaluator_type = config.evaluator.type
     try:
-        # Import the evaluator module
-        evaluator_class = getattr(evaluators, evaluator_type)
+        evaluator_class = getattr(evaluators, f'{evaluator_type}')
 
         # Verify it's a subclass of Evaluator
         if not issubclass(evaluator_class, evaluators.Evaluator):

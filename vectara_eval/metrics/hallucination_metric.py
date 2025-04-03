@@ -4,6 +4,10 @@ from transformers import AutoModelForSequenceClassification
 from vectara_eval.metrics.base_metrics import AugmentedGenerationMetric
 from vectara_eval.data_classes.rag_results import RAGResult
 
+# Set number of cores to 2 to avoid heavy CPU usage
+import torch
+torch.set_num_threads(2)
+
 class HallucinationMetric(AugmentedGenerationMetric):
     """ This metric uses the Vectara Hallucination Evaluation Model to detect hallucinations in RAG output. """
 
@@ -28,6 +32,11 @@ class HallucinationMetric(AugmentedGenerationMetric):
 
         sources = " ".join(passage_text_collection)
         summary = " ".join(summary_text_collection)
+
+        # Make sure to limit source + summary by size
+        max_chars = 4096
+        if len(sources) > max_chars:
+            sources = sources[:max_chars]
 
         # Call the hallucination detection model.
         score = self.model.predict([(sources, summary)]).item()

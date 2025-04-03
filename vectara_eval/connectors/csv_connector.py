@@ -1,13 +1,12 @@
-
-import pandas as pd
+from typing import List
 from pathlib import Path
 import re
 import uuid
+import pandas as pd
 
 from vectara_eval.connectors.connector import Connector
 from vectara_eval.data_classes.rag_results import RAGResult, RetrievalResult, GeneratedAnswerPart, AugmentedGenerationResult
 
-from typing import List
 
 class CSVConnector(Connector):
     def __init__(self, csv_path: str):
@@ -25,7 +24,7 @@ class CSVConnector(Connector):
 
         results = []
         # Group by query_id to process each query's results
-        for query_id, group in df.groupby('query_id'):
+        for _, group in df.groupby('query_id'):
             # Get the query (same for all rows in group)
             query = group['query'].iloc[0]
 

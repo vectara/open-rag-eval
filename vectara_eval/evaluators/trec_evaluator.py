@@ -2,10 +2,10 @@ from typing import List
 import logging
 import os
 
+from tqdm import tqdm
 import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
-from tqdm import tqdm
 
 from vectara_eval.data_classes.rag_results import RAGResult
 from vectara_eval.data_classes.eval_scores import AugmentedGenerationScores, RetrievalScores, RAGScores, ScoredRAGResult
@@ -66,9 +66,69 @@ class TRECEvaluator(Evaluator):
         return eval_scores
 
     @classmethod
-    def plot_metrics(self, csv_files, output_file='metrics_comparison.png'):
-        """Plot bar graphs for specified metrics across multiple CSV files and save to a file. """
-        # Metrics to plot
+    def plot_metrics(cls, csv_files: list, output_file: str = 'metrics_comparison.png'):
+        """
+        Plot metrics from CSV files as subplots in a single figure.
+
+        - For a single CSV file, each subplot displays a boxplot for the metric,
+        with a horizontal mean line spanning only the width of the box and
+        a legend indicating both mean and median values.
+        - For multiple CSV files, each subplot displays grouped boxplots (one per CSV)
+        with horizontal mean lines drawn for each box (only the first box is labeled
+        for clarity), mimicking the single CSV style.
+
+        Parameters:
+            csv_files (list): List of CSV file paths.
+            output_file (str): File name to save the resulting figure.
+        """
+
+        # Helper function to draw a boxplot on the given axis.
+        def plot_boxplot(ax, data_list, xtick_labels, metric_title, single=True):
+            # Positions: single CSV gets position [1], multiple CSVs get positions 1...n.
+            positions = [1] if single else list(range(1, len(data_list) + 1))
+            bp = ax.boxplot(
+                data_list,
+                vert=True,
+                patch_artist=True,
+                positions=positions,
+                boxprops=dict(facecolor='skyblue', color='black'),
+                medianprops=dict(color='darkorange', linewidth=2)
+            )
+            ax.set_title(metric_title, fontsize=16 if single else 12)
+            ax.set_ylabel('Value', fontsize=14 if single else 10)
+            if not single:
+                ax.set_xticks(positions)
+                ax.set_xticklabels(xtick_labels, rotation=45, fontsize=10)
+                ax.grid(axis='y', linestyle='--', alpha=0.7)
+            else:
+                ax.set_xticks([])
+
+            # For each box, add a horizontal mean line spanning only the box width.
+            # Use the box's path vertices to determine the box boundaries.
+            for i, d in enumerate(data_list):
+                if len(d) > 0:
+                    mean_val = np.mean(d)
+                    median_val = np.median(d)
+                    # Retrieve the x-coordinates of the box using its path vertices.
+                    box_path = bp['boxes'][i].get_path()
+                    box_x_data = box_path.vertices[:, 0]
+                    left, right = np.min(box_x_data), np.max(box_x_data)
+                    if i == 0:
+                        ax.hlines(
+                            mean_val, left, right, color='blue', linestyle='--', linewidth=2,
+                            label=f'Mean: {mean_val:.4f}'
+                        )
+                    else:
+                        ax.hlines(mean_val, left, right, color='blue', linestyle='--', linewidth=2)
+                    # Scatter the mean point at the box's center.
+                    x_pos = positions[i] if not single else 1
+                    ax.scatter(x_pos, mean_val, color='blue', s=50, zorder=5)
+                    # Only label the first median for the legend.
+                    if i == 0:
+                        bp['medians'][i].set_label(f'Median: {median_val:.4f}')
+            ax.legend(fontsize=12 if single else 9)
+
+    # Define the metrics to be plotted.
         metrics = [
             'retrieval_score_mean_umbrela_score',
             'generation_score_vital_nuggetizer_score',
@@ -76,65 +136,46 @@ class TRECEvaluator(Evaluator):
             'generation_score_citation_f1_score'
         ]
 
-        # Set up the plot
-        plt.figure(figsize=(16, 10))
+        # Create a 2x2 grid of subplots.
+        fig, axs = plt.subplots(2, 2, figsize=(14, 10))
+        axs = axs.flatten()
 
-        # Color palette for visual appeal
-        colors = plt.get_cmap('Spectral')(np.linspace(0, 1, len(csv_files)))
+        if len(csv_files) == 1:
+            df = pd.read_csv(csv_files[0])
+            for i, metric in enumerate(metrics):
+                ax = axs[i]
+                if metric in df.columns:
+                    values = df[metric].dropna().values
+                    plot_boxplot(ax, [values], [os.path.basename(csv_files[0])],
+                                metric.replace("_", " ").title(), single=True)
+                    if metric == 'retrieval_score_mean_umbrela_score':
+                        ax.set_ylim(0, 3)
+                    else:
+                        ax.set_ylim(0, 1)
+                else:
+                    ax.text(0.5, 0.5, f"No data for {metric}", transform=ax.transAxes,
+                            ha='center', va='center', fontsize=10)
+        else:
+            for i, metric in enumerate(metrics):
+                ax = axs[i]
+                data_list = []
+                labels = []
+                for csv_file in csv_files:
+                    df = pd.read_csv(csv_file)
+                    if metric in df.columns:
+                        data_list.append(df[metric].dropna().values)
+                    else:
+                        data_list.append(np.array([]))
+                    labels.append(os.path.basename(csv_file))
+                plot_boxplot(ax, data_list, labels, metric.replace("_", " ").title(), single=False)
+                # Set y-axis limits similarly for multiple CSVs.
+                if metric == 'retrieval_score_mean_umbrela_score':
+                    ax.set_ylim(0, 3)
+                else:
+                    ax.set_ylim(0, 1)
 
-        # Width of each bar
-        bar_width = 0.8 / len(csv_files)
-
-        # Iterate through metrics
-        for metric_idx, metric in enumerate(metrics):
-            # Subplot for each metric
-            plt.subplot(2, 2, metric_idx + 1)
-
-            # Collect values for this metric
-            metric_values = []
-
-            # Iterate through CSV files
-            for file_idx, csv_file in enumerate(csv_files):
-                # Read CSV
-                df = pd.read_csv(csv_file)
-
-                # Calculate mean of the metric
-                mean_value = df[metric].mean()
-                metric_values.append(mean_value)
-
-                # Plot bar with label and color
-                plt.bar(
-                    file_idx,
-                    mean_value,
-                    width=bar_width,
-                    color=colors[file_idx],
-                    label=f'{os.path.basename(csv_file)} ({mean_value:.4f})'
-                )
-
-            # Customize subplot
-            plt.title(f'Mean {metric.replace("_", " ").title()}', fontsize=12)
-            plt.ylabel('Mean Value', fontsize=10)
-            plt.xticks([])
-            plt.grid(axis='y', linestyle='--', alpha=0.7)
-            plt.grid(axis='y', which='minor', linestyle=':', alpha=0.4)
-
-            # Add value labels on bars
-            for i, v in enumerate(metric_values):
-                plt.text(
-                    i,
-                    v,
-                    f'{v:.4f}',
-                    ha='center',
-                    va='bottom',
-                    fontweight='bold'
-                )
-
-            # Add legend
-            plt.legend(title='CSV Files', loc='best', bbox_to_anchor=(1, 1), fontsize=8)
-
-        # Adjust layout and save
-        plt.tight_layout()
-        plt.savefig(output_file, dpi=300, bbox_inches='tight')
-        plt.close()  # Close the figure to free up memory
-
+        fig.suptitle("Vetara-Eval Metrics", fontsize=16)
+        plt.tight_layout(rect=[0, 0.03, 1, 0.95])
+        fig.savefig(output_file, dpi=300, bbox_inches='tight')
+        plt.close(fig)
         print(f"Graph saved to {output_file}")

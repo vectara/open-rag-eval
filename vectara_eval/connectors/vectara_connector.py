@@ -1,7 +1,6 @@
 import uuid
 import csv
 import requests
-import json
 
 from tqdm import tqdm
 import omegaconf
@@ -117,14 +116,16 @@ class VectaraConnector(Connector):
             search = query_config.get('search', self.default_config['search'])
             generation = query_config.get('generation', self.default_config['generation'])
 
-        search_dict = search
-        # Convert to DictConfig if using OmegaConf        
-        if isinstance(search_dict, omegaconf.dictconfig.DictConfig):
-            search_dict = omegaconf.OmegaConf.to_container(search, resolve=True)
-
-        generation_dict = generation
-        if isinstance(generation_dict, omegaconf.dictconfig.DictConfig):
-            generation_dict = omegaconf.OmegaConf.to_container(generation, resolve=True)
+        search_dict = (
+            omegaconf.OmegaConf.to_container(search, resolve=True)
+            if isinstance(search, omegaconf.dictconfig.DictConfig)
+            else search
+        )
+        generation_dict = (
+            omegaconf.OmegaConf.to_container(generation, resolve=True)
+            if isinstance(generation, omegaconf.dictconfig.DictConfig)
+            else generation
+        )
 
         payload = {
             "query": query["query"],
