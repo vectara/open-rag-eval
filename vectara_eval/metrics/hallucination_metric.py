@@ -33,6 +33,11 @@ class HallucinationMetric(AugmentedGenerationMetric):
         sources = " ".join(passage_text_collection)
         summary = " ".join(summary_text_collection)
 
+        # Make sure to limit source + summary by size
+        max_chars = 4096
+        if len(sources) > max_chars:
+            sources = sources[:max_chars]
+
         # Call the hallucination detection model.
         score = self.model.predict([(sources, summary)]).item()
 
