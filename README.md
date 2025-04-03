@@ -1,5 +1,10 @@
 # Open RAG Eval
 
+<h1 align="center">Welcome to vectara-ingest</h1>
+<p align="center">
+  <img style="max-width: 100%;" alt="logo" src="img/project-logo.png"/>
+</p>
+
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
 [![Twitter](https://img.shields.io/twitter/follow/vectara.svg?style=social&label=Follow%20%40Vectara)](https://twitter.com/vectara)
@@ -106,7 +111,7 @@ python open_rag_eval/plot_results.py open_eval_results.csv
 Or to plot multiple results:
 
 ```bash
-python open_rag_eval/plot_results.py results_1.csv results_2.csv results3.csv
+python open_rag_eval/plot_results.py results_1.csv results_2.csv results_3.csv
 ```
 
 
