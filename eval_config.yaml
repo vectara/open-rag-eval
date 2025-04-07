@@ -4,7 +4,7 @@
 # input_results: ""
 
 # Evaluation results are written to this CSV.
-evaluation_results: "results.csv"
+evaluation_results: "open_eval_results.csv"
 
 evaluator:
   type: "TRECEvaluator"  

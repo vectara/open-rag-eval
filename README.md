@@ -1,15 +1,18 @@
-# vectara-eval
+# Open RAG Eval
+<p align="center">
+  <img style="max-width: 100%;" alt="logo" src="img/project-logo.png"/>
+</p>
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
 [![Twitter](https://img.shields.io/twitter/follow/vectara.svg?style=social&label=Follow%20%40Vectara)](https://twitter.com/vectara)
 [![Discord](https://img.shields.io/badge/Discord-Join%20Us-blue?style=social&logo=discord)](https://discord.com/invite/GFb8gMz6UH)
 
-[![Open in Dev Containers](https://img.shields.io/static/v1?label=Dev%20Containers&message=Open&color=blue&logo=visualstudiocode)](https://vscode.dev/redirect?url=vscode://ms-vscode-remote.remote-containers/cloneInVolume?url=https://github.com/vectara/vectara-eval)
+[![Open in Dev Containers](https://img.shields.io/static/v1?label=Dev%20Containers&message=Open&color=blue&logo=visualstudiocode)](https://vscode.dev/redirect?url=vscode://ms-vscode-remote.remote-containers/cloneInVolume?url=https://github.com/vectara/open-rag-eval)
 
-**Evaluate and improve your Retrieval-Augmented Generation (RAG) pipelines with `vectara-eval`, an open-source Python evaluation toolkit.**
+**Evaluate and improve your Retrieval-Augmented Generation (RAG) pipelines with `open-rag-eval`, an open-source Python evaluation toolkit.**
 
-Evaluating RAG quality can be complex. `vectara-eval` provides a flexible and extensible framework to measure the performance of your RAG system, helping you identify areas for improvement. Its modular design allows easy integration of custom metrics and connectors for various RAG implementations.
+Evaluating RAG quality can be complex. `open-rag-eval` provides a flexible and extensible framework to measure the performance of your RAG system, helping you identify areas for improvement. Its modular design allows easy integration of custom metrics and connectors for various RAG implementations.
 
 Out-of-the-box, the toolkit includes:
 * An implementation of the evaluation metrics used in the **TREC-RAG benchmark**.
@@ -41,24 +44,24 @@ This guide walks you through an end-to-end evaluation using the toolkit. We'll u
 In order to build the library from source, which is the recommended method to follow the sample instructions below you can do:
 
 ```
-$ git clone https://github.com/vectara/vectara-eval.git
-$ cd vectara-eval
+$ git clone https://github.com/vectara/open-rag-eval.git
+$ cd open-rag-eval
 $ pip install -e .
 ```
 
 If you want to install directly from pip, which is the common method if you want to use the library in your own pipeline instead of running the samples, you can run:
 
 ```
-pip install vectara-eval
+pip install open-rag-eval
 ```
 
 After installing the library you can follow instructions below to run a sample evaluation and test out the library end to end. 
 
-## Using vectara-eval with the Vectara connector
+## Using open-rag-eval with the Vectara connector
 
 ### Step 1. Configure Evaluation Settings
 
-Edit the [eval_config.yaml](https://github.com/vectara/vectara-eval/blob/main/eval_config.yaml) file. This file controls the evaluation process, including connector details, evaluator choices, and metric settings. Update the `connector` section with your Vectara `customer_id` and `corpus_key`.
+Edit the [eval_config.yaml](https://github.com/vectara/open-rag-eval/blob/main/eval_config.yaml) file. This file controls the evaluation process, including connector details, evaluator choices, and metric settings. Update the `connector` section with your Vectara `customer_id` and `corpus_key`.
 
 In addition, make sure you have `VECTARA_API_KEY` and `OPENAI_API_KEY` available in your environment. For example:
 * export VECTARA_API_KEY='your-vectara-api-key'
@@ -68,7 +71,7 @@ In addition, make sure you have `VECTARA_API_KEY` and `OPENAI_API_KEY` available
 
 You need the results (answers and retrieved contexts) from your RAG system for the queries you want to evaluate.
 
-vectara-eval will automatically query your Vectara corpus and retrieve the results, as defined in your `eval_config.yaml` file.
+open-rag-eval will automatically query your Vectara corpus and retrieve the results, as defined in your `eval_config.yaml` file.
 
 ### Step 3. Define Queries for Evaluation
 
@@ -85,10 +88,10 @@ How many moons does jupiter have?
 
 ### Step 4. Run evaluation!
 
-With everything configured, now is the time to run evaluation! Run the following command from the root folder of vectara-eval:
+With everything configured, now is the time to run evaluation! Run the following command from the root folder of open-rag-eval:
 
 ```bash
-python vectara_eval/run_eval.py --config eval_config.yaml
+python open_rag_eval/run_eval.py --config eval_config.yaml
 ```
 
 and you should see the evaluation progress on your command line. Once it's done, detailed results will be saved to a local CSV file where you can see the score assigned to each sample along with intermediate output useful for debugging and explainability.
@@ -97,11 +100,20 @@ and you should see the evaluation progress on your command line. Once it's done,
 
 You can use the `plot_results.py` script to plot results from your eval runs. Multiple different runs can be plotted on the same plot allowing for easy comparison of different configurations or RAG providers:
 
+To plot one result:
+
 ```bash
-python vectara_eval/plot_results.py metrics_1.csv metrics_2.csv 
+python open_rag_eval/plot_results.py open_eval_results.csv
 ```
 
-## Using vectara-eval with your own RAG outputs
+Or to plot multiple results:
+
+```bash
+python open_rag_eval/plot_results.py results_1.csv results_2.csv results_3.csv
+```
+
+
+## Using open-rag-eval with your own RAG outputs
 If you are using RAG outputs from your own pipeline, make sure to put your RAG output in a format that is readable by the toolkit (See `data/test_csv_connector.csv` as an example). 
 
 ### Step 1. Configure Evaluation Settings
@@ -114,24 +126,24 @@ Update the `eval_config.yaml` as follows:
 With everything configured, now is the time to run evaluation! Run the following command:
 
 ```bash
-python vectara_eval/run_eval.py --config eval_config.yaml
+python open_rag_eval/run_eval.py --config eval_config.yaml
 ```
 
 and you should see the evaluation progress on your command line. Once it's done, detailed results will be saved to a local CSV file where you can see the score assigned to each sample along with intermediate output useful for debugging and explainability.
 
 ### Step 3. Visualize results
 
-You can use the `vectara_eval/plot_results.py` script to plot results from your eval runs. Multiple different runs can be plotted on the same plot allowing for easy comparison of different configurations or RAG providers. For example if the output evaluation results from two runs are saved in `metrics_1.csv` and `metrics_2.csv` you can plot both of them as follows:
+You can use the `open_rag_eval/plot_results.py` script to plot results from your eval runs. Multiple different runs can be plotted on the same plot allowing for easy comparison of different configurations or RAG providers. For example if the output evaluation results from two runs are saved in `metrics_1.csv` and `metrics_2.csv` you can plot both of them as follows:
 
 ```bash
-python vectara_eval/plot_results.py metrics_1.csv metrics_2.csv 
+python open_rag_eval/plot_results.py metrics_1.csv metrics_2.csv 
 ```
 
-# How does Vectara-eval work?
+# How does open-rag-eval work?
 
 ## Evaluation Workflow
 
-The `vectara-eval` framework follows these general steps during an evaluation:
+The `open-rag-eval` framework follows these general steps during an evaluation:
 
 1.  **(Optional) Data Retrieval:** If configured with a connector (like the Vectara connector), call the specified RAG provider with a set of input queries to generate answers and retrieve relevant document passages/contexts. If using pre-existing results (`input_results`), load them from the specified file.
 2.  **Evaluation:** Use a configured **Evaluator** to assess the quality of the RAG results (query, answer, contexts). The Evaluator applies one or more **Metrics**.
@@ -156,7 +168,7 @@ For programmatic integration, the framework provides a Flask-based web server.
 
 **Run the Server:**
 ```bash
-python vectara_eval/run_server.py
+python open_rag_eval/run_server.py
 ```
 
 See the [API README](/api/README.md) for detailed documentation for the API.
@@ -175,7 +187,7 @@ See the [API README](/api/README.md) for detailed documentation for the API.
 
 Contributions, issues and feature requests are welcome and appreciated!<br />
 
-Feel free to check [issues page](https://github.com/vectara/vectara-eval/issues). You can also take a look at the [contributing guide](https://github.com/vectara/vectara-eval/blob/master/CONTRIBUTING.md).
+Feel free to check [issues page](https://github.com/vectara/open-rag-eval/issues). You can also take a look at the [contributing guide](https://github.com/vectara/open-rag-eval/blob/master/CONTRIBUTING.md).
 
 ## Show your support
 
@@ -184,4 +196,4 @@ Give a ⭐️ if this project helped you!
 ## 📝 License
 
 Copyright © 2025 [Vectara](https://github.com/vectara).<br />
-This project is [Apache 2.0](https://github.com/vectara/vectara-eval/blob/master/LICENSE) licensed.
+This project is [Apache 2.0](https://github.com/vectara/open-rag-eval/blob/master/LICENSE) licensed.

@@ -1,10 +1,10 @@
 all: lint mypy test
 
 lint:
-	pylint vectara_eval || true
-	flake8 vectara_eval tests || true
+	pylint open_rag_eval || true
+	flake8 open_rag_eval tests || true
 mypy:
-	mypy vectara_eval || true
+	mypy open_rag_eval || true
 
 test:
 	python -m unittest discover -s tests -b

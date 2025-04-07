@@ -5,7 +5,7 @@ import requests
 from tqdm import tqdm
 import omegaconf
 
-from vectara_eval.connectors.connector import Connector
+from open_rag_eval.connectors.connector import Connector
 
 class VectaraConnector(Connector):
     def __init__(self, customer_id, api_key, corpus_key):

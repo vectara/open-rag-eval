@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """
-Example script showing how to use the vectara-eval API endpoints.
+Example script showing how to use the open-rag-eval API endpoints.
 """
 import os
 import sys
 import json
 import requests
 
-# Ensure the parent directory is in the path to import from vectara-eval package
+# Ensure the parent directory is in the path to import from open-rag-eval package
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 API_BASE_URL = "http://localhost:5000/api/v1"

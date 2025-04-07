@@ -1,10 +1,10 @@
-# Vectara-Eval API
+# open-rag-eval API
 
-This module provides a Flask-based web server for the vectara-eval framework. It exposes RESTful endpoints for evaluating RAG (Retrieval-Augmented Generation) outputs.
+This module provides a Flask-based web server for the open-rag-eval framework. It exposes RESTful endpoints for evaluating RAG (Retrieval-Augmented Generation) outputs.
 
 ## Installation
 
-Make sure you have installed the vectara-eval package. See the main README for instructions. Please make sure you have `OPENAI_API_KEY` set as an env variable (or in a .env file) if you want to use OpenAI Judge models.
+Make sure you have installed the open-rag-eval package. See the main README for instructions. Please make sure you have `OPENAI_API_KEY` set as an env variable (or in a .env file) if you want to use OpenAI Judge models.
 
 ## Running the Server
 

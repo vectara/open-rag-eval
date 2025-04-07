@@ -1,4 +1,4 @@
-# Vectara-Eval Guidelines
+# Open-RAG-Eval Guidelines
 
 ## Commands
 - Run all tests: `python -m unittest discover`

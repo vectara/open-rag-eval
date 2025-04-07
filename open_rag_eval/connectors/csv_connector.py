@@ -4,8 +4,8 @@ import re
 import uuid
 import pandas as pd
 
-from vectara_eval.connectors.connector import Connector
-from vectara_eval.data_classes.rag_results import RAGResult, RetrievalResult, GeneratedAnswerPart, AugmentedGenerationResult
+from open_rag_eval.connectors.connector import Connector
+from open_rag_eval.data_classes.rag_results import RAGResult, RetrievalResult, GeneratedAnswerPart, AugmentedGenerationResult
 
 
 class CSVConnector(Connector):

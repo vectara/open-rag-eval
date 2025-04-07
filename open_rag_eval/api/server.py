@@ -5,12 +5,12 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 from dotenv import load_dotenv
 
-from vectara_eval.data_classes.rag_results import RAGResult, RetrievalResult, AugmentedGenerationResult
-from vectara_eval.data_classes.eval_scores import ScoredRAGResult
-from vectara_eval.evaluators.trec_evaluator import TRECEvaluator
-from vectara_eval.models.llm_judges import OpenAIModel
+from open_rag_eval.data_classes.rag_results import RAGResult, RetrievalResult, AugmentedGenerationResult
+from open_rag_eval.data_classes.eval_scores import ScoredRAGResult
+from open_rag_eval.evaluators.trec_evaluator import TRECEvaluator
+from open_rag_eval.models.llm_judges import OpenAIModel
 
-from vectara_eval.api.schemas import (
+from open_rag_eval.api.schemas import (
     EvaluationRequestSchema,
     RAGResultSchema,
     ErrorResponseSchema

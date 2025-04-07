@@ -11,7 +11,7 @@ The plot is saved by default to a 'metrics_comparison.png' file.
 """
 
 import argparse
-from vectara_eval.evaluators.trec_evaluator import TRECEvaluator
+from open_rag_eval.evaluators.trec_evaluator import TRECEvaluator
 
 def main():
     """
