@@ -17,7 +17,7 @@ DUMMY_RESPONSE = {
 class TestVectaraConnector(unittest.TestCase):
     def setUp(self):
         # Create a temporary CSV file with one test query.
-        self.test_csv_path = Path("tests/data/test_vectara_connector.csv")
+        self.test_csv_path = Path("../tests/data/test_vectara_connector.csv")
         self.test_csv_path.parent.mkdir(exist_ok=True)
         with self.test_csv_path.open("w", newline='', encoding='utf-8') as f:
             writer = csv.DictWriter(f, fieldnames=["query_id", "query"])
@@ -28,8 +28,7 @@ class TestVectaraConnector(unittest.TestCase):
         # Retrieve test credentials (or set dummy values for unit testing)
         api_key = os.getenv("VECTARA_API_KEY", "dummy_api_key")
         corpus_key = os.getenv("VECTARA_CORPUS_KEY", "dummy_corpus_key")
-        customer_id = os.getenv("VECTARA_CUSTOMER_ID", "dummy_customer_id")
-        self.connector = VectaraConnector(customer_id, api_key, corpus_key)
+        self.connector = VectaraConnector(api_key, corpus_key)
 
         # Output CSV file for testing.
         self.generated_answers = "results.csv"

@@ -8,8 +8,7 @@ import omegaconf
 from open_rag_eval.connectors.connector import Connector
 
 class VectaraConnector(Connector):
-    def __init__(self, customer_id, api_key, corpus_key):
-        self._customer_id = customer_id
+    def __init__(self, api_key, corpus_key):
         self._api_key = api_key
         self._corpus_key = corpus_key
 
@@ -48,9 +47,9 @@ class VectaraConnector(Connector):
         }
 
     def fetch_data(self, query_config=None, input_csv="queries.csv", output_csv="results.csv"):
-        if not all([self._api_key, self._corpus_key, self._customer_id]):
+        if not all([self._api_key, self._corpus_key]):
             raise ValueError(
-                "Missing Vectara API configuration (api_key, corpus_key, or customer_id)"
+                "Missing Vectara API configuration (api_key, corpus_key)"
             )
 
         # Read queries from CSV file.
