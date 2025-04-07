@@ -151,8 +151,8 @@ streamlit run visualize.py
 Note that you will need to have streamlit installed in your environment (which should be the case if you've installed open-rag-eval). Once you upload your evaluation results CSV (`open_eval_results.csv` by default) you can select a query to view detailed metrics for such as the produced nuggets by the AutoNuggetizer, the UMBRELA scores assigned to each retrieved result and so on.
 
 <p align="center">
-  <img width="40%" alt="visualization 1" src="img/viz_1.png"/>
-  <img width="40%" alt="visualization 2" src="img/viz_2.png"/>
+  <img width="45%" alt="visualization 1" src="img/viz_1.png"/>
+  <img width="45%" alt="visualization 2" src="img/viz_2.png"/>
 </p>
 
 # How does open-rag-eval work?
