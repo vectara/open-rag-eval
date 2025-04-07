@@ -1,4 +1,4 @@
-# Contributing to open-rag-eval
+# Contributing to Open-RAG-Eval
 
 Thank you for your interest in open-rag-eval and considering contributing to our project! 
 Whether it's a bug, a new metric or connector, updates to the README or anything else - we truly appreciate your time and effort.

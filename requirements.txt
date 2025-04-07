@@ -8,5 +8,6 @@ pydantic==2.10.6
 python-dotenv~=1.0.1
 requests~=2.32.3
 seaborn~=0.13.2
+streamlit==1.44.1
 torch==2.6.0
 transformers==4.49.0
