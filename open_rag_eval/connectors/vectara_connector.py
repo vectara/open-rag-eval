@@ -1,6 +1,7 @@
 import uuid
 import csv
 import requests
+import time
 
 from tqdm import tqdm
 import omegaconf
@@ -106,7 +107,7 @@ class VectaraConnector(Connector):
                            "generated_answer": generated_answer if idx == 1 else ""}
                     writer.writerow(row)
 
-    def query(self, endpoint_url, headers, query, query_config):
+    def query(self, endpoint_url, headers, query, query_config, max_retries=5, initial_backoff=1, max_backoff=60):
         # Get configs or use defaults
         if query_config is None:
             search = self.default_config['search']
@@ -135,9 +136,57 @@ class VectaraConnector(Connector):
             "intelligent_query_rewriting": False
         }
 
-        response = requests.post(endpoint_url, headers=headers, json=payload, timeout=30)
-        if response.status_code != 200:
-            raise Exception(
-                f"Request failed for query_id {query['queryId']} with status {response.status_code}: {response.text}"
-            )
-        return response.json()
+        retries = 0
+        backoff = initial_backoff
+        
+        # Only show progress bar if retries are needed
+        pbar = None
+        
+        while True:
+            try:
+                response = requests.post(endpoint_url, headers=headers, json=payload, timeout=30)
+                if response.status_code == 200:
+                    if pbar:
+                        pbar.close()
+                    return response.json()
+                
+                # If we've reached max retries, raise exception
+                if retries >= max_retries:
+                    if pbar:
+                        pbar.close()
+                    raise Exception(
+                        f"Request failed for query_id {query['queryId']} with status {response.status_code} after {max_retries} retries: {response.text}"
+                    )
+                
+                # Initialize progress bar if this is our first retry
+                if not pbar:
+                    pbar = tqdm(total=max_retries, desc=f"Retrying query {query['queryId']}")
+                
+                # Wait with exponential backoff
+                wait_time = min(backoff, max_backoff)
+                time.sleep(wait_time)
+                
+                # Increase backoff for next attempt (exponential)
+                backoff *= 2
+                retries += 1
+                pbar.update(1)
+                
+            except requests.exceptions.RequestException as e:
+                # Handle request exceptions (timeouts, connection errors)
+                if retries >= max_retries:
+                    if pbar:
+                        pbar.close()
+                    raise Exception(f"Request failed for query_id {query['queryId']} after {max_retries} retries: {str(e)}")
+                
+                # Initialize progress bar if this is our first retry
+                if not pbar:
+                    pbar = tqdm(total=max_retries, desc=f"Retrying query {query['queryId']}")
+                
+                # Wait with exponential backoff
+                wait_time = min(backoff, max_backoff)
+                time.sleep(wait_time)
+                
+                # Increase backoff for next attempt (exponential)
+                backoff *= 2
+                retries += 1
+                pbar.update(1)
