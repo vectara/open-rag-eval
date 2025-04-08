@@ -18,3 +18,5 @@ disable =
     unnecessary-pass,
     line-too-long,
     logging-fstring-interpolation,
+    too-many-statements,
+    too-many-branches,
