@@ -47,15 +47,15 @@ def parse_json_column(json_str):
         return float_val
     except (ValueError, TypeError):
         pass
-    
+
     # Try to parse as JSON
     try:
         return json.loads(json_str)
-    except:
+    except Exception:
         # Try as literal Python structure
         try:
             return literal_eval(json_str)
-        except:
+        except Exception:
             return json_str
 
 def style_umbrela_score(score):
@@ -73,7 +73,7 @@ def style_umbrela_score(score):
         elif score == 3:
             return "🟢 3"
         return str(score)
-    except:
+    except Exception:
         return str(score)
 
 def format_assignment(assignment):
@@ -90,60 +90,60 @@ def create_nugget_dataframe(data):
     """Create a formatted DataFrame for nugget visualization"""
     if not isinstance(data, dict):
         return None
-    
+
     try:
         df = pd.DataFrame({
             'Nugget': data.get('nuggets', []),
             'Label': data.get('labels', []),
             'Assignment': data.get('assignments', []),
         })
-        
+
         # Format assignments with colors
         df['Assignment'] = df['Assignment'].apply(format_assignment)
-        
+
         return df
-    except:
+    except Exception:
         return None
 
 def main():
     st.title("Open RAG Evaluation Viewer")
-    
+
     # File uploader
     uploaded_file = st.file_uploader("Upload CSV file", type=["csv"])
-    
+
     if uploaded_file is not None:
         # Load data
         df = load_data(uploaded_file)
-        
+
         # Display row selector
         st.subheader("Select a row to view details")
         row_index = st.selectbox("Select row", range(len(df)), format_func=lambda x: f"Row {x} - Query: {df.iloc[x]['query'][:50]}...")
-        
+
         if row_index is not None:
             selected_row = df.iloc[row_index]
-            
+
             # Display query
             st.subheader("Query")
             st.write(selected_row['query'])
-            
+
             # Display retrieved passages
             st.subheader("Retrieved Passages")
             passages = parse_retrieved_passages(selected_row['retrieved_passages'])
-            
+
             # Parse umbrella scores
             umbrela_scores = parse_json_column(selected_row['retrieval_score_umbrela_scores'])
-            
+
             for passage_id, passage_text in passages.items():
                 score = umbrela_scores.get(passage_id, "N/A")
                 styled_score = style_umbrela_score(score)
                 with st.expander(f"Passage {passage_id} (UMBRELA: {styled_score})"):
                     st.write(passage_text)
-            
+
             # Display generated answer
             st.subheader("Generated Answer")
             answer = parse_generated_answer(selected_row['generated_answer'])
             st.write(answer)
-            
+
             # Load other columns as well
             st.subheader("Evaluation Metrics")
             metrics_columns = [
@@ -156,23 +156,25 @@ def main():
                 'generation_score_citation_scores',
                 'generation_score_citation_f1_score'
             ]
-            
+
             for column in metrics_columns:
                 if column in selected_row:
                     with st.expander(f"{column}"):
                         parsed_data = parse_json_column(selected_row[column])
-                        
+
                         # Special handling for autonugget scores
                         if column == 'generation_score_autonugget_scores':
                             if isinstance(parsed_data, dict):
                                 # Display overall scores
                                 st.subheader("Overall Scores")
                                 if 'nuggetizer_scores' in parsed_data:
-                                    scores_df = pd.DataFrame(parsed_data['nuggetizer_scores'].items(), 
-                                                          columns=['Metric', 'Scores'])
+                                    scores_df = pd.DataFrame(
+                                        parsed_data['nuggetizer_scores'].items(),
+                                        columns=['Metric', 'Scores']
+                                    )
                                     scores_df['Scores'] = scores_df['Scores'].apply(lambda x: f"{x:.2%}")
                                     st.dataframe(scores_df, hide_index=True)
-                                
+
                                 # Display nugget details
                                 st.subheader("Nugget Analysis")
                                 nugget_df = create_nugget_dataframe(parsed_data)
