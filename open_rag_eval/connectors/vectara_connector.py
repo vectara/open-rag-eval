@@ -178,9 +178,6 @@ class VectaraConnector(Connector):
             headers: Request headers
             query: Query parameters
             query_config: Configuration for search and generation
-            max_retries: Maximum number of retries (default: 5)
-            initial_backoff: Initial backoff time in seconds (default: 1)
-            max_backoff: Maximum backoff time in seconds (default: 60)
 
         Returns:
             JSON response from the Vectara API
