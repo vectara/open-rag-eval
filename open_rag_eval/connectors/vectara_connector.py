@@ -1,12 +1,37 @@
-import uuid
 import csv
-import requests
-import time
+import logging
+import uuid
 
+import requests
 from tqdm import tqdm
 import omegaconf
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 
 from open_rag_eval.connectors.connector import Connector
+
+# Configure logging for tenacity
+logger = logging.getLogger(__name__)
+
+# Custom callback for tqdm progress bar with tenacity
+def tqdm_progress_callback(retry_state):
+    """Show progress with tqdm during retries."""
+    # Extract query_id from the args passed to the function
+    # The query_id should be the 4th argument to _make_request
+    try:
+        query_id = retry_state.args[3] if len(retry_state.args) > 3 else "unknown"
+    except (IndexError, AttributeError):
+        query_id = "unknown"
+
+    if not hasattr(retry_state, 'tqdm_pbar'):
+        retry_state.tqdm_pbar = tqdm(
+            total=retry_state.retry_object.stop.max_attempt_number,
+            desc=f"Retrying query {query_id}"
+        )
+    retry_state.tqdm_pbar.update(1)
+
+    # Close the progress bar on the last attempt
+    if retry_state.attempt_number == retry_state.retry_object.stop.max_attempt_number:
+        retry_state.tqdm_pbar.close()
 
 class VectaraConnector(Connector):
     def __init__(self, api_key, corpus_key):
@@ -85,8 +110,8 @@ class VectaraConnector(Connector):
             for query in tqdm(queries, desc="Running Vectara queries"):
                 try:
                     data = self.query(endpoint_url, headers, query, query_config)
-                except Exception as e:
-                    print(f"Failed to process query {query['queryId']}: {e}")
+                except Exception as ex:
+                    print(f"Failed to process query {query['queryId']}: {ex}")
                     continue
 
                 # Get the overall summary (generated answer).
@@ -107,7 +132,59 @@ class VectaraConnector(Connector):
                            "generated_answer": generated_answer if idx == 1 else ""}
                     writer.writerow(row)
 
-    def query(self, endpoint_url, headers, query, query_config, max_retries=5, initial_backoff=1, max_backoff=60):
+    @retry(
+        stop=stop_after_attempt(5),
+        wait=wait_exponential(multiplier=1, min=1, max=60),
+        retry=retry_if_exception_type((requests.exceptions.RequestException, Exception)),
+        before_sleep=tqdm_progress_callback,
+        after=tqdm_progress_callback
+    )
+    def _make_request(self, endpoint_url, headers, payload, query_id):
+        """
+        Make request to Vectara API with retry logic using tenacity.
+
+        This method is decorated with tenacity's retry decorator to automatically
+        handle retries with exponential backoff for failed requests.
+
+        Args:
+            endpoint_url: The Vectara API endpoint URL
+            headers: Request headers
+            payload: Request payload (JSON)
+            query_id: Query ID for tracking and reporting
+
+        Returns:
+            JSON response from the Vectara API
+
+        Raises:
+            Exception: If the request fails after all retries
+        """
+        try:
+            response = requests.post(endpoint_url, headers=headers, json=payload, timeout=30)
+            if response.status_code == 200:
+                return response.json()
+            raise Exception(
+                f"Request failed for query_id {query_id} with status {response.status_code}: {response.text}"
+            )
+        except requests.exceptions.RequestException as ex:
+            raise Exception(
+                f'Request failed for query_id {query_id}: {str(ex)}') from ex
+
+    def query(self, endpoint_url, headers, query, query_config):
+        """
+        Query the Vectara API with retry logic.
+
+        Args:
+            endpoint_url: The Vectara API endpoint URL
+            headers: Request headers
+            query: Query parameters
+            query_config: Configuration for search and generation
+            max_retries: Maximum number of retries (default: 5)
+            initial_backoff: Initial backoff time in seconds (default: 1)
+            max_backoff: Maximum backoff time in seconds (default: 60)
+
+        Returns:
+            JSON response from the Vectara API
+        """
         # Get configs or use defaults
         if query_config is None:
             search = self.default_config['search']
@@ -136,57 +213,5 @@ class VectaraConnector(Connector):
             "intelligent_query_rewriting": False
         }
 
-        retries = 0
-        backoff = initial_backoff
-        
-        # Only show progress bar if retries are needed
-        pbar = None
-        
-        while True:
-            try:
-                response = requests.post(endpoint_url, headers=headers, json=payload, timeout=30)
-                if response.status_code == 200:
-                    if pbar:
-                        pbar.close()
-                    return response.json()
-                
-                # If we've reached max retries, raise exception
-                if retries >= max_retries:
-                    if pbar:
-                        pbar.close()
-                    raise Exception(
-                        f"Request failed for query_id {query['queryId']} with status {response.status_code} after {max_retries} retries: {response.text}"
-                    )
-                
-                # Initialize progress bar if this is our first retry
-                if not pbar:
-                    pbar = tqdm(total=max_retries, desc=f"Retrying query {query['queryId']}")
-                
-                # Wait with exponential backoff
-                wait_time = min(backoff, max_backoff)
-                time.sleep(wait_time)
-                
-                # Increase backoff for next attempt (exponential)
-                backoff *= 2
-                retries += 1
-                pbar.update(1)
-                
-            except requests.exceptions.RequestException as e:
-                # Handle request exceptions (timeouts, connection errors)
-                if retries >= max_retries:
-                    if pbar:
-                        pbar.close()
-                    raise Exception(f"Request failed for query_id {query['queryId']} after {max_retries} retries: {str(e)}")
-                
-                # Initialize progress bar if this is our first retry
-                if not pbar:
-                    pbar = tqdm(total=max_retries, desc=f"Retrying query {query['queryId']}")
-                
-                # Wait with exponential backoff
-                wait_time = min(backoff, max_backoff)
-                time.sleep(wait_time)
-                
-                # Increase backoff for next attempt (exponential)
-                backoff *= 2
-                retries += 1
-                pbar.update(1)
+        # Use the default retry configuration
+        return self._make_request(endpoint_url, headers, payload, query["queryId"])
