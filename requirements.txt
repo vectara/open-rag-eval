@@ -9,4 +9,8 @@ python-dotenv~=1.0.1
 requests~=2.32.3
 seaborn~=0.13.2
 torch==2.6.0
+tqdm==4.67.1
 transformers==4.49.0
+setuptools~=68.2.0
+tenacity~=9.1.2
+numpy~=2.2.4

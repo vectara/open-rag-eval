@@ -17,7 +17,7 @@ DUMMY_RESPONSE = {
 class TestVectaraConnector(unittest.TestCase):
     def setUp(self):
         # Create a temporary CSV file with one test query.
-        self.test_csv_path = Path("../tests/data/test_vectara_connector.csv")
+        self.test_csv_path = Path("tests/data/test_vectara_connector.csv")
         self.test_csv_path.parent.mkdir(exist_ok=True)
         with self.test_csv_path.open("w", newline='', encoding='utf-8') as f:
             writer = csv.DictWriter(f, fieldnames=["query_id", "query"])
