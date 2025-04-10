@@ -65,7 +65,6 @@ def get_connector(config: Dict[str, Any]) -> connectors.Connector:
         # Create connector instance with options from config
         connector_options = config.connector.options
         return connector_class(
-            connector_options.customer_id,
             connector_options.api_key,
             connector_options.corpus_key)
 

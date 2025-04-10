@@ -28,8 +28,7 @@ class TestVectaraConnector(unittest.TestCase):
         # Retrieve test credentials (or set dummy values for unit testing)
         api_key = os.getenv("VECTARA_API_KEY", "dummy_api_key")
         corpus_key = os.getenv("VECTARA_CORPUS_KEY", "dummy_corpus_key")
-        customer_id = os.getenv("VECTARA_CUSTOMER_ID", "dummy_customer_id")
-        self.connector = VectaraConnector(customer_id, api_key, corpus_key)
+        self.connector = VectaraConnector(api_key, corpus_key)
 
         # Output CSV file for testing.
         self.generated_answers = "results.csv"

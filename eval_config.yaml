@@ -16,10 +16,9 @@ evaluator:
 connector:
   type: "VectaraConnector"
   options:
-    customer_id: 159623606
-    api_key: ${oc.env:VECTARA_API_KEY}         
-    corpus_key: "fiqa"                      
-    input_queries: "queries.csv"                    
+    api_key: ${oc.env:VECTARA_API_KEY}
+    corpus_key: "fiqa"
+    input_queries: "queries.csv"
     generated_answers: "vectara_results.csv"
     query_config:
       search:
