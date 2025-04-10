@@ -139,9 +139,9 @@ class VectaraConnector(Connector):
         before_sleep=tqdm_progress_callback,
         after=tqdm_progress_callback
     )
-    def _make_request(self, endpoint_url, headers, payload, query_id):
+    def _send_request(self, endpoint_url, headers, payload, query_id):
         """
-        Make request to Vectara API with retry logic using tenacity.
+        Send request to Vectara API with retry logic using tenacity.
 
         This method is decorated with tenacity's retry decorator to automatically
         handle retries with exponential backoff for failed requests.
@@ -211,4 +211,4 @@ class VectaraConnector(Connector):
         }
 
         # Use the default retry configuration
-        return self._make_request(endpoint_url, headers, payload, query["queryId"])
+        return self._send_request(endpoint_url, headers, payload, query["queryId"])
