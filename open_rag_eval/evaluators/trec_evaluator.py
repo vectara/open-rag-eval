@@ -91,8 +91,8 @@ class TRECEvaluator(Evaluator):
                 vert=True,
                 patch_artist=True,
                 positions=positions,
-                boxprops=dict(facecolor='skyblue', color='black'),
-                medianprops=dict(color='darkorange', linewidth=2)
+                boxprops={'facecolor': 'skyblue', 'color': 'black'},
+                medianprops={'color': 'darkorange', 'linewidth': 2},
             )
             ax.set_title(metric_title, fontsize=16 if single else 12)
             ax.set_ylabel('Value', fontsize=14 if single else 10)
@@ -146,8 +146,10 @@ class TRECEvaluator(Evaluator):
                 ax = axs[i]
                 if metric in df.columns:
                     values = df[metric].dropna().values
-                    plot_boxplot(ax, [values], [os.path.basename(csv_files[0])],
-                                metric.replace("_", " ").title(), single=True)
+                    plot_boxplot(
+                        ax, [values], [os.path.basename(csv_files[0])],
+                        metric.replace("_", " ").title(), single=True
+                    )
                     if metric == 'retrieval_score_mean_umbrela_score':
                         ax.set_ylim(0, 3)
                     else:
@@ -174,7 +176,7 @@ class TRECEvaluator(Evaluator):
                 else:
                     ax.set_ylim(0, 1)
 
-        fig.suptitle("Vetara-Eval Metrics", fontsize=16)
+        fig.suptitle("Open-RAG-Eval Metrics", fontsize=16)
         plt.tight_layout(rect=[0, 0.03, 1, 0.95])
         fig.savefig(output_file, dpi=300, bbox_inches='tight')
         plt.close(fig)

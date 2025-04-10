@@ -1,7 +1,7 @@
 from typing import Any, List
+import json
 from dataclasses import dataclass
 import pandas as pd
-import json
 
 from .rag_results import RAGResult
 
