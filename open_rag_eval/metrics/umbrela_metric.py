@@ -83,10 +83,10 @@ class UMBRELAMetric(RetrievalMetric):
                 prompt = self.prompt.format(query=query, passage=passage)
                 response = self.model.parse(prompt, response_format=UMBRELAScore)
 
-                if not response.parsed:
+                if not response.score:
                     raise ValueError(f"Failed to parse response: {response.refusal}")
 
-                scores[key] = score_map[response.parsed.score.value]
+                scores[key] = score_map[response.score.value]
 
             except Exception as e:
                 raise Exception(f"Error computing UMBRELA score: {str(e)}") from e

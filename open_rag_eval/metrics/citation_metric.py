@@ -85,10 +85,10 @@ class CitationMetric(AugmentedGenerationMetric):
                     citation=passage
                 )
                 response = self.model.parse(prompt, response_format=CitationSupport)
-                if not response.parsed:
+                if not response.support:
                     raise ValueError(f"Failed to parse response: {response.refusal}")
 
-                label = response.parsed.support.value
+                label = response.support.value
                 scores[f"citation_score_{key}"] = self.score_map[label]
             except Exception as e:
                 raise Exception(f"Error computing Citation score: {str(e)}") from e
