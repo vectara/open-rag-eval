@@ -13,6 +13,8 @@ from open_rag_eval.connectors.connector import Connector
 # Configure logging for tenacity
 logger = logging.getLogger(__name__)
 
+DEFAULT_MAX_USED_SEARCH_RESULTS = 5
+
 # Custom callback for tqdm progress bar with tenacity
 def tqdm_progress_callback(retry_state):
     """Show progress with tqdm during retries."""
@@ -67,7 +69,7 @@ class VectaraConnector(Connector):
             },
             "generation": {
                 "generation_preset_name": "vectara-summary-table-md-query-ext-jan-2025-gpt-4o",
-                "max_used_search_results": 5,
+                "max_used_search_results": DEFAULT_MAX_USED_SEARCH_RESULTS,
                 "response_language": "auto",
                 "citations": {"style": "numeric"},
             }
@@ -93,7 +95,7 @@ class VectaraConnector(Connector):
         Get the maximum number of search results to use for generation.
         """
         generation = self._get_config_section(query_config, 'generation')
-        return generation.get("max_used_search_results", 5)
+        return generation.get("max_used_search_results", DEFAULT_MAX_USED_SEARCH_RESULTS)
 
     def fetch_data(self, query_config=None, input_csv="queries.csv", output_csv="results.csv"):
         if not all([self._api_key, self._corpus_key]):
