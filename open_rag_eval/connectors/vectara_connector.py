@@ -1,4 +1,5 @@
 import csv
+from itertools import islice
 import logging
 import uuid
 
@@ -99,6 +100,15 @@ class VectaraConnector(Connector):
 
         endpoint_url = f"https://api.vectara.io/v2/corpora/{self._corpus_key}/query"
 
+        def get_max_used_search_results(config):
+            """
+            Get the maximum number of search results to use for generation.
+            """
+            config = self.default_config if config is None else config
+            if config and "generation" in config:
+                return config["generation"].get("max_used_search_results", 5)
+            return 5
+
         # Open the output CSV file and write header.
         with open(output_csv, "w", newline='', encoding='utf-8') as csvfile:
             fieldnames = ["query_id", "query", "passage_id", "passage",
@@ -123,7 +133,7 @@ class VectaraConnector(Connector):
 
                 # Get the search results.
                 search_results = data.get("search_results", [])
-                for idx, result in enumerate(search_results, start=1):
+                for idx, result in enumerate(islice(search_results, get_max_used_search_results(query_config)), start=1):
                     # Only include the generated summary in the first row.
                     row = {"query_id": query["queryId"],
                            "query": query["query"],
