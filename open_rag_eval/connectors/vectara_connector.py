@@ -73,6 +73,28 @@ class VectaraConnector(Connector):
             }
         }
 
+    def _get_config_section(self, query_config, section_name):
+        """
+        Extract a configuration section from query_config or use defaults.
+
+        Args:
+            query_config: The query configuration
+            section_name: The name of the section to extract (e.g., 'search', 'generation')
+
+        Returns:
+            The configuration section, with defaults applied if needed
+        """
+        if query_config is None:
+            return self.default_config[section_name]
+        return query_config.get(section_name, self.default_config[section_name])
+
+    def _get_max_used_search_results(self, query_config):
+        """
+        Get the maximum number of search results to use for generation.
+        """
+        generation = self._get_config_section(query_config, 'generation')
+        return generation.get("max_used_search_results", 5)
+
     def fetch_data(self, query_config=None, input_csv="queries.csv", output_csv="results.csv"):
         if not all([self._api_key, self._corpus_key]):
             raise ValueError(
@@ -100,15 +122,6 @@ class VectaraConnector(Connector):
 
         endpoint_url = f"https://api.vectara.io/v2/corpora/{self._corpus_key}/query"
 
-        def get_max_used_search_results(config):
-            """
-            Get the maximum number of search results to use for generation.
-            """
-            config = self.default_config if config is None else config
-            if config and "generation" in config:
-                return config["generation"].get("max_used_search_results", 5)
-            return 5
-
         # Open the output CSV file and write header.
         with open(output_csv, "w", newline='', encoding='utf-8') as csvfile:
             fieldnames = ["query_id", "query", "passage_id", "passage",
@@ -133,7 +146,7 @@ class VectaraConnector(Connector):
 
                 # Get the search results.
                 search_results = data.get("search_results", [])
-                for idx, result in enumerate(islice(search_results, get_max_used_search_results(query_config)), start=1):
+                for idx, result in enumerate(islice(search_results, self._get_max_used_search_results(query_config)), start=1):
                     # Only include the generated summary in the first row.
                     row = {"query_id": query["queryId"],
                            "query": query["query"],
@@ -193,12 +206,8 @@ class VectaraConnector(Connector):
             JSON response from the Vectara API
         """
         # Get configs or use defaults
-        if query_config is None:
-            search = self.default_config['search']
-            generation = self.default_config['generation']
-        else:
-            search = query_config.get('search', self.default_config['search'])
-            generation = query_config.get('generation', self.default_config['generation'])
+        search = self._get_config_section(query_config, 'search')
+        generation = self._get_config_section(query_config, 'generation')
 
         search_dict = (
             omegaconf.OmegaConf.to_container(search, resolve=True)
