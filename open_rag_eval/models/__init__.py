@@ -1,3 +1,3 @@
-from .llm_judges import LLMJudgeModel, OpenAIModel
+from .llm_judges import LLMJudgeModel, OpenAIModel, GeminiModel
 
-__all__ = ["LLMJudgeModel", "OpenAIModel"]
+__all__ = ["LLMJudgeModel", "OpenAIModel", "GeminiModel"]
