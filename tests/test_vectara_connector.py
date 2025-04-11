@@ -73,6 +73,48 @@ class TestVectaraConnector(unittest.TestCase):
         self.assertEqual(row2["passage_id"], "[2]")
         self.assertEqual(row2["passage"], "Passage two")
         self.assertEqual(row2["generated_answer"], "")
+        
+    def test_get_max_used_search_results(self):
+        # Test with default config (None)
+        self.assertEqual(self.connector._get_max_used_search_results(None), 5)
+        
+        # Test with custom config
+        custom_config = {
+            "generation": {
+                "max_used_search_results": 10
+            }
+        }
+        self.assertEqual(self.connector._get_max_used_search_results(custom_config), 10)
+        
+        # Test with empty config
+        empty_config = {}
+        self.assertEqual(self.connector._get_max_used_search_results(empty_config), 5)
+        
+        # Test with config missing the key
+        no_key_config = {
+            "generation": {
+                "other_setting": "value"
+            }
+        }
+        self.assertEqual(self.connector._get_max_used_search_results(no_key_config), 5)
+        
+    def test_get_config_section(self):
+        # Test with None config
+        search_section = self.connector._get_config_section(None, 'search')
+        self.assertEqual(search_section, self.connector.default_config['search'])
+        
+        # Test with custom config that has the section
+        custom_config = {
+            "search": {"limit": 50},
+            "generation": {"max_used_search_results": 3}
+        }
+        search_section = self.connector._get_config_section(custom_config, 'search')
+        self.assertEqual(search_section, {"limit": 50})
+        
+        # Test with custom config missing the section
+        partial_config = {"search": {"limit": 50}}
+        generation_section = self.connector._get_config_section(partial_config, 'generation')
+        self.assertEqual(generation_section, self.connector.default_config['generation'])
 
 
 if __name__ == '__main__':
