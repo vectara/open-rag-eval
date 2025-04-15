@@ -1,8 +1,6 @@
-from typing import List
 import logging
 import os
 
-from tqdm import tqdm
 import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
@@ -58,12 +56,6 @@ class TRECEvaluator(Evaluator):
             rag_scores = RAGScores(RetrievalScores(scores={}), AugmentedGenerationScores(scores={}))
             return ScoredRAGResult(rag_result=rag_results, scores=rag_scores)
 
-    def evaluate_batch(self, rag_results: List[RAGResult]) -> List[ScoredRAGResult]:
-        eval_scores = []
-        for result in tqdm(rag_results, desc="Evaluating using TRECRAG evaluator."):
-            eval_scores.append(self.evaluate(result))
-
-        return eval_scores
 
     @classmethod
     def plot_metrics(cls, csv_files: list, output_file: str = 'metrics_comparison.png'):
