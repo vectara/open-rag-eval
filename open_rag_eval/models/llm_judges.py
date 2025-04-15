@@ -1,7 +1,10 @@
 from abc import ABC
-from pydantic import BaseModel
+import json
 
 import openai
+from google import genai
+from pydantic import BaseModel, parse_obj_as
+
 
 class LLMJudgeModel(ABC):
     """Abstract base class for LLM judge models."""
@@ -9,15 +12,15 @@ class LLMJudgeModel(ABC):
 
 
 class OpenAIModel(LLMJudgeModel):
-    """OpenAI model."""
-    def __init__(self, model_name: str, api_key: str):
+    """Supports any model that conforms to the OpenAI API spec."""
+    def __init__(self, model_name: str, api_key: str, base_url: str = None):
         self.model_name = model_name
         openai.api_key = api_key
-        self.client = openai.OpenAI()
+        self.client = openai.OpenAI(base_url=base_url)
 
     def call(self, prompt: str, model_kwargs=None) -> str:
         """
-        Call the OpenAI model with the given prompt.
+        Call the OpenAI API compatible model with the given prompt.
 
         Args:
             prompt (str): The input prompt for the model
@@ -56,11 +59,11 @@ class OpenAIModel(LLMJudgeModel):
 
     def parse(self, prompt: str, response_format: BaseModel):
         completion = self.client.beta.chat.completions.parse(
-            model="gpt-4o-mini",  # Use appropriate model
+            model=self.model_name,  # Use appropriate model
             messages=[
                 {
                     "role": "system",
-                    "content": "You are a helpful assistant that categorizes items as either 'vital' or 'okay'."
+                    "content": "You are a helpful assistant that follows user instructions precisely and provides accurate information."
                 },
                 {
                     "role": "user",
@@ -72,4 +75,66 @@ class OpenAIModel(LLMJudgeModel):
 
         message = completion.choices[0].message
 
-        return message
+        return message.parsed
+
+
+class GeminiModel(LLMJudgeModel):
+    """LLMJudge that supports Google Gemini models."""
+    def __init__(self, model_name: str, api_key: str):
+        self.model_name = model_name
+        self.client = genai.Client(api_key=api_key)
+
+    def call(self, prompt: str, model_kwargs=None) -> str:
+        """
+        Call the Gemini API model with the given prompt.
+
+        Args:
+            prompt (str): The input prompt for the model
+            model_kwargs (dict, optional): Additional kwargs for the API call
+
+        Returns:
+            str: The model's response text
+
+        Raises:
+            ValueError: If the prompt is empty or model_kwargs is invalid
+            Exception: For API or other unexpected errors
+        """
+        if not prompt.strip():
+            raise ValueError("Prompt cannot be empty")
+
+        model_kwargs = model_kwargs or {}
+
+        try:
+            response = self.client.models.generate_content(
+                model=self.model_name,
+                contents=prompt,
+                **model_kwargs
+            )
+            return response.text
+        except Exception as e:
+            raise Exception(f"Unexpected error: {str(e)}") from e
+
+    def parse(self, prompt: str, response_format: BaseModel):
+        """
+        Parse structured output from a Gemini model according to a Pydantic schema.
+
+        Args:
+            prompt (str): The input prompt
+            response_format (BaseModel): Pydantic model defining the expected response structure
+
+        Returns:
+            The parsed response matching the provided schema
+        """
+        response = self.client.models.generate_content(
+            model=self.model_name,
+            contents=prompt,
+            config={
+                'response_mime_type': 'application/json',
+                'response_schema': response_format,
+            },
+        )
+
+        response_json = json.loads(response.text)
+        parsed_response = parse_obj_as(response_format, response_json)
+
+        return parsed_response
