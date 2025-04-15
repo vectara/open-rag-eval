@@ -57,9 +57,10 @@ class OpenAIModel(LLMJudgeModel):
         except Exception as e:
             raise Exception(f"Unexpected error: {str(e)}") from e
 
-    def parse(self, prompt: str, response_format: BaseModel):
+    def parse(self, prompt: str, response_format: BaseModel, model_kwargs=None):
+        model_kwargs = model_kwargs or {}
         completion = self.client.beta.chat.completions.parse(
-            model=self.model_name,  # Use appropriate model
+            model=self.model_name,
             messages=[
                 {
                     "role": "system",
@@ -71,10 +72,10 @@ class OpenAIModel(LLMJudgeModel):
                 }
             ],
             response_format=response_format,
+            **model_kwargs
         )
 
         message = completion.choices[0].message
-
         return message.parsed
 
 
@@ -114,24 +115,29 @@ class GeminiModel(LLMJudgeModel):
         except Exception as e:
             raise Exception(f"Unexpected error: {str(e)}") from e
 
-    def parse(self, prompt: str, response_format: BaseModel):
+    def parse(self, prompt: str, response_format: BaseModel, model_kwargs=None):
         """
         Parse structured output from a Gemini model according to a Pydantic schema.
 
         Args:
             prompt (str): The input prompt
             response_format (BaseModel): Pydantic model defining the expected response structure
+            model_kwargs (dict, optional): Additional kwargs for the API call
 
         Returns:
             The parsed response matching the provided schema
         """
+        model_kwargs = model_kwargs or {}
+        config = {
+            'response_mime_type': 'application/json',
+            'response_schema': response_format,
+            **model_kwargs
+        }
+        
         response = self.client.models.generate_content(
             model=self.model_name,
             contents=prompt,
-            config={
-                'response_mime_type': 'application/json',
-                'response_schema': response_format,
-            },
+            config=config,
         )
 
         response_json = json.loads(response.text)
