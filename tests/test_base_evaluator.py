@@ -1,6 +1,4 @@
 import unittest
-from unittest.mock import Mock
-from concurrent.futures import ThreadPoolExecutor
 
 from open_rag_eval.evaluators.base_evaluator import Evaluator
 from open_rag_eval.data_classes.rag_results import (

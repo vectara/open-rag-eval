@@ -79,7 +79,7 @@ class TestLLMJudgesIntegration(unittest.TestCase):
             "top_p": 1.0,
             "presence_penalty": 0.5,
             "frequency_penalty": 0.0,
-        }        
+        }
 
     def setUp(self):
         if "openai" in self.available_models:

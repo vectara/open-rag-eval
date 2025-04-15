@@ -11,15 +11,24 @@ class Evaluator(ABC):
 
     @classmethod
     @abstractmethod
-    def plot_metrics(cls, csv_files, output_file='metrics_comparison.png'):
+    def plot_metrics(cls, csv_files, output_file="metrics_comparison.png"):
         """Plot metrics from multiple CSV files."""
         pass
 
-    def evaluate_batch(self, rag_results: List[RAGResult], max_workers: Optional[int] = 5) -> List[ScoredRAGResult]:
+    @abstractmethod
+    def evaluate(self, rag_results: RAGResult) -> ScoredRAGResult:
+        """Evaluate a single RAG result."""
+        pass
+
+    def evaluate_batch(
+        self, rag_results: List[RAGResult], max_workers: Optional[int] = 5
+    ) -> List[ScoredRAGResult]:
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
-            eval_scores = list(tqdm(
-                executor.map(self.evaluate, rag_results),
-                total=len(rag_results),
-                desc="Evaluating using TRECRAG evaluator."
-            ))
-        return eval_scores    
+            eval_scores = list(
+                tqdm(
+                    executor.map(self.evaluate, rag_results),
+                    total=len(rag_results),
+                    desc="Evaluating using TRECRAG evaluator.",
+                )
+            )
+        return eval_scores
