@@ -8,11 +8,13 @@ from pydantic import BaseModel, parse_obj_as
 
 class LLMJudgeModel(ABC):
     """Abstract base class for LLM judge models."""
+
     pass
 
 
 class OpenAIModel(LLMJudgeModel):
     """Supports any model that conforms to the OpenAI API spec."""
+
     def __init__(self, model_name: str, api_key: str, base_url: str = None):
         self.model_name = model_name
         openai.api_key = api_key
@@ -45,7 +47,7 @@ class OpenAIModel(LLMJudgeModel):
             response = self.client.chat.completions.create(
                 model=self.model_name,
                 messages=[{"role": "user", "content": prompt}],
-                **model_kwargs
+                **model_kwargs,
             )
             return response.choices[0].message.content
         except openai.RateLimitError:
@@ -64,15 +66,12 @@ class OpenAIModel(LLMJudgeModel):
             messages=[
                 {
                     "role": "system",
-                    "content": "You are a helpful assistant that follows user instructions precisely and provides accurate information."
+                    "content": "You are a helpful assistant that follows user instructions precisely and provides accurate information.",
                 },
-                {
-                    "role": "user",
-                    "content": prompt
-                }
+                {"role": "user", "content": prompt},
             ],
             response_format=response_format,
-            **model_kwargs
+            **model_kwargs,
         )
 
         message = completion.choices[0].message
@@ -81,6 +80,7 @@ class OpenAIModel(LLMJudgeModel):
 
 class GeminiModel(LLMJudgeModel):
     """LLMJudge that supports Google Gemini models."""
+
     def __init__(self, model_name: str, api_key: str):
         self.model_name = model_name
         self.client = genai.Client(api_key=api_key)
@@ -107,9 +107,7 @@ class GeminiModel(LLMJudgeModel):
 
         try:
             response = self.client.models.generate_content(
-                model=self.model_name,
-                contents=prompt,
-                **model_kwargs
+                model=self.model_name, contents=prompt, **model_kwargs
             )
             return response.text
         except Exception as e:
@@ -129,11 +127,11 @@ class GeminiModel(LLMJudgeModel):
         """
         model_kwargs = model_kwargs or {}
         config = {
-            'response_mime_type': 'application/json',
-            'response_schema': response_format,
-            **model_kwargs
+            "response_mime_type": "application/json",
+            "response_schema": response_format,
+            **model_kwargs,
         }
-        
+
         response = self.client.models.generate_content(
             model=self.model_name,
             contents=prompt,
