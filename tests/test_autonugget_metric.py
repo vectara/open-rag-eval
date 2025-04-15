@@ -24,8 +24,7 @@ class TestAutoNuggetMetric(unittest.TestCase):
         umbrela_scores = {"1": 2, "2": 1 ,"3": 0}
 
         mock_response = Mock()
-        mock_response.parsed = Nuggets(nuggets=["nugget1", "nugget2"])
-        mock_response.refusal = None
+        mock_response = Nuggets(nuggets=["nugget1", "nugget2"])
         self.model.parse.return_value = mock_response
 
         nuggets = self.metric._create_nuggets(query, retrieved_passages, umbrela_scores)
@@ -36,12 +35,11 @@ class TestAutoNuggetMetric(unittest.TestCase):
         nuggets = ["nugget1", "nugget2", "nugget3"]
 
         mock_response = Mock()
-        mock_response.parsed = NuggetImportance(importance=[
+        mock_response = NuggetImportance(importance=[
             NuggetImportanceValues.VITAL,
             NuggetImportanceValues.OKAY,
             NuggetImportanceValues.VITAL
         ])
-        mock_response.refusal = None
         self.model.parse.return_value = mock_response
 
         sorted_nuggets, sorted_labels = self.metric._score_and_sort_nuggets(query, nuggets)
@@ -54,11 +52,10 @@ class TestAutoNuggetMetric(unittest.TestCase):
         nuggets = ["nugget1", "nugget2"]
 
         mock_response = Mock()
-        mock_response.parsed = NuggetAssignment(assignment=[
+        mock_response = NuggetAssignment(assignment=[
             NuggetAssignmentValues.SUPPORT,
             NuggetAssignmentValues.PARTIAL_SUPPORT
         ])
-        mock_response.refusal = None
         self.model.parse.return_value = mock_response
 
         assignments = self.metric._assign_nuggets(query, generated_answer, nuggets)

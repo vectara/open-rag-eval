@@ -1,10 +1,9 @@
-import json
-import openai
-
 from abc import ABC
+import json
+
+import openai
 from google import genai
-from pydantic import BaseModel
-from pydantic.tools import parse_obj_as
+from pydantic import BaseModel, parse_obj_as
 
 
 class LLMJudgeModel(ABC):
@@ -14,10 +13,10 @@ class LLMJudgeModel(ABC):
 
 class OpenAIModel(LLMJudgeModel):
     """Supports any model that conforms to the OpenAI API spec."""
-    def __init__(self, model_name: str, api_key: str):
+    def __init__(self, model_name: str, api_key: str, base_url: str = None):
         self.model_name = model_name
         openai.api_key = api_key
-        self.client = openai.OpenAI()
+        self.client = openai.OpenAI(base_url=base_url)
 
     def call(self, prompt: str, model_kwargs=None) -> str:
         """
@@ -85,7 +84,6 @@ class GeminiModel(LLMJudgeModel):
         self.model_name = model_name
         self.client = genai.Client(api_key=api_key)
 
-
     def call(self, prompt: str, model_kwargs=None) -> str:
         """
         Call the Gemini API model with the given prompt.
@@ -115,7 +113,6 @@ class GeminiModel(LLMJudgeModel):
             return response.text
         except Exception as e:
             raise Exception(f"Unexpected error: {str(e)}") from e
-        
 
     def parse(self, prompt: str, response_format: BaseModel):
         """

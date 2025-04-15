@@ -32,7 +32,7 @@ def get_evaluator(config: Dict[str, Any]) -> evaluators.Evaluator:
         # Create the model instance based on config
         model_config = config.evaluator.model
         model_class = getattr(models, model_config.type)
-        
+
         # Verify it's a subclass of LLMJudgeModel
         if not issubclass(model_class, models.LLMJudgeModel):
             raise TypeError(f"{model_config.type} is not a subclass of LLMJudgeModel")

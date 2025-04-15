@@ -13,6 +13,7 @@ class CitationSupportValues(str, Enum):
     PARTIAL = "partial_support"
     NONE = "no_support"
 
+
 class CitationSupport(BaseModel):
     support: CitationSupportValues
 
@@ -49,51 +50,49 @@ _STRUCTURED_OUTPUT_TEST_PROMPT = """
     Citation: {citation}
 """
 
+
 class TestLLMJudgesIntegration(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         load_dotenv()
         # Check for required environment variables
-        required_vars = {
-            "openai": ["OPENAI_API_KEY"],
-            "gemini": ["GOOGLE_API_KEY"]
-        }
-        
+        required_vars = {"openai": ["OPENAI_API_KEY"], "gemini": ["GOOGLE_API_KEY"]}
+
         cls.available_models = []
-        
+
         # Check OpenAI credentials
         if all(os.getenv(var) for var in required_vars["openai"]):
             cls.openai_key = os.getenv("OPENAI_API_KEY")
             cls.available_models.append("openai")
-        
+
         # Check Gemini credentials
         if all(os.getenv(var) for var in required_vars["gemini"]):
             cls.gemini_key = os.getenv("GOOGLE_API_KEY")
             cls.available_models.append("gemini")
-            
+
         if not cls.available_models:
-            raise unittest.SkipTest("Skipping LLMJudge integration tests - no API keys configured")
+            raise unittest.SkipTest(
+                "Skipping LLMJudge integration tests - no API keys configured"
+            )
 
     def setUp(self):
         if "openai" in self.available_models:
             self.openai_model = OpenAIModel(
-                model_name="gpt-4o-mini",
-                api_key=self.openai_key
+                model_name="gpt-4o-mini", api_key=self.openai_key
             )
         if "gemini" in self.available_models:
             self.gemini_model = GeminiModel(
-                model_name="gemini-2.0-flash",
-                api_key=self.gemini_key
+                model_name="gemini-2.0-flash", api_key=self.gemini_key
             )
 
     def test_openai_integration(self):
         """Test OpenAI model with actual API calls"""
         if "openai" not in self.available_models:
             self.skipTest("OpenAI API key not configured")
-            
+
         prompt = "What is 2+2? Answer with just the number."
         response = self.openai_model.call(prompt)
-        
+
         # Basic validation of response
         self.assertIsInstance(response, str)
         self.assertTrue(len(response.strip()) > 0)
@@ -104,10 +103,10 @@ class TestLLMJudgesIntegration(unittest.TestCase):
         """Test Gemini model with actual API calls"""
         if "gemini" not in self.available_models:
             self.skipTest("Gemini API key not configured")
-            
+
         prompt = "What is 2+2? Answer with just the number."
         response = self.gemini_model.call(prompt)
-        
+
         # Basic validation of response
         self.assertIsInstance(response, str)
         self.assertTrue(len(response.strip()) > 0)
@@ -118,13 +117,15 @@ class TestLLMJudgesIntegration(unittest.TestCase):
         """Test OpenAI model parse method with actual API calls"""
         if "openai" not in self.available_models:
             self.skipTest("OpenAI API key not configured")
-            
+
         statement = "The sky is blue."
         citation = "According to meteorological observations, the sky appears blue due to Rayleigh scattering of sunlight."
-        prompt = _STRUCTURED_OUTPUT_TEST_PROMPT.format(statement=statement, citation=citation)
-        
+        prompt = _STRUCTURED_OUTPUT_TEST_PROMPT.format(
+            statement=statement, citation=citation
+        )
+
         response = self.openai_model.parse(prompt, CitationSupport)
-        
+
         self.assertIsInstance(response, CitationSupport)
         self.assertIsInstance(response.support, CitationSupportValues)
         self.assertIn(response.support, CitationSupportValues)
@@ -133,16 +134,19 @@ class TestLLMJudgesIntegration(unittest.TestCase):
         """Test Gemini model parse method with actual API calls"""
         if "gemini" not in self.available_models:
             self.skipTest("Gemini API key not configured")
-            
+
         statement = "The sky is blue."
         citation = "According to meteorological observations, the sky appears blue due to Rayleigh scattering of sunlight."
-        prompt = _STRUCTURED_OUTPUT_TEST_PROMPT.format(statement=statement, citation=citation)
-        
-        response = self.gemini_model.parse(prompt, CitationSupport)    
-        
+        prompt = _STRUCTURED_OUTPUT_TEST_PROMPT.format(
+            statement=statement, citation=citation
+        )
+
+        response = self.gemini_model.parse(prompt, CitationSupport)
+
         self.assertIsInstance(response, CitationSupport)
         self.assertIsInstance(response.support, CitationSupportValues)
         self.assertIn(response.support, CitationSupportValues)
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     unittest.main()
