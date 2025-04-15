@@ -74,6 +74,12 @@ class TestLLMJudgesIntegration(unittest.TestCase):
             raise unittest.SkipTest(
                 "Skipping LLMJudge integration tests - no API keys configured"
             )
+        cls.model_kwargs = {
+            "temperature": 0.0,
+            "top_p": 1.0,
+            "presence_penalty": 0.5,
+            "frequency_penalty": 0.0,
+        }        
 
     def setUp(self):
         if "openai" in self.available_models:
@@ -124,7 +130,7 @@ class TestLLMJudgesIntegration(unittest.TestCase):
             statement=statement, citation=citation
         )
 
-        response = self.openai_model.parse(prompt, CitationSupport)
+        response = self.openai_model.parse(prompt, CitationSupport, self.model_kwargs)
 
         self.assertIsInstance(response, CitationSupport)
         self.assertIsInstance(response.support, CitationSupportValues)
@@ -141,7 +147,7 @@ class TestLLMJudgesIntegration(unittest.TestCase):
             statement=statement, citation=citation
         )
 
-        response = self.gemini_model.parse(prompt, CitationSupport)
+        response = self.gemini_model.parse(prompt, CitationSupport, self.model_kwargs)
 
         self.assertIsInstance(response, CitationSupport)
         self.assertIsInstance(response.support, CitationSupportValues)
