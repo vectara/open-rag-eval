@@ -1,9 +1,5 @@
-from typing import List, Optional
 import logging
 import os
-
-from concurrent.futures import ThreadPoolExecutor
-from tqdm import tqdm
 
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -60,14 +56,6 @@ class TRECEvaluator(Evaluator):
             rag_scores = RAGScores(RetrievalScores(scores={}), AugmentedGenerationScores(scores={}))
             return ScoredRAGResult(rag_result=rag_results, scores=rag_scores)
 
-    def evaluate_batch(self, rag_results: List[RAGResult], max_workers: Optional[int] = 5) -> List[ScoredRAGResult]:
-        with ThreadPoolExecutor(max_workers=max_workers) as executor:
-            eval_scores = list(tqdm(
-                executor.map(self.evaluate, rag_results),
-                total=len(rag_results),
-                desc="Evaluating using TRECRAG evaluator."
-            ))
-        return eval_scores
 
     @classmethod
     def plot_metrics(cls, csv_files: list, output_file: str = 'metrics_comparison.png'):
