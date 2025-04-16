@@ -9,17 +9,16 @@ evaluation_results: "open_eval_results.csv"
 evaluator:
   type: "TRECEvaluator"  
   model:
-    type: "openai"
+    type: "OpenAIModel"
     name: "gpt-4o-mini"
     api_key: ${oc.env:OPENAI_API_KEY}  # Reads from environment variable.
 
 connector:
   type: "VectaraConnector"
   options:
-    customer_id: 159623606
-    api_key: ${oc.env:VECTARA_API_KEY}         
-    corpus_key: "fiqa"                      
-    input_queries: "queries.csv"                    
+    api_key: ${oc.env:VECTARA_API_KEY}
+    corpus_key: "fiqa"
+    input_queries: "queries.csv"
     generated_answers: "vectara_results.csv"
     query_config:
       search:

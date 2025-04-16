@@ -10,8 +10,7 @@ class TestVectaraConnectorIntegration(unittest.TestCase):
     def setUpClass(cls):
         load_dotenv()
         # Check for required environment variables; skip integration tests if missing.
-        required_vars = ["VECTARA_API_KEY", "VECTARA_CORPUS_KEY",
-                         "VECTARA_CUSTOMER_ID"]
+        required_vars = ["VECTARA_API_KEY", "VECTARA_CORPUS_KEY"]
         missing = [var for var in required_vars if not os.getenv(var)]
         if missing:
             raise unittest.SkipTest(
@@ -19,14 +18,11 @@ class TestVectaraConnectorIntegration(unittest.TestCase):
 
         cls.api_key = os.getenv("VECTARA_API_KEY")
         cls.corpus_key = os.getenv("VECTARA_CORPUS_KEY")
-        cls.customer_id = os.getenv("VECTARA_CUSTOMER_ID")
 
         # Create a temporary CSV file with one test query.
-        cls.test_csv_path = Path(
-            "../data/test_vectara_connector_integration.csv")
+        cls.test_csv_path = Path("tests/data/test_vectara_connector_integration.csv")
         cls.generated_answers = "results_integration.csv"
-        cls.connector = VectaraConnector(cls.customer_id, cls.api_key,
-                                         cls.corpus_key)
+        cls.connector = VectaraConnector(cls.api_key, cls.corpus_key)
 
     @classmethod
     def tearDownClass(cls):

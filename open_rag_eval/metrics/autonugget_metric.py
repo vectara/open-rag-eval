@@ -148,8 +148,8 @@ class AutoNuggetMetric(AugmentedGenerationMetric):
                 logging.error(f"Failed to create nuggets: {e}")
                 raise e
 
-            if response.parsed:
-                nuggets = response.parsed.nuggets
+            if response.nuggets:
+                nuggets = response.nuggets
             else:
                 logging.error(f"Failed to parse nuggets from response: {response.refusal} for query {query}.")
                 raise ValueError(f"Failed to parse nuggets from response: {response.refusal} for query {query}.")
@@ -182,8 +182,8 @@ class AutoNuggetMetric(AugmentedGenerationMetric):
                 logging.error(f"Failed to create nuggets: {e}")
                 raise e
 
-            if response.parsed:
-                labels.extend(response.parsed.importance)
+            if response.importance:
+                labels.extend(response.importance)
             else:
                 logging.error(f"Failed to score nuggets from response: {response.refusal} for query {query}.")
                 raise ValueError(f"Failed to score nuggets from response: {response.refusal} for query {query}.")
@@ -220,8 +220,8 @@ class AutoNuggetMetric(AugmentedGenerationMetric):
             except Exception as e:
                 logging.error(f"Failed to create nuggets: {e}")
                 raise e
-            if response.parsed:
-                assignments.extend(response.parsed.assignment)
+            if response.assignment:
+                assignments.extend(response.assignment)
             else:
                 logging.error(f"Failed to assign nuggets from response: {response.refusal} for query {query}.")
                 raise ValueError(f"Failed to assign nuggets from response: {response.refusal} for query {query}.")

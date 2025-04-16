@@ -31,13 +31,17 @@ def get_evaluator(config: Dict[str, Any]) -> evaluators.Evaluator:
 
         # Create the model instance based on config
         model_config = config.evaluator.model
-        if model_config.type.lower() == "openai":
-            model = models.OpenAIModel(
-                model_name=model_config.name,
-                api_key=model_config.api_key
-            )
-        else:
-            raise ValueError(f"Unknown model type: {model_config.type}")
+        model_class = getattr(models, model_config.type)
+
+        # Verify it's a subclass of LLMJudgeModel
+        if not issubclass(model_class, models.LLMJudgeModel):
+            raise TypeError(f"{model_config.type} is not a subclass of LLMJudgeModel")
+
+        # Instantiate the model with config parameters
+        model = model_class(
+            model_name=model_config.name,
+            api_key=model_config.api_key
+        )
 
         # Instantiate the evaluator with the model
         return evaluator_class(model=model)
@@ -65,7 +69,6 @@ def get_connector(config: Dict[str, Any]) -> connectors.Connector:
         # Create connector instance with options from config
         connector_options = config.connector.options
         return connector_class(
-            connector_options.customer_id,
             connector_options.api_key,
             connector_options.corpus_key)
 
