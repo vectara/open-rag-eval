@@ -11,7 +11,7 @@ from open_rag_eval.data_classes.rag_results import RAGResult, RetrievalResult, G
 class CSVConnector(Connector):
     def __init__(self, csv_path: str):
         """Initialize the CSV connector with path to CSV file."""
-        self.csv_path = Path(csv_path)
+        self.csv_path = csv_path
 
     def fetch_data(self) -> List[RAGResult]:
         """Read the CSV file and convert to RAGResult objects."""
