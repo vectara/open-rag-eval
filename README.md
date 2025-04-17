@@ -153,7 +153,6 @@ Note that you will need to have streamlit installed in your environment (which s
 <p align="center">
   <img width="45%" alt="visualization 1" src="img/viz_1.png" style="height:300px; width:auto;"/>
   <img width="45%" alt="visualization 2" src="img/viz_2.png" style="height:300px; width:auto;"/>
-/>
 </p>
 
 # How does open-rag-eval work?
