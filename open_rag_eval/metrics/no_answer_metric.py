@@ -77,12 +77,14 @@ class NoAnswerMetric(AugmentedGenerationMetric):
     def compute(self, generation_result: AugmentedGenerationResult) -> Dict[str, str]:
         scores = {}
 
-        summary_text_collection = [generated_answer_part.text for generated_answer_part in generation_result.generated_answer]
-        summary = " ".join(summary_text_collection)               
-        try:            
+        summary_text_collection = [
+            generated_answer_part.text
+            for generated_answer_part in generation_result.generated_answer
+        ]
+        summary = " ".join(summary_text_collection)
+        try:
             prompt = self._ANSWERED_PROMPT.format(
-                query=generation_result.query,
-                answer = summary
+                query=generation_result.query, answer=summary
             )
             response = self.model.parse(prompt, response_format=QueryAnswered)
             if not response.answered:
@@ -91,5 +93,5 @@ class NoAnswerMetric(AugmentedGenerationMetric):
             scores["query_answered"] = response.answered.value
         except Exception as e:
             raise Exception(f"Error computing NoAnswer metric: {str(e)}") from e
-       
+
         return scores

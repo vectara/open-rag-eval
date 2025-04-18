@@ -1,4 +1,3 @@
-
 from typing import List, Dict, Tuple
 
 import logging
@@ -15,9 +14,11 @@ from open_rag_eval.models.llm_judges import LLMJudgeModel
 class Nuggets(BaseModel):
     nuggets: list[str]
 
+
 class NuggetImportanceValues(str, Enum):
     VITAL = "vital"
     OKAY = "okay"
+
 
 class NuggetImportance(BaseModel):
     importance: list[NuggetImportanceValues]
@@ -28,14 +29,15 @@ class NuggetAssignmentValues(str, Enum):
     PARTIAL_SUPPORT = "partial_support"
     NOT_SUPPORT = "not_support"
 
+
 class NuggetAssignment(BaseModel):
     assignment: list[NuggetAssignmentValues]
 
 
 class AutoNuggetMetric(AugmentedGenerationMetric):
     """Implements the AutoNuggetizer evaluation metric from the TREC 2024 RAG Track.
-       For more details, please refer to the following paper:
-       https://arxiv.org/pdf/2411.09607
+    For more details, please refer to the following paper:
+    https://arxiv.org/pdf/2411.09607
     """
 
     _NUGGET_CREATION_PROMPT = """
@@ -105,30 +107,54 @@ class AutoNuggetMetric(AugmentedGenerationMetric):
         self.model = model
         self.nugget_creation_iters = nugget_creation_iters
         self.max_nuggets = 30
-        self.assignment_score_map = {"support": 1.0, "partial_support": 0.5, "not_support": 0.0}
+        self.assignment_score_map = {
+            "support": 1.0,
+            "partial_support": 0.5,
+            "not_support": 0.0,
+        }
 
-    def compute(self, rag_result: RAGResult, umbrela_scores: Dict[str, int]) -> Dict[str, int]:
+    def compute(
+        self, rag_result: RAGResult, umbrela_scores: Dict[str, int]
+    ) -> Dict[str, int]:
         retrieval_result = rag_result.retrieval_result
         try:
-            nuggets = self._create_nuggets(retrieval_result.query, retrieval_result.retrieved_passages, umbrela_scores)
-            sorted_nuggets, sorted_labels = self._score_and_sort_nuggets(retrieval_result.query, nuggets)
-            nugget_assignments = self._assign_nuggets(rag_result.generation_result.query,
-                                                      rag_result.generation_result.generated_answer,
-                                                      sorted_nuggets)
+            nuggets = self._create_nuggets(
+                retrieval_result.query,
+                retrieval_result.retrieved_passages,
+                umbrela_scores,
+            )
+            sorted_nuggets, sorted_labels = self._score_and_sort_nuggets(
+                retrieval_result.query, nuggets
+            )
+            nugget_assignments = self._assign_nuggets(
+                rag_result.generation_result.query,
+                rag_result.generation_result.generated_answer,
+                sorted_nuggets,
+            )
 
             scores = {}
-            scores["nuggetizer_scores"] = self._evaluate_answer(sorted_nuggets, sorted_labels, nugget_assignments)
+            scores["nuggetizer_scores"] = self._evaluate_answer(
+                sorted_nuggets, sorted_labels, nugget_assignments
+            )
             scores["nuggets"] = sorted_nuggets
             scores["labels"] = sorted_labels
             scores["assignments"] = nugget_assignments
-            scores["assignment_scores"] = [self.assignment_score_map[assignment] for assignment in nugget_assignments]
+            scores["assignment_scores"] = [
+                self.assignment_score_map[assignment]
+                for assignment in nugget_assignments
+            ]
 
             return scores
         except Exception as e:
             logging.error("Failed to compute nugget metric: %s", str(e))
             return {}
 
-    def _create_nuggets(self, query: str, retrieved_passages: Dict[str, str], umbrela_scores: Dict[str, int]) -> List[str]:
+    def _create_nuggets(
+        self,
+        query: str,
+        retrieved_passages: Dict[str, str],
+        umbrela_scores: Dict[str, int],
+    ) -> List[str]:
         """
         Creates nuggets (concise information units) from retrieved passages based on a query.
 
@@ -138,8 +164,12 @@ class AutoNuggetMetric(AugmentedGenerationMetric):
         """
         if not query.strip():
             raise ValueError("Query cannot be empty.")
-        filtered_passages = {k: v for k, v in retrieved_passages.items() if umbrela_scores.get(k, 0) >= 1}
-        context = "\n".join(f"[{i+1}] {seg}" for i, (_, seg) in enumerate(filtered_passages.items()))
+        filtered_passages = {
+            k: v for k, v in retrieved_passages.items() if umbrela_scores.get(k, 0) >= 1
+        }
+        context = "\n".join(
+            f"[{i+1}] {seg}" for i, (_, seg) in enumerate(filtered_passages.items())
+        )
         nuggets = []
         for _ in range(self.nugget_creation_iters):
             prompt = self._NUGGET_CREATION_PROMPT.format(
@@ -147,7 +177,7 @@ class AutoNuggetMetric(AugmentedGenerationMetric):
                 context=context,
                 initial_nuggets=nuggets,
                 initial_nuggets_length=len(nuggets),
-                max_nuggets=self.max_nuggets
+                max_nuggets=self.max_nuggets,
             )
             try:
                 response = self.model.parse(prompt, response_format=Nuggets)
@@ -158,15 +188,21 @@ class AutoNuggetMetric(AugmentedGenerationMetric):
             if response.nuggets:
                 nuggets = response.nuggets
             else:
-                logging.error(f"Failed to parse nuggets from response: {response.refusal} for query {query}.")
-                raise ValueError(f"Failed to parse nuggets from response: {response.refusal} for query {query}.")
+                logging.error(
+                    f"Failed to parse nuggets from response: {response.refusal} for query {query}."
+                )
+                raise ValueError(
+                    f"Failed to parse nuggets from response: {response.refusal} for query {query}."
+                )
 
             if len(nuggets) >= self.max_nuggets:
                 break
 
         return nuggets
 
-    def _score_and_sort_nuggets(self, query: str, nuggets: List[str]) -> Tuple[List[str], List[str]]:
+    def _score_and_sort_nuggets(
+        self, query: str, nuggets: List[str]
+    ) -> Tuple[List[str], List[str]]:
         """
         Evaluates and ranks a list of text nuggets based on their relevance to a query.
         Processes nuggets in batches of 10, scores them using an LLM, and returns the top
@@ -180,8 +216,8 @@ class AutoNuggetMetric(AugmentedGenerationMetric):
         for i in range(0, len(nuggets), 10):
             prompt = self._NUGGET_IMPORTANCE_PROMPT.format(
                 query=query,
-                len_nuggets=len(nuggets[i:i+10]),
-                nuggets=nuggets[i:i+10]
+                len_nuggets=len(nuggets[i : i + 10]),
+                nuggets=nuggets[i : i + 10],
             )
             try:
                 response = self.model.parse(prompt, response_format=NuggetImportance)
@@ -192,8 +228,12 @@ class AutoNuggetMetric(AugmentedGenerationMetric):
             if response.importance:
                 labels.extend(response.importance)
             else:
-                logging.error(f"Failed to score nuggets from response: {response.refusal} for query {query}.")
-                raise ValueError(f"Failed to score nuggets from response: {response.refusal} for query {query}.")
+                logging.error(
+                    f"Failed to score nuggets from response: {response.refusal} for query {query}."
+                )
+                raise ValueError(
+                    f"Failed to score nuggets from response: {response.refusal} for query {query}."
+                )
 
         if len(labels) != len(nuggets):
             raise ValueError("Number of labels does not match number of nuggets.")
@@ -201,12 +241,16 @@ class AutoNuggetMetric(AugmentedGenerationMetric):
         sorted_nuggets, sorted_labels = zip(*sorted_pairs)
         return list(sorted_nuggets[:20]), list(sorted_labels[:20])
 
-    def _assign_nuggets(self, query: str, generated_answer: Dict[str, str], nuggets: List[str]) -> List[str]:
+    def _assign_nuggets(
+        self, query: str, generated_answer: Dict[str, str], nuggets: List[str]
+    ) -> List[str]:
         """Evaluates how well each nugget is covered in the generated passage by assigning
         support/partial_support/not_support labels"""
 
         # Generated passage maps passage ID to passage text, we need to convert this to a single string.
-        generated_passage = " ".join([generated_answer_part.text for generated_answer_part in generated_answer])
+        generated_passage = " ".join(
+            [generated_answer_part.text for generated_answer_part in generated_answer]
+        )
 
         if not query.strip():
             raise ValueError("Query cannot be empty.")
@@ -218,9 +262,9 @@ class AutoNuggetMetric(AugmentedGenerationMetric):
         for i in range(0, len(nuggets), 10):
             prompt = self._NUGGET_ASSIGNMENT_PROMPT.format(
                 query=query,
-                len_nuggets=len(nuggets[i:i+10]),
-                nuggets=nuggets[i:i+10],
-                generated_passage=generated_passage
+                len_nuggets=len(nuggets[i : i + 10]),
+                nuggets=nuggets[i : i + 10],
+                generated_passage=generated_passage,
             )
             try:
                 response = self.model.parse(prompt, response_format=NuggetAssignment)
@@ -230,20 +274,28 @@ class AutoNuggetMetric(AugmentedGenerationMetric):
             if response.assignment:
                 assignments.extend(response.assignment)
             else:
-                logging.error(f"Failed to assign nuggets from response: {response.refusal} for query {query}.")
-                raise ValueError(f"Failed to assign nuggets from response: {response.refusal} for query {query}.")
+                logging.error(
+                    f"Failed to assign nuggets from response: {response.refusal} for query {query}."
+                )
+                raise ValueError(
+                    f"Failed to assign nuggets from response: {response.refusal} for query {query}."
+                )
 
         if len(assignments) != len(nuggets):
             raise ValueError("Number of assignments does not match number of nuggets.")
         return assignments
 
-    def _evaluate_answer(self, nuggets: List[str], labels: List[str], nugget_assignments: List[str]) -> Dict[str, float]:
+    def _evaluate_answer(
+        self, nuggets: List[str], labels: List[str], nugget_assignments: List[str]
+    ) -> Dict[str, float]:
         """
         Calculates various nugget evaluation scores by comparing nugget assignments with their labels.
         Computes both strict and lenient scores, with weighted versions accounting for vital and okay labels.
         """
         if len(nugget_assignments) != len(nuggets):
-            raise ValueError(f"Nugget assignments length ({len(nugget_assignments)}) must match nuggets length ({len(nuggets)}).")
+            raise ValueError(
+                f"Nugget assignments length ({len(nugget_assignments)}) must match nuggets length ({len(nuggets)})."
+            )
         vital_scores, okay_scores = [], []
         strict_vital_scores, strict_okay_scores = [], []
         all_scores, all_strict_scores = [], []
@@ -268,8 +320,12 @@ class AutoNuggetMetric(AugmentedGenerationMetric):
         all_strict_score = sum(all_strict_scores) / num_nuggets
         vital_score = sum(vital_scores) / num_vital
         vital_strict_score = sum(strict_vital_scores) / num_vital
-        weighted_score = (sum(vital_scores) + 0.5 * sum(okay_scores)) / (num_vital + 0.5 * num_okay)
-        weighted_strict_score = (sum(strict_vital_scores) + 0.5 * sum(strict_okay_scores)) / (num_vital + 0.5 * num_okay)
+        weighted_score = (sum(vital_scores) + 0.5 * sum(okay_scores)) / (
+            num_vital + 0.5 * num_okay
+        )
+        weighted_strict_score = (
+            sum(strict_vital_scores) + 0.5 * sum(strict_okay_scores)
+        ) / (num_vital + 0.5 * num_okay)
 
         return {
             "All": all_score,
@@ -277,5 +333,5 @@ class AutoNuggetMetric(AugmentedGenerationMetric):
             "Vital": vital_score,
             "Vital Strict": vital_strict_score,
             "Weighted": weighted_score,
-            "Weighted Strict": weighted_strict_score
+            "Weighted Strict": weighted_strict_score,
         }
