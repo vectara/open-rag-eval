@@ -17,6 +17,7 @@ from open_rag_eval.metrics import (
     AutoNuggetMetric,
     CitationMetric,
     HallucinationMetric,
+    NoAnswerMetric,
     UMBRELAMetric,
 )
 from .base_evaluator import Evaluator
@@ -29,6 +30,7 @@ class TRECEvaluator(Evaluator):
         self.generation_metric = AutoNuggetMetric(model)
         self.citation_metric = CitationMetric(model)
         self.hallucination_metric = HallucinationMetric()
+        self.no_answer_metric = NoAnswerMetric(model)
 
     def evaluate(self, rag_results: RAGResult) -> ScoredRAGResult:
         try:
@@ -38,6 +40,7 @@ class TRECEvaluator(Evaluator):
             )
             hallucination_scores = self.hallucination_metric.compute(rag_results)
             citation_scores = self.citation_metric.compute(rag_results)
+            no_answer_score = self.no_answer_metric.compute(rag_results.generation_result)
 
             # Create aggregate example scores where needed from the finegrained scores.
             mean_umbrela_score = sum(umbrela_scores.values()) / len(umbrela_scores)
@@ -64,6 +67,7 @@ class TRECEvaluator(Evaluator):
                         "hallucination_scores": hallucination_scores,
                         "citation_scores": citation_scores,
                         "citation_f1_score": citation_scores["f1"],
+                        "no_answer_score": no_answer_score,
                     }
                 ),
             )
