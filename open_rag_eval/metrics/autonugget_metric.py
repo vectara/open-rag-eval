@@ -56,6 +56,10 @@ class AutoNuggetMetric(AugmentedGenerationMetric):
         Only update the list of atomic nuggets (if needed, else return as is). Do not explain.
         Always answer in short nuggets (not questions). List in the form ["a", "b", ...] and a and b are strings with no mention of ".
 
+        Do not rely on any other source of information like your past knowledge, things you might have learned before or experience to create the nuggets. 
+        Only use information from within the context. If the provided context does not contain any information relevant to the query, don't make up any nuggets on your own.
+        In this case the only nugget you should produce is "Not enough information, no answer found". Do not add any nugget except "Not enough information, no answer found" in this case. 
+
         Updated Nugget List:
         """
 
@@ -71,6 +75,8 @@ class AutoNuggetMetric(AugmentedGenerationMetric):
         Search Query: {query}
         Nugget List: {nuggets}
         Only return the list of labels (List[str]). Do not explain your answer.
+
+        If the nuggets contain a "Not enough information, no answer found" nugget, label it as vital.
         Labels:
     """
 
@@ -89,7 +95,8 @@ class AutoNuggetMetric(AugmentedGenerationMetric):
 
         Nugget List: {nuggets}
 
-        Only return the list of labels (List[str]). Do not explain your answer.
+        Only return the list of labels (List[str]). Do not explain your answer. If the nuggets contain a "Not enough information, no answer found" nugget, and the generates passage also indicates
+        that there was no result found or not enough information to answer the query label it as support.
 
         Labels:
     """
