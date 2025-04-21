@@ -120,7 +120,6 @@ class TRECEvaluator(Evaluator):
             for i, d in enumerate(data_list):
                 if len(d) > 0:
                     mean_val = np.mean(d)
-                    median_val = np.median(d)
                     # Retrieve the x-coordinates of the box using its path vertices.
                     box_path = bp["boxes"][i].get_path()
                     box_x_data = box_path.vertices[:, 0]
@@ -133,7 +132,7 @@ class TRECEvaluator(Evaluator):
                             color="blue",
                             linestyle="--",
                             linewidth=2,
-                            label=f"Mean: {mean_val:.4f}",
+                            label="Mean",
                         )
                     else:
                         ax.hlines(
@@ -149,7 +148,7 @@ class TRECEvaluator(Evaluator):
                     ax.scatter(x_pos, mean_val, color="blue", s=50, zorder=5)
                     # Only label the first median for the legend.
                     if i == 0:
-                        bp["medians"][i].set_label(f"Median: {median_val:.4f}")
+                        bp["medians"][i].set_label("Median")
             ax.legend(fontsize=12 if single else 9)
 
         # Define the metrics to be plotted.
