@@ -39,7 +39,7 @@ class NoAnswerMetric(AugmentedGenerationMetric):
 
         Please provide your response based on the information in the
         query and answer. If you are unsure, use your best judgment. Respond as
-        either ``yes'', ``no''with no additional information.
+        either ``yes``, ``no`` with no additional information.
 
         Here are some examples:
 
