@@ -1,9 +1,10 @@
 """
 This script evaluates the performance of a retrieval-augmented generation (RAG) system.
 """
-
 from typing import Any, Dict
 import argparse
+import os
+import shutil
 
 from pathlib import Path
 from omegaconf import OmegaConf
@@ -88,6 +89,17 @@ def run_eval(config_path: str):
 
     config = OmegaConf.load(config_path)
 
+    # Create output folder.
+    results_folder = config.evaluation_results
+    if os.path.exists(results_folder):
+        raise FileExistsError(f"Output folder already exists: {results_folder}")
+    os.makedirs(results_folder)
+
+    # Copy the config file from config_path to the output folder.
+    config_file_name = os.path.basename(config_path)
+    config_file_output_path = os.path.join(results_folder, config_file_name)
+    shutil.copy2(config_path, config_file_output_path)
+    
     # Create an evaluator based on config
     evaluator = get_evaluator(config)
 
@@ -108,8 +120,17 @@ def run_eval(config_path: str):
     # Run the evaluation
     scored_results = evaluator.evaluate_batch(rag_results)
 
-    # Save the results to the configured output folder
-    data_classes.eval_scores.to_csv(scored_results, config.evaluation_results)
+    # Save the results and any intermediate output to the configured output folder
+    shutil.copy2(config.input_results,
+                  os.path.join(results_folder, os.path.basename(config.input_results)))
+
+
+    eval_results_file = os.path.join(results_folder, 'eval_results.csv')
+    data_classes.eval_scores.to_csv(scored_results, eval_results_file)
+
+    # Plot the metrics.
+    evaluator.plot_metrics(csv_files=[eval_results_file],
+                           output_file=os.path.join(results_folder, 'metrics.png'))
 
 
 if __name__ == "__main__":
