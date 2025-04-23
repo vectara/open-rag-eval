@@ -1,6 +1,7 @@
 """
 This script evaluates the performance of a retrieval-augmented generation (RAG) system.
 """
+
 from typing import Any, Dict
 import argparse
 import os
@@ -11,6 +12,7 @@ from omegaconf import OmegaConf
 
 from open_rag_eval import connectors, data_classes, models
 from open_rag_eval import evaluators
+
 
 def get_evaluator(config: Dict[str, Any]) -> evaluators.Evaluator:
     """
@@ -24,7 +26,7 @@ def get_evaluator(config: Dict[str, Any]) -> evaluators.Evaluator:
     """
     evaluator_type = config.evaluator.type
     try:
-        evaluator_class = getattr(evaluators, f'{evaluator_type}')
+        evaluator_class = getattr(evaluators, f"{evaluator_type}")
 
         # Verify it's a subclass of Evaluator
         if not issubclass(evaluator_class, evaluators.Evaluator):
@@ -39,16 +41,14 @@ def get_evaluator(config: Dict[str, Any]) -> evaluators.Evaluator:
             raise TypeError(f"{model_config.type} is not a subclass of LLMJudgeModel")
 
         # Instantiate the model with config parameters
-        model = model_class(
-            model_name=model_config.name,
-            api_key=model_config.api_key
-        )
+        model = model_class(model_name=model_config.name, api_key=model_config.api_key)
 
         # Instantiate the evaluator with the model
         return evaluator_class(model=model)
 
     except (ImportError, AttributeError) as e:
         raise ImportError(f"Could not load evaluator {evaluator_type}: {str(e)}") from e
+
 
 def get_connector(config: Dict[str, Any]) -> connectors.Connector:
     """
@@ -60,7 +60,7 @@ def get_connector(config: Dict[str, Any]) -> connectors.Connector:
     Returns:
         An instance of the specified connector
     """
-    if 'connector' not in config:
+    if "connector" not in config:
         return None
     connector_type = config.connector.type
     try:
@@ -69,9 +69,7 @@ def get_connector(config: Dict[str, Any]) -> connectors.Connector:
 
         # Create connector instance with options from config
         connector_options = config.connector.options
-        return connector_class(
-            connector_options.api_key,
-            connector_options.corpus_key)
+        return connector_class(connector_options.api_key, connector_options.corpus_key)
 
     except (ImportError, AttributeError) as e:
         raise ImportError(f"Could not load connector {connector_type}: {str(e)}") from e
@@ -99,7 +97,7 @@ def run_eval(config_path: str):
     config_file_name = os.path.basename(config_path)
     config_file_output_path = os.path.join(results_folder, config_file_name)
     shutil.copy2(config_path, config_file_output_path)
-    
+
     # Create an evaluator based on config
     evaluator = get_evaluator(config)
 
@@ -112,7 +110,7 @@ def run_eval(config_path: str):
         connector.fetch_data(
             config.connector.options.query_config,
             config.connector.options.input_queries,
-            config.connector.options.generated_answers
+            config.connector.options.generated_answers,
         )
 
     rag_results = connectors.CSVConnector(config.input_results).fetch_data()
@@ -121,23 +119,28 @@ def run_eval(config_path: str):
     scored_results = evaluator.evaluate_batch(rag_results)
 
     # Save the results and any intermediate output to the configured output folder
-    shutil.copy2(config.input_results,
-                  os.path.join(results_folder, os.path.basename(config.input_results)))
+    shutil.copy2(
+        config.input_results,
+        os.path.join(results_folder, os.path.basename(config.input_results)),
+    )
 
-
-    eval_results_file = os.path.join(results_folder, 'eval_results.csv')
+    eval_results_file = os.path.join(results_folder, "eval_results.csv")
     data_classes.eval_scores.to_csv(scored_results, eval_results_file)
 
     # Plot the metrics.
-    evaluator.plot_metrics(csv_files=[eval_results_file],
-                           output_file=os.path.join(results_folder, 'metrics.png'))
+    evaluator.plot_metrics(
+        csv_files=[eval_results_file],
+        output_file=os.path.join(results_folder, "metrics.png"),
+    )
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='Run RAG evaluation')
+    parser = argparse.ArgumentParser(description="Run RAG evaluation")
     parser.add_argument(
-        '--config', type=str, default='eval_config.yaml',
-        help='Path to configuration file'
+        "--config",
+        type=str,
+        default="eval_config.yaml",
+        help="Path to configuration file",
     )
     args = parser.parse_args()
 
