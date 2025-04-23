@@ -4,15 +4,12 @@ This script evaluates the performance of a retrieval-augmented generation (RAG) 
 
 from typing import Any, Dict
 import argparse
-import os
-import re
 
 from pathlib import Path
-import yaml
+from omegaconf import OmegaConf
 
 from open_rag_eval import connectors, data_classes, models
 from open_rag_eval import evaluators
-from open_rag_eval import utils
 
 def get_evaluator(config: Dict[str, Any]) -> evaluators.Evaluator:
     """
@@ -79,30 +76,6 @@ def get_connector(config: Dict[str, Any]) -> connectors.Connector:
         raise ImportError(f"Could not load connector {connector_type}: {str(e)}") from e
 
 
-def resolve_env_vars(obj: Any) -> Any:
-    """
-    Recursively traverse a dictionary or list and resolve environment variable references.
-
-    Args:
-        obj: The dictionary, list or value to process
-        
-    Returns:
-        The processed object with environment variables resolved
-    """
-    if isinstance(obj, dict):
-        return {key: resolve_env_vars(value) for key, value in obj.items()}
-    elif isinstance(obj, list):
-        return [resolve_env_vars(item) for item in obj]
-    elif isinstance(obj, str):
-        # Match environment variable pattern ${oc.env:VAR_NAME}
-        env_var_match = re.match(r'\${oc\.env:(.+)}', obj)
-        if env_var_match:
-            var_name = env_var_match.group(1)
-            return os.environ.get(var_name, '')
-        return obj
-    else:
-        return obj
-
 def run_eval(config_path: str):
     """
     Main function to run the evaluation process.
@@ -113,16 +86,7 @@ def run_eval(config_path: str):
     if not Path(config_path).exists():
         raise FileNotFoundError(f"Config file not found: {config_path}")
 
-    # Load YAML config and resolve environment variables
-    with open(config_path, 'r') as f:
-        config_dict = yaml.safe_load(f)
-    
-    # Resolve environment variables in the config
-    config_dict = resolve_env_vars(config_dict)
-
-    # Make config accessible via dot notation
-    config = utils.DotDict(config_dict)
-    
+    config = OmegaConf.load(config_path)
     # Create an evaluator based on config
     evaluator = get_evaluator(config)
 
@@ -148,9 +112,11 @@ def run_eval(config_path: str):
 
 
 if __name__ == "__main__":
+    import dotenv
+    dotenv.load_dotenv()
     parser = argparse.ArgumentParser(description='Run RAG evaluation')
     parser.add_argument(
-        '--config', type=str, default='eval_config.yaml',
+        '--config', type=str, default='../eval_config.yaml',
         help='Path to configuration file'
     )
     args = parser.parse_args()

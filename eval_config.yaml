@@ -17,8 +17,8 @@ connector:
   type: "VectaraConnector"
   options:
     api_key: ${oc.env:VECTARA_API_KEY}
-    corpus_key: "fiqa"
-    input_queries: "queries.csv"
+    corpus_key: "HHGTG_3"
+    input_queries: "../queries.csv"
     generated_answers: "vectara_results.csv"
     query_config:
       search:
@@ -27,19 +27,10 @@ connector:
           sentences_before: 3
           sentences_after: 3
       generation:
-        generation_preset_name: "vectara-summary-ext-v1.2.0"
+        generation_preset_name: "vectara-summary-ext-24-05-med-omni"
         max_used_search_results: 5
         max_response_characters: 1000
         response_language: "eng"
         enable_factual_consistency_score: False
-        prompt_template: |-
-          [
-            {"role": "system", "content": "You are a helpful search assistant."},
-            #foreach ($qResult in $vectaraQueryResults)
-              {"role": "user", "content": "Given the $vectaraIdxWord[$foreach.index] search result."},
-              {"role": "assistant", "content": "${qResult.getText()}"},
-            #end
-            {"role": "user", "content": "Generate a summary for the query '${vectaraQuery}' based on the above results."}
-          ]
       intelligent_query_rewriting: False
       save_history: False
