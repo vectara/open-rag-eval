@@ -87,6 +87,7 @@ def run_eval(config_path: str):
         raise FileNotFoundError(f"Config file not found: {config_path}")
 
     config = OmegaConf.load(config_path)
+
     # Create an evaluator based on config
     evaluator = get_evaluator(config)
 
@@ -112,8 +113,6 @@ def run_eval(config_path: str):
 
 
 if __name__ == "__main__":
-    import dotenv
-    dotenv.load_dotenv()
     parser = argparse.ArgumentParser(description='Run RAG evaluation')
     parser.add_argument(
         '--config', type=str, default='eval_config.yaml',
