@@ -5,7 +5,6 @@ import uuid
 
 import requests
 from tqdm import tqdm
-import omegaconf
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 
 from open_rag_eval.connectors.connector import Connector
@@ -70,9 +69,12 @@ class VectaraConnector(Connector):
             "generation": {
                 "generation_preset_name": "vectara-summary-table-md-query-ext-jan-2025-gpt-4o",
                 "max_used_search_results": DEFAULT_MAX_USED_SEARCH_RESULTS,
-                "response_language": "auto",
+                "response_language": "eng",
                 "citations": {"style": "numeric"},
-            }
+                "enable_factual_consistency_score": False
+            },
+            "intelligent_query_rewriting": False,
+            "save_history": False,
         }
 
     def _get_config_section(self, query_config, section_name):
@@ -208,19 +210,8 @@ class VectaraConnector(Connector):
             JSON response from the Vectara API
         """
         # Get configs or use defaults
-        search = self._get_config_section(query_config, 'search')
-        generation = self._get_config_section(query_config, 'generation')
-
-        search_dict = (
-            omegaconf.OmegaConf.to_container(search, resolve=True)
-            if isinstance(search, omegaconf.dictconfig.DictConfig)
-            else search
-        )
-        generation_dict = (
-            omegaconf.OmegaConf.to_container(generation, resolve=True)
-            if isinstance(generation, omegaconf.dictconfig.DictConfig)
-            else generation
-        )
+        search_dict = self._get_config_section(query_config, 'search')
+        generation_dict = self._get_config_section(query_config, 'generation')
 
         payload = {
             "query": query["query"],
