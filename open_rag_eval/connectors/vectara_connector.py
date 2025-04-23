@@ -71,7 +71,7 @@ class VectaraConnector(Connector):
             "generation": {
                 "generation_preset_name": "vectara-summary-table-md-query-ext-jan-2025-gpt-4o",
                 "max_used_search_results": DEFAULT_MAX_USED_SEARCH_RESULTS,
-                "response_language": "eng",
+                "response_language": "auto",
                 "citations": {"style": "numeric"},
                 "enable_factual_consistency_score": False
             },
