@@ -27,8 +27,11 @@ connector:
           sentences_before: 3
           sentences_after: 3
       generation:
-        generation_preset_name: "mockingbird-1.0-2024-07-16"
+        generation_preset_name: "vectara-summary-ext-24-05-med-omni"
         max_used_search_results: 5
         max_response_characters: 1000
-
-  
+        response_language: "eng"
+        enable_factual_consistency_score: False
+        prompt_template: "test_prompt.txt"
+      intelligent_query_rewriting: False
+      save_history: False
