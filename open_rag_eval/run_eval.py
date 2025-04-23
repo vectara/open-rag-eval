@@ -116,7 +116,7 @@ if __name__ == "__main__":
     dotenv.load_dotenv()
     parser = argparse.ArgumentParser(description='Run RAG evaluation')
     parser.add_argument(
-        '--config', type=str, default='../eval_config.yaml',
+        '--config', type=str, default='eval_config.yaml',
         help='Path to configuration file'
     )
     args = parser.parse_args()

@@ -17,8 +17,8 @@ connector:
   type: "VectaraConnector"
   options:
     api_key: ${oc.env:VECTARA_API_KEY}
-    corpus_key: "HHGTG_3"
-    input_queries: "../queries.csv"
+    corpus_key: "fiqa"
+    input_queries: "queries.csv"
     generated_answers: "vectara_results.csv"
     query_config:
       search:
@@ -32,5 +32,6 @@ connector:
         max_response_characters: 1000
         response_language: "eng"
         enable_factual_consistency_score: False
+        prompt_template: "test_prompt.txt"
       intelligent_query_rewriting: False
       save_history: False

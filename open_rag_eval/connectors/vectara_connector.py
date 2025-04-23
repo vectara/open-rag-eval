@@ -1,6 +1,7 @@
 import csv
 from itertools import islice
 import logging
+import os
 import uuid
 
 import requests
@@ -190,9 +191,9 @@ class VectaraConnector(Connector):
             response = requests.post(endpoint_url, headers=headers, json=payload, timeout=30)
             if response.status_code == 200:
                 return response.json()
-            raise Exception(
-                f"Request failed for query_id {query_id} with status {response.status_code}: {response.text}"
-            )
+            error = f"Request failed for query_id {query_id} with status {response.status_code}: {response.text}"
+            logger.error(error)
+            raise Exception(error)
         except requests.exceptions.RequestException as ex:
             raise Exception(
                 f'Request failed for query_id {query_id}: {str(ex)}') from ex
@@ -225,13 +226,26 @@ class VectaraConnector(Connector):
             else generation
         )
 
+        # Check if prompt_template is specified and load from file if it exists
+        prompt_template_file = generation.get("prompt_template")
+        if prompt_template_file and os.path.exists(prompt_template_file):
+            try:
+                with open(prompt_template_file, 'r', encoding='utf-8') as f:
+                    prompt_content = f.read().strip()
+                    generation_dict["prompt_template"] = prompt_content
+            except Exception as e:
+                generation_dict["prompt_template"] = None
+                logger.warning(f"Failed to read prompt template file {prompt_template_file}: {e}")
+        else:
+            generation_dict["prompt_template"] = None
+
         payload = {
             "query": query["query"],
             "search": search_dict,
             "generation": generation_dict,
-            "stream_response": False,
-            "save_history": True,
-            "intelligent_query_rewriting": False
+            "stream_response": query_config.get("stream_response", False),
+            "save_history": query_config.get("save_history", False),
+            "intelligent_query_rewriting": query_config.get("intelligent_query_rewriting", False),
         }
 
         # Use the default retry configuration
