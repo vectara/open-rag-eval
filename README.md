@@ -124,6 +124,8 @@ Or to plot multiple results:
 python open_rag_eval/plot_results.py results_1.csv results_2.csv results_3.csv
 ```
 
+By default the `run_eval.py` script will plot metrics and save them to the results folder.
+
 
 ## Using Open-RAG-Eval with your own RAG outputs
 If you are using RAG outputs from your own pipeline, make sure to put your RAG output in a format that is readable by the toolkit (See `data/test_csv_connector.csv` as an example). 

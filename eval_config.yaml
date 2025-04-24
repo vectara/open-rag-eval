@@ -3,8 +3,8 @@
 # this file is produced by the connector below.
 # input_results: ""
 
-# Evaluation results are written to this CSV.
-evaluation_results: "open_eval_results.csv"
+# Evaluation results are written to this folder.
+evaluation_results: "./open_eval_results/"
 
 evaluator:
   type: "TRECEvaluator"  

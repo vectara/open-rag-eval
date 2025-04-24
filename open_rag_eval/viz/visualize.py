@@ -133,7 +133,7 @@ def main():
 
             # Display query
             st.subheader("Query")
-            st.write(selected_row['query'])
+            st.text(selected_row['query'])
 
             # Display retrieved passages
             st.subheader("Retrieved Passages")
@@ -146,18 +146,18 @@ def main():
                 score = umbrela_scores.get(passage_id, "N/A")
                 styled_score = style_umbrela_score(score)
                 with st.expander(f"Passage {passage_id} (UMBRELA: {styled_score})"):
-                    st.write(passage_text)
+                    st.text(passage_text)
 
             # Display generated answer
             st.subheader("Generated Answer")
             answer = parse_generated_answer(selected_row['generated_answer'])
-            st.write(answer)
+            st.text(answer)
 
             # Display no answer score
             if 'generation_score_no_answer_score' in selected_row:
                 st.subheader("Query Answer Attempted")
                 no_answer_data = parse_json_column(selected_row['generation_score_no_answer_score'])
-                st.write(format_no_answer_score(no_answer_data))
+                st.text(format_no_answer_score(no_answer_data))
 
             # Display evaluation metrics
             st.subheader("Evaluation Metrics")
@@ -197,7 +197,7 @@ def main():
                             if isinstance(parsed_data, dict):
                                 st.json(parsed_data)
                             else:
-                                st.write(f"{parsed_data:.2f}" if isinstance(parsed_data, float) else parsed_data)
+                                st.text(f"{parsed_data:.2f}" if isinstance(parsed_data, float) else parsed_data)
 
 
 if __name__ == "__main__":
