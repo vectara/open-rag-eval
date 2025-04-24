@@ -163,7 +163,7 @@ cython_debug/
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 .idea/
 
-# Default names for output/results files.
+# Ignore the default input/output files.
 queries.csv
-open_eval_results.csv
 vectara_results.csv
+open_eval_results/

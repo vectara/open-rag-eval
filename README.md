@@ -63,6 +63,18 @@ After installing the library you can follow instructions below to run a sample e
 
 Edit the [eval_config.yaml](https://github.com/vectara/open-rag-eval/blob/main/eval_config.yaml) file. This file controls the evaluation process, including connector details, evaluator choices, and metric settings. Update the `connector` section with your Vectara `customer_id` and `corpus_key`.
 
+You can also customize the prompt used for the RAG generative LLM by adding a `prompt_template` parameter under the `generation` section:
+
+```yaml
+generation:
+  generation_preset_name: "vectara-summary-ext-24-05-med-omni"
+  max_used_search_results: 5
+  max_response_characters: 1000
+  response_language: "eng"
+  enable_factual_consistency_score: False
+  prompt_template: "path_to_your_prompt_template.txt"  # Points to a file containing your custom prompt
+```
+
 In addition, make sure you have `VECTARA_API_KEY` and `OPENAI_API_KEY` available in your environment. For example:
 * export VECTARA_API_KEY='your-vectara-api-key'
 * export OPENAI_API_KEY='your-openai-api-key'
@@ -111,6 +123,8 @@ Or to plot multiple results:
 ```bash
 python open_rag_eval/plot_results.py results_1.csv results_2.csv results_3.csv
 ```
+
+By default the `run_eval.py` script will plot metrics and save them to the results folder.
 
 
 ## Using Open-RAG-Eval with your own RAG outputs

@@ -3,8 +3,8 @@
 # this file is produced by the connector below.
 # input_results: ""
 
-# Evaluation results are written to this CSV.
-evaluation_results: "open_eval_results.csv"
+# Evaluation results are written to this folder.
+evaluation_results: "./open_eval_results/"
 
 evaluator:
   type: "TRECEvaluator"  
@@ -27,8 +27,12 @@ connector:
           sentences_before: 3
           sentences_after: 3
       generation:
-        generation_preset_name: "mockingbird-1.0-2024-07-16"
+        generation_preset_name: "mockingbird-2.0"
         max_used_search_results: 5
         max_response_characters: 1000
-
-  
+        response_language: "eng"
+        # Uncomment if you want to specify a custom prompt template.
+        # prompt_template: "sample_prompt.txt"
+        enable_factual_consistency_score: False
+      intelligent_query_rewriting: False
+      save_history: False

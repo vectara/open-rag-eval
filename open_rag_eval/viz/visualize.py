@@ -86,6 +86,15 @@ def format_assignment(assignment):
         return "🔴 No Support"
     return assignment
 
+def format_no_answer_score(score_data):
+    """Format no answer score with color indicators"""
+    if isinstance(score_data, dict) and 'query_answered' in score_data:
+        if score_data['query_answered'].lower() == 'no':
+            return "🔴 Answer not attempted"
+        else:
+            return "🟢 Answer Provided"
+    return "❓ Unknown"
+
 def create_nugget_dataframe(data):
     """Create a formatted DataFrame for nugget visualization"""
     if not isinstance(data, dict):
@@ -124,7 +133,7 @@ def main():
 
             # Display query
             st.subheader("Query")
-            st.write(selected_row['query'])
+            st.text(selected_row['query'])
 
             # Display retrieved passages
             st.subheader("Retrieved Passages")
@@ -137,21 +146,25 @@ def main():
                 score = umbrela_scores.get(passage_id, "N/A")
                 styled_score = style_umbrela_score(score)
                 with st.expander(f"Passage {passage_id} (UMBRELA: {styled_score})"):
-                    st.write(passage_text)
+                    st.text(passage_text)
 
             # Display generated answer
             st.subheader("Generated Answer")
             answer = parse_generated_answer(selected_row['generated_answer'])
-            st.write(answer)
+            st.text(answer)
 
-            # Load other columns as well
+            # Display no answer score
+            if 'generation_score_no_answer_score' in selected_row:
+                st.subheader("Query Answer Attempted")
+                no_answer_data = parse_json_column(selected_row['generation_score_no_answer_score'])
+                st.text(format_no_answer_score(no_answer_data))
+
+            # Display evaluation metrics
             st.subheader("Evaluation Metrics")
             metrics_columns = [
-                # 'retrieval_score_umbrela_scores',
                 'retrieval_score_mean_umbrela_score',
                 'generation_score_autonugget_scores',
                 'generation_score_mean_nugget_assignment_score',
-                # 'generation_score_vital_nuggetizer_score',
                 'generation_score_hallucination_scores',
                 'generation_score_citation_scores',
                 'generation_score_citation_f1_score'
@@ -184,7 +197,7 @@ def main():
                             if isinstance(parsed_data, dict):
                                 st.json(parsed_data)
                             else:
-                                st.write(f"{parsed_data:.2f}" if isinstance(parsed_data, float) else parsed_data)
+                                st.text(f"{parsed_data:.2f}" if isinstance(parsed_data, float) else parsed_data)
 
 
 if __name__ == "__main__":
