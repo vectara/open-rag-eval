@@ -63,7 +63,7 @@ After installing the library you can follow instructions below to run a sample e
 
 Edit the [eval_config.yaml](https://github.com/vectara/open-rag-eval/blob/main/eval_config.yaml) file. This file controls the evaluation process, including connector details, evaluator choices, and metric settings. Update the `connector` section with your Vectara `customer_id` and `corpus_key`.
 
-You can also customize the generation process by adding a `prompt_template` parameter under the `generation` section:
+You can also customize the prompt used for the RAG generative LLM by adding a `prompt_template` parameter under the `generation` section:
 
 ```yaml
 generation:

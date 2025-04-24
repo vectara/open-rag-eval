@@ -41,7 +41,9 @@ class TRECEvaluator(Evaluator):
             )
             hallucination_scores = self.hallucination_metric.compute(rag_results)
             citation_scores = self.citation_metric.compute(rag_results)
-            no_answer_score = self.no_answer_metric.compute(rag_results.generation_result)
+            no_answer_score = self.no_answer_metric.compute(
+                rag_results.generation_result
+            )
 
             # Create aggregate example scores where needed from the finegrained scores.
             mean_umbrela_score = sum(umbrela_scores.values()) / len(umbrela_scores)
@@ -104,10 +106,10 @@ class TRECEvaluator(Evaluator):
         # Helper function to calculate percentage of answered questions
         def get_answered_percentage(df):
             try:
-                answers = df['generation_score_no_answer_score'].apply(json.loads)
-                answered = answers.apply(lambda x: x['query_answered'] == 'yes').sum()
+                answers = df["generation_score_no_answer_score"].apply(json.loads)
+                answered = answers.apply(lambda x: x["query_answered"] == "yes").sum()
                 return (answered / len(df)) * 100
-            except:
+            except (KeyError, ValueError, json.JSONDecodeError):
                 return 0
 
         # Helper function to draw a boxplot on the given axis.
@@ -207,17 +209,17 @@ class TRECEvaluator(Evaluator):
                         va="center",
                         fontsize=10,
                     )
-            
+
             # Add Questions Answered bar plot
             ax = axs[4]
             percentage = get_answered_percentage(df)
-            ax.bar([os.path.basename(csv_files[0])], [percentage], color='skyblue')
+            ax.bar([os.path.basename(csv_files[0])], [percentage], color="skyblue")
             ax.set_title("Questions Answered", fontsize=16)
             ax.set_ylabel("Percentage (%)", fontsize=14)
             ax.set_ylim(0, 100)
             ax.grid(axis="y", linestyle="--", alpha=0.7)
             for i, v in enumerate([percentage]):
-                ax.text(i, v + 1, f'{v:.1f}%', ha='center', fontsize=12)
+                ax.text(i, v + 1, f"{v:.1f}%", ha="center", fontsize=12)
 
         else:
             for i, metric in enumerate(metrics):
@@ -242,7 +244,7 @@ class TRECEvaluator(Evaluator):
                     ax.set_ylim(0, 3)
                 else:
                     ax.set_ylim(0, 1)
-            
+
             # Add Questions Answered bar plot for multiple CSVs
             ax = axs[4]
             percentages = []
@@ -251,8 +253,8 @@ class TRECEvaluator(Evaluator):
                 df = pd.read_csv(csv_file)
                 percentages.append(get_answered_percentage(df))
                 labels.append(os.path.basename(csv_file))
-            
-            ax.bar(range(len(percentages)), percentages, color='skyblue')
+
+            ax.bar(range(len(percentages)), percentages, color="skyblue")
             ax.set_title("Questions Answered", fontsize=12)
             ax.set_ylabel("Percentage (%)", fontsize=10)
             ax.set_xticks(range(len(labels)))
@@ -260,7 +262,7 @@ class TRECEvaluator(Evaluator):
             ax.set_ylim(0, 100)
             ax.grid(axis="y", linestyle="--", alpha=0.7)
             for i, v in enumerate(percentages):
-                ax.text(i, v + 1, f'{v:.1f}%', ha='center', fontsize=10)
+                ax.text(i, v + 1, f"{v:.1f}%", ha="center", fontsize=10)
 
         # Hide the last subplot (since we're using 5 out of 6 slots)
         axs[5].set_visible(False)
