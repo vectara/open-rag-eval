@@ -234,18 +234,18 @@ class VectaraConnector(Connector):
                     prompt_content = f.read().strip()
                     generation_dict["prompt_template"] = prompt_content
             except Exception as e:
-                generation_dict["prompt_template"] = None
+                generation_dict.pop("prompt_template", None)
                 logger.warning(f"Failed to read prompt template file {prompt_template_file}: {e}")
         else:
-            generation_dict["prompt_template"] = None
+            generation_dict.pop("prompt_template", None)
 
         payload = {
             "query": query["query"],
             "search": search_dict,
             "generation": generation_dict,
-            "stream_response": query_config.get("stream_response", False),
-            "save_history": query_config.get("save_history", False),
-            "intelligent_query_rewriting": query_config.get("intelligent_query_rewriting", False),
+            "stream_response": (query_config or {}).get("stream_response", False),
+            "save_history": (query_config or {}).get("save_history", False),
+            "intelligent_query_rewriting": (query_config or {}).get("intelligent_query_rewriting", False),
         }
 
         # Use the default retry configuration
