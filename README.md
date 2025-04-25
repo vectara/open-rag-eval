@@ -1,6 +1,6 @@
 # Open-RAG-Eval
 <p align="center">
-  <img style="max-width: 100%;" alt="logo" src="img/project-logo.png"/>
+  <img style="max-width: 100%;" alt="logo" src="https://raw.githubusercontent.com/vectara/open-rag-eval/main/img/project-logo.png"/>
 </p>
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
