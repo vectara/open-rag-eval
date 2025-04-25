@@ -1,12 +1,12 @@
 flask==3.0.3
 flask-cors==4.0.1
-google-genai~=1.10.0
 matplotlib~=3.10.1
 numpy~=2.2.4
 omegaconf~=2.3.0
-openai==1.61.1
+openai~=1.75.0
+google-genai~=1.11.0
 pandas==2.2.3
-pydantic==2.10.6
+pydantic==2.11.3
 python-dotenv~=1.0.1
 requests~=2.32.3
 seaborn~=0.13.2
