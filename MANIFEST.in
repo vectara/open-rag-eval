@@ -1,3 +1,8 @@
 include README.md
 include LICENSE
 include eval_config.yaml
+include requirements.txt
+global-exclude *.pyc
+
+recursive-include open-rag-eval *.py
+recursive-include tests *.py
