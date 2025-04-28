@@ -23,7 +23,7 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install setuptools wheel twine pytest flake8
+        pip install setuptools wheel twine pytest flake8 build
         pip install -r requirements.txt
 
     - name: Set up PYTHONPATH
@@ -39,7 +39,7 @@ jobs:
 
     - name: Build package
       run: |
-        python setup.py sdist bdist_wheel
+        python -m build
 
     - name: Check installation
       run: |
