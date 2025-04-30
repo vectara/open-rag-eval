@@ -1,4 +1,5 @@
-# Open-RAG-Eval
+# Open RAG Eval
+
 <p align="center">
   <img style="max-width: 100%;" alt="logo" src="https://raw.githubusercontent.com/vectara/open-rag-eval/main/img/project-logo.png"/>
 </p>
@@ -15,15 +16,16 @@
 Evaluating RAG quality can be complex. `open-rag-eval` provides a flexible and extensible framework to measure the performance of your RAG system, helping you identify areas for improvement. Its modular design allows easy integration of custom metrics and connectors for various RAG implementations.
 
 Out-of-the-box, the toolkit includes:
-* An implementation of the evaluation metrics used in the **TREC-RAG benchmark**.
-* A connector for the **Vectara RAG platform**.
+
+- An implementation of the evaluation metrics used in the **TREC-RAG benchmark**.
+- A connector for the **Vectara RAG platform**.
 
 # Key Features
 
-* **Standard Metrics:** Provides TREC-RAG evaluation metrics ready to use.
-* **Modular Architecture:** Easily add custom evaluation metrics or integrate with any RAG pipeline.
-* **Detailed Reporting:** Generates per-query scores and intermediate outputs for debugging and analysis.
-* **Visualization:** Compare results across different configurations or runs with plotting utilities.
+- **Standard Metrics:** Provides TREC-RAG evaluation metrics ready to use.
+- **Modular Architecture:** Easily add custom evaluation metrics or integrate with any RAG pipeline.
+- **Detailed Reporting:** Generates per-query scores and intermediate outputs for debugging and analysis.
+- **Visualization:** Compare results across different configurations or runs with plotting utilities.
 
 # Getting Started Guide
 
@@ -31,13 +33,13 @@ This guide walks you through an end-to-end evaluation using the toolkit. We'll u
 
 ## Prerequisites
 
-* **Python:** Version 3.9 or higher.
-* **OpenAI API Key:** Required for the default LLM judge model used in some metrics. Set this as an environment variable: `export OPENAI_API_KEY='your-api-key'`
-* **Vectara Account:** To enable the Vectara connector, you need:
-    * A [Vectara account](https://console.vectara.com/signup).
-    * A corpus containing your indexed data.
-    * An [API key](https://docs.vectara.com/docs/api-keys) with querying permissions.
-    * Your Customer ID and Corpus key.
+- **Python:** Version 3.9 or higher.
+- **OpenAI API Key:** Required for the default LLM judge model used in some metrics. Set this as an environment variable: `export OPENAI_API_KEY='your-api-key'`
+- **Vectara Account:** To enable the Vectara connector, you need:
+  - A [Vectara account](https://console.vectara.com/signup).
+  - A corpus containing your indexed data.
+  - An [API key](https://docs.vectara.com/docs/api-keys) with querying permissions.
+  - Your Customer ID and Corpus key.
 
 ## Installation
 
@@ -55,9 +57,9 @@ If you want to install directly from pip, which is the common method if you want
 pip install open-rag-eval
 ```
 
-After installing the library you can follow instructions below to run a sample evaluation and test out the library end to end. 
+After installing the library you can follow instructions below to run a sample evaluation and test out the library end to end.
 
-## Using Open-RAG-Eval with the Vectara connector
+## Using Open RAG Eval with the Vectara connector
 
 ### Step 1. Configure Evaluation Settings
 
@@ -72,12 +74,13 @@ generation:
   max_response_characters: 1000
   response_language: "eng"
   enable_factual_consistency_score: False
-  prompt_template: "path_to_your_prompt_template.txt"  # Points to a file containing your custom prompt
+  prompt_template: "path_to_your_prompt_template.txt" # Points to a file containing your custom prompt
 ```
 
 In addition, make sure you have `VECTARA_API_KEY` and `OPENAI_API_KEY` available in your environment. For example:
-* export VECTARA_API_KEY='your-vectara-api-key'
-* export OPENAI_API_KEY='your-openai-api-key'
+
+- export VECTARA_API_KEY='your-vectara-api-key'
+- export OPENAI_API_KEY='your-openai-api-key'
 
 ### Step 2. Prepare RAG Output
 
@@ -126,14 +129,16 @@ python open_rag_eval/plot_results.py results_1.csv results_2.csv results_3.csv
 
 By default the `run_eval.py` script will plot metrics and save them to the results folder.
 
+## Using Open RAG Eval with your own RAG outputs
 
-## Using Open-RAG-Eval with your own RAG outputs
-If you are using RAG outputs from your own pipeline, make sure to put your RAG output in a format that is readable by the toolkit (See `data/test_csv_connector.csv` as an example). 
+If you are using RAG outputs from your own pipeline, make sure to put your RAG output in a format that is readable by the toolkit (See `data/test_csv_connector.csv` as an example).
 
 ### Step 1. Configure Evaluation Settings
+
 Update the `eval_config.yaml` as follows:
-* Comment out or delete the connector section
-* uncomment input_results and point it to the CSV file where your RAG results are stored.
+
+- Comment out or delete the connector section
+- uncomment input_results and point it to the CSV file where your RAG results are stored.
 
 ### Step 2. Run evaluation!
 
@@ -150,7 +155,7 @@ and you should see the evaluation progress on your command line. Once it's done,
 You can use the `open_rag_eval/plot_results.py` script to plot results from your eval runs. Multiple different runs can be plotted on the same plot allowing for easy comparison of different configurations or RAG providers. For example if the output evaluation results from two runs are saved in `open_eval_results_1.csv` and `open_eval_results_2.csv` you can plot both of them as follows:
 
 ```bash
-python open_rag_eval/plot_results.py open_eval_results_1.csv open_eval_results_2.csv 
+python open_rag_eval/plot_results.py open_eval_results_1.csv open_eval_results_2.csv
 ```
 
 ### Step 4. Deep dive into results
@@ -182,21 +187,23 @@ The `open-rag-eval` framework follows these general steps during an evaluation:
 
 ## Core Abstractions
 
-* **Metrics:** Metrics are the core of the evaluation. They are used to measure the quality of the RAG system, each metric has a different focus and is used to evaluate different aspects of the RAG system. Metrics can be used to evaluate the quality of the retrieval, the quality of the (augmented) generation, the quality of the RAG system as a whole.
-* **Models:** Models are the underlying judgement models used by some of the metrics. They are used to judge the quality of the RAG system. Models can be diverse: they may be LLMs, classifiers, rule based systems, etc.
-* **Evaluators:** Evaluators can chain together a series of metrics to evaluate the quality of the RAG system. 
-* **RAGResults:** Data class representing the output of a RAG pipeline for a single query (input query, generated answer, retrieved contexts/documents). This is the primary input for evaluation.
-* **ScoredRAGResult:** Data class holding the original `RAGResults` plus the scores assigned by the `Evaluator` and its `Metrics`. These are typically collected and saved to the output report file.
+- **Metrics:** Metrics are the core of the evaluation. They are used to measure the quality of the RAG system, each metric has a different focus and is used to evaluate different aspects of the RAG system. Metrics can be used to evaluate the quality of the retrieval, the quality of the (augmented) generation, the quality of the RAG system as a whole.
+- **Models:** Models are the underlying judgement models used by some of the metrics. They are used to judge the quality of the RAG system. Models can be diverse: they may be LLMs, classifiers, rule based systems, etc.
+- **Evaluators:** Evaluators can chain together a series of metrics to evaluate the quality of the RAG system.
+- **RAGResults:** Data class representing the output of a RAG pipeline for a single query (input query, generated answer, retrieved contexts/documents). This is the primary input for evaluation.
+- **ScoredRAGResult:** Data class holding the original `RAGResults` plus the scores assigned by the `Evaluator` and its `Metrics`. These are typically collected and saved to the output report file.
 
 # Web API
 
 For programmatic integration, the framework provides a Flask-based web server.
 
 **Endpoints:**
-* `/api/v1/evaluate`: Evaluate a single RAG output provided in the request body.
-* `/api/v1/evaluate_batch`: Evaluate multiple RAG outputs in a single request.
+
+- `/api/v1/evaluate`: Evaluate a single RAG output provided in the request body.
+- `/api/v1/evaluate_batch`: Evaluate multiple RAG outputs in a single request.
 
 **Run the Server:**
+
 ```bash
 python open_rag_eval/run_server.py
 ```
