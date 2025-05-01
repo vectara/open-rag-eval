@@ -114,6 +114,14 @@ def create_nugget_dataframe(data):
     except Exception:
         return None
 
+def format_aggregate_metrics(metrics_dict):
+    """Format aggregate metrics with consistent styling"""
+    formatted = {}
+    for key, value in metrics_dict.items():
+        if key in ['precision_at_5', 'ap_at_5', 'MRR']:
+            formatted[key] = f"{value:.3f}"
+    return formatted
+
 def main():
     st.title("Open RAG Evaluation Viewer")
 
@@ -141,9 +149,21 @@ def main():
 
             # Parse umbrella scores
             umbrela_scores = parse_json_column(selected_row['retrieval_score_umbrela_scores'])
+            
+            # Display aggregate metrics if they exist in umbrela_scores
+            aggregate_metrics = {k: v for k, v in umbrela_scores.items() 
+                              if k in ['precision_at_5', 'ap_at_5', 'MRR']}
+            if aggregate_metrics:
+                with st.expander("Aggregate Retrieval Metrics"):
+                    formatted_metrics = format_aggregate_metrics(aggregate_metrics)
+                    for metric, value in formatted_metrics.items():
+                        st.text(f"{metric}: {value}")
 
+            # Display per-passage scores
+            passage_scores = {k: v for k, v in umbrela_scores.items() 
+                            if k not in ['precision_at_5', 'ap_at_5', 'MRR']}
             for passage_id, passage_text in passages.items():
-                score = umbrela_scores.get(passage_id, "N/A")
+                score = passage_scores.get(passage_id, "N/A")
                 styled_score = style_umbrela_score(score)
                 with st.expander(f"Passage {passage_id} (UMBRELA: {styled_score})"):
                     st.text(passage_text)
