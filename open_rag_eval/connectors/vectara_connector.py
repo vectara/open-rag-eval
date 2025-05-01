@@ -38,9 +38,15 @@ def tqdm_progress_callback(retry_state):
         retry_state.tqdm_pbar.close()
 
 class VectaraConnector(Connector):
-    def __init__(self, api_key, corpus_key):
+    def __init__(
+            self, 
+            api_key: str, 
+            corpus_key: str,
+            query_config: dict = None
+        ) -> None:
         self._api_key = api_key
         self._corpus_key = corpus_key
+        self.query_config = query_config
 
         self.default_config = {
             "search": {
@@ -101,7 +107,7 @@ class VectaraConnector(Connector):
         generation = self._get_config_section(query_config, 'generation')
         return generation.get("max_used_search_results", DEFAULT_MAX_USED_SEARCH_RESULTS)
 
-    def fetch_data(self, query_config=None, input_csv="queries.csv", output_csv="results.csv"):
+    def fetch_data(self, input_csv="queries.csv", output_csv="results.csv"):
         if not all([self._api_key, self._corpus_key]):
             raise ValueError(
                 "Missing Vectara API configuration (api_key, corpus_key)"
@@ -138,7 +144,7 @@ class VectaraConnector(Connector):
             # Process each query individually.
             for query in tqdm(queries, desc="Running Vectara queries"):
                 try:
-                    data = self.query(endpoint_url, headers, query, query_config)
+                    data = self.query(endpoint_url, headers, query, self.query_config)
                 except Exception as ex:
                     print(f"Failed to process query {query['queryId']}: {ex}")
                     continue
@@ -152,7 +158,7 @@ class VectaraConnector(Connector):
 
                 # Get the search results.
                 search_results = data.get("search_results", [])
-                for idx, result in enumerate(islice(search_results, self._get_max_used_search_results(query_config)), start=1):
+                for idx, result in enumerate(islice(search_results, self._get_max_used_search_results(self.query_config)), start=1):
                     # Only include the generated summary in the first row.
                     row = {"query_id": query["queryId"],
                            "query": query["query"],
