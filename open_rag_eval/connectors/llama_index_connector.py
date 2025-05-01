@@ -1,11 +1,10 @@
 import csv
 import logging
-import uuid
-from tqdm import tqdm
 import os
 
+from tqdm import tqdm
+
 from llama_index.core import VectorStoreIndex, SimpleDirectoryReader
-from llama_index.core.llms import LLM
 from llama_index.core.base.base_query_engine import BaseQueryEngine
 
 from open_rag_eval.connectors.connector import Connector
@@ -15,10 +14,10 @@ logger = logging.getLogger(__name__)
 
 class LlamaIndexConnector(Connector):
     def __init__(
-            self,
-            config: dict,
-            folder: str,
-        ) -> BaseQueryEngine:
+        self,
+        config: dict,
+        folder: str,
+    ) -> BaseQueryEngine:
         documents = SimpleDirectoryReader(folder).load_data()
         index = VectorStoreIndex.from_documents(documents)
         self.query_engine = index.as_query_engine()
@@ -26,23 +25,12 @@ class LlamaIndexConnector(Connector):
         self.outputs_csv = os.path.join(config.results_folder, config.generated_answers)
 
     def fetch_data(
-            self,
-        ) -> None:
+        self,
+    ) -> None:
         if self.query_engine is None:
             raise ValueError("Query engine is not initialized. Call read_docs() first.")
 
-        # Read queries from CSV file.
-        queries = []
-        with open(self.queries_csv, newline='', encoding='utf-8') as csvfile:
-            reader = csv.DictReader(csvfile)
-            for row in reader:
-                query_text = row.get("query")
-                if not query_text:
-                    print(f"Skipping row without query: {row}")
-                    continue  # skip rows without a query
-                # Use provided query_id or generate one if not present.
-                query_id = row.get("query_id") or str(uuid.uuid4())
-                queries.append({"query": query_text, "queryId": query_id})
+        queries = self.read_queries(self.queries_csv)
 
         # Open the output CSV file and write header.
         with open(self.outputs_csv, "w", newline='', encoding='utf-8') as csvfile:

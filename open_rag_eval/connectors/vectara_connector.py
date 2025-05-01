@@ -1,9 +1,7 @@
-import csv
 from itertools import islice
 import logging
 import os
-import uuid
-import copy
+import csv
 
 import requests
 from tqdm import tqdm
@@ -36,6 +34,7 @@ def tqdm_progress_callback(retry_state):
     # Close the progress bar on the last attempt
     if retry_state.attempt_number == retry_state.retry_object.stop.max_attempt_number:
         retry_state.tqdm_pbar.close()
+
 
 DEFAULT_MAX_USED_SEARCH_RESULTS = 5
 DEFAULT_VECTARA_CONFIG = {
@@ -100,12 +99,12 @@ def _get_config_section(query_config, section_name):
 
 class VectaraConnector(Connector):
     def __init__(
-            self, 
-            config: dict,
-            api_key: str, 
-            corpus_key: str,
-            query_config: dict = None
-        ) -> None:
+        self,
+        config: dict,
+        api_key: str,
+        corpus_key: str,
+        query_config: dict = None
+    ) -> None:
         self.config = config
         self._api_key = api_key
         self._corpus_key = corpus_key
@@ -124,19 +123,7 @@ class VectaraConnector(Connector):
                 "Missing Vectara API configuration (api_key, corpus_key)"
             )
 
-        # Read queries from CSV file.
-        queries = []
-        with open(self.config.input_queries, newline='', encoding='utf-8') as csvfile:
-            reader = csv.DictReader(csvfile)
-            for row in reader:
-                query_text = row.get("query")
-                if not query_text:
-                    print(f"Skipping row without query: {row}")
-                    continue  # skip rows without a query
-                # Use provided query_id or generate one if not present.
-                query_id = row.get("query_id") or str(uuid.uuid4())
-                queries.append({"query": query_text, "queryId": query_id})
-
+        queries = self.read_queries(self.config.input_queries)
         headers = {
             "Content-Type": "application/json",
             "Accept": "application/json",
@@ -157,8 +144,7 @@ class VectaraConnector(Connector):
                 try:
                     data = self.query(endpoint_url, headers, query, self.query_config)
                 except Exception as ex:
-                    import traceback
-                    print(f"Failed to process query {query['queryId']}: {ex}, {traceback.format_exc()}")
+                    print(f"Failed to process query {query['queryId']}: {ex}")
                     continue
 
                 # Get the overall summary (generated answer).
