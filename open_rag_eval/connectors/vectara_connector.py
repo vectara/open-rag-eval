@@ -3,18 +3,18 @@ from itertools import islice
 import logging
 import os
 import uuid
+import copy
 
 import requests
 from tqdm import tqdm
 import omegaconf
+
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 
 from open_rag_eval.connectors.connector import Connector
 
 # Configure logging for tenacity
 logger = logging.getLogger(__name__)
-
-DEFAULT_MAX_USED_SEARCH_RESULTS = 5
 
 # Custom callback for tqdm progress bar with tenacity
 def tqdm_progress_callback(retry_state):
@@ -37,77 +37,88 @@ def tqdm_progress_callback(retry_state):
     if retry_state.attempt_number == retry_state.retry_object.stop.max_attempt_number:
         retry_state.tqdm_pbar.close()
 
+DEFAULT_MAX_USED_SEARCH_RESULTS = 5
+DEFAULT_VECTARA_CONFIG = {
+    "search": {
+        "lexical_interpolation": 0.005,
+        "limit": 100,
+        "context_configuration": {
+            "sentences_before": 3,
+            "sentences_after": 3,
+            "start_tag": "<em>",
+            "end_tag": "</em>"
+        },
+        "reranker": {
+            "type": "chain",
+            "rerankers": [
+                {
+                    "type": "customer_reranker",
+                    "reranker_name": "Rerank_Multilingual_v1",
+                    "limit": 50
+                },
+                {
+                    "type": "mmr",
+                    "diversity_bias": 0.01,
+                    "limit": 10
+                }
+            ]
+        }
+    },
+    "generation": {
+        "generation_preset_name": "vectara-summary-table-md-query-ext-jan-2025-gpt-4o",
+        "max_used_search_results": DEFAULT_MAX_USED_SEARCH_RESULTS,
+        "response_language": "eng",
+        "citations": {"style": "numeric"},
+        "enable_factual_consistency_score": False
+    },
+    "intelligent_query_rewriting": False,
+    "save_history": True,
+}
+
+def _get_config_section(query_config, section_name):
+    # 1) build the default and user DictConfig
+    default_conf = omegaconf.OmegaConf.create(DEFAULT_VECTARA_CONFIG[section_name])
+    if not query_config or section_name not in query_config:
+        return omegaconf.OmegaConf.to_container(default_conf, resolve=True)
+
+    user_section = query_config[section_name]
+    user_conf = (
+        user_section
+        if isinstance(user_section, omegaconf.dictconfig.DictConfig)
+        else omegaconf.OmegaConf.create(user_section)
+    )
+
+    # 2) merge defaults + user overrides
+    merged = omegaconf.OmegaConf.merge(default_conf, user_conf)
+
+    # 3) handle special cases of reranker
+    if section_name == "search" and "reranker" in user_conf:
+        merged.reranker = user_conf.reranker
+
+    # 4) return a plain Python dict
+    return omegaconf.OmegaConf.to_container(merged, resolve=True)
+
 class VectaraConnector(Connector):
     def __init__(
             self, 
+            config: dict,
             api_key: str, 
             corpus_key: str,
             query_config: dict = None
         ) -> None:
+        self.config = config
         self._api_key = api_key
         self._corpus_key = corpus_key
         self.query_config = query_config
-
-        self.default_config = {
-            "search": {
-                "lexical_interpolation": 0.005,
-                "limit": 100,
-                "context_configuration": {
-                    "sentences_before": 3,
-                    "sentences_after": 3,
-                    "start_tag": "<em>",
-                    "end_tag": "</em>"
-                },
-                "reranker": {
-                    "type": "chain",
-                    "rerankers": [
-                        {
-                            "type": "customer_reranker",
-                            "reranker_name": "Rerank_Multilingual_v1",
-                            "limit": 50
-                        },
-                        {
-                            "type": "mmr",
-                            "diversity_bias": 0.01,
-                            "limit": 10
-                        }
-                    ]
-                }
-            },
-            "generation": {
-                "generation_preset_name": "vectara-summary-table-md-query-ext-jan-2025-gpt-4o",
-                "max_used_search_results": DEFAULT_MAX_USED_SEARCH_RESULTS,
-                "response_language": "auto",
-                "citations": {"style": "numeric"},
-                "enable_factual_consistency_score": False
-            },
-            "intelligent_query_rewriting": False,
-            "save_history": False,
-        }
-
-    def _get_config_section(self, query_config, section_name):
-        """
-        Extract a configuration section from query_config or use defaults.
-
-        Args:
-            query_config: The query configuration
-            section_name: The name of the section to extract (e.g., 'search', 'generation')
-
-        Returns:
-            The configuration section, with defaults applied if needed
-        """
-        if query_config is None:
-            return self.default_config[section_name]
-        return query_config.get(section_name, self.default_config[section_name])
 
     def _get_max_used_search_results(self, query_config):
         """
         Get the maximum number of search results to use for generation.
         """
-        generation = self._get_config_section(query_config, 'generation')
+        generation = _get_config_section(query_config, 'generation')
         return generation.get("max_used_search_results", DEFAULT_MAX_USED_SEARCH_RESULTS)
 
-    def fetch_data(self, input_csv="queries.csv", output_csv="results.csv"):
+    def fetch_data(self):
         if not all([self._api_key, self._corpus_key]):
             raise ValueError(
                 "Missing Vectara API configuration (api_key, corpus_key)"
@@ -115,7 +126,7 @@ class VectaraConnector(Connector):
 
         # Read queries from CSV file.
         queries = []
-        with open(input_csv, newline='', encoding='utf-8') as csvfile:
+        with open(self.config.input_queries, newline='', encoding='utf-8') as csvfile:
             reader = csv.DictReader(csvfile)
             for row in reader:
                 query_text = row.get("query")
@@ -135,9 +146,9 @@ class VectaraConnector(Connector):
         endpoint_url = f"https://api.vectara.io/v2/corpora/{self._corpus_key}/query"
 
         # Open the output CSV file and write header.
-        with open(output_csv, "w", newline='', encoding='utf-8') as csvfile:
-            fieldnames = ["query_id", "query", "passage_id", "passage",
-                          "generated_answer"]
+        answers_path = os.path.join(self.config.results_folder, self.config.generated_answers)
+        with open(answers_path, "w", newline='', encoding='utf-8') as csvfile:
+            fieldnames = ["query_id", "query", "passage_id", "passage", "generated_answer"]
             writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
             writer.writeheader()
 
@@ -146,7 +157,8 @@ class VectaraConnector(Connector):
                 try:
                     data = self.query(endpoint_url, headers, query, self.query_config)
                 except Exception as ex:
-                    print(f"Failed to process query {query['queryId']}: {ex}")
+                    import traceback
+                    print(f"Failed to process query {query['queryId']}: {ex}, {traceback.format_exc()}")
                     continue
 
                 # Get the overall summary (generated answer).
@@ -160,11 +172,13 @@ class VectaraConnector(Connector):
                 search_results = data.get("search_results", [])
                 for idx, result in enumerate(islice(search_results, self._get_max_used_search_results(self.query_config)), start=1):
                     # Only include the generated summary in the first row.
-                    row = {"query_id": query["queryId"],
-                           "query": query["query"],
-                           "passage_id": f"[{idx}]",
-                           "passage": result.get("text", ""),
-                           "generated_answer": generated_answer if idx == 1 else ""}
+                    row = {
+                        "query_id": query["queryId"],
+                        "query": query["query"],
+                        "passage_id": f"[{idx}]",
+                        "passage": result.get("text", ""),
+                        "generated_answer": generated_answer if idx == 1 else ""
+                    }
                     writer.writerow(row)
 
     @retry(
@@ -218,8 +232,8 @@ class VectaraConnector(Connector):
             JSON response from the Vectara API
         """
         # Get configs or use defaults
-        search = self._get_config_section(query_config, 'search')
-        generation = self._get_config_section(query_config, 'generation')
+        search = _get_config_section(query_config, 'search')
+        generation = _get_config_section(query_config, 'generation')
 
         search_dict = (
             omegaconf.OmegaConf.to_container(search, resolve=True)

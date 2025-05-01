@@ -2,8 +2,11 @@ import csv
 import logging
 import uuid
 from tqdm import tqdm
+import os
 
-from llama_index.core import VectorStoreIndex, SimpleDirectoryReader, LLM, BaseQueryEngine
+from llama_index.core import VectorStoreIndex, SimpleDirectoryReader
+from llama_index.core.llms import LLM
+from llama_index.core.base.base_query_engine import BaseQueryEngine
 
 from open_rag_eval.connectors.connector import Connector
 
@@ -12,31 +15,25 @@ logger = logging.getLogger(__name__)
 
 class LlamaIndexConnector(Connector):
     def __init__(
-            self, 
-            llm: LLM
-        ) -> None:
-        self.llm = llm
-        self.query_engine = None
-
-    def read_docs(
-            self, 
-            docs_folder: str
+            self,
+            config: dict,
+            folder: str,
         ) -> BaseQueryEngine:
-        documents = SimpleDirectoryReader(docs_folder).load_data()
+        documents = SimpleDirectoryReader(folder).load_data()
         index = VectorStoreIndex.from_documents(documents)
-        self.query_engine = index.as_query_engine(llm=self.llm)
+        self.query_engine = index.as_query_engine()
+        self.queries_csv = config.input_queries
+        self.outputs_csv = os.path.join(config.results_folder, config.generated_answers)
 
     def fetch_data(
-            self, 
-            input_csv="queries.csv", 
-            output_csv="results.csv"
+            self,
         ) -> None:
         if self.query_engine is None:
             raise ValueError("Query engine is not initialized. Call read_docs() first.")
 
         # Read queries from CSV file.
         queries = []
-        with open(input_csv, newline='', encoding='utf-8') as csvfile:
+        with open(self.queries_csv, newline='', encoding='utf-8') as csvfile:
             reader = csv.DictReader(csvfile)
             for row in reader:
                 query_text = row.get("query")
@@ -48,7 +45,7 @@ class LlamaIndexConnector(Connector):
                 queries.append({"query": query_text, "queryId": query_id})
 
         # Open the output CSV file and write header.
-        with open(output_csv, "w", newline='', encoding='utf-8') as csvfile:
+        with open(self.outputs_csv, "w", newline='', encoding='utf-8') as csvfile:
             fieldnames = ["query_id", "query", "passage_id", "passage",
                           "generated_answer"]
             writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
@@ -73,7 +70,7 @@ class LlamaIndexConnector(Connector):
                         "query_id": query["queryId"],
                         "query": query["query"],
                         "passage_id": f"[{idx}]",
-                        "passage": node.text_resource,
+                        "passage": node.text,
                         "generated_answer": generated_answer if idx == 1 else ""
                     }
                     writer.writerow(row)

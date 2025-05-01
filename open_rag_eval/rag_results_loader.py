@@ -3,7 +3,6 @@ import re
 import uuid
 import pandas as pd
 
-from open_rag_eval.connectors.connector import Connector
 from open_rag_eval.data_classes.rag_results import (
     RAGResult,
     RetrievalResult,
@@ -11,13 +10,12 @@ from open_rag_eval.data_classes.rag_results import (
     AugmentedGenerationResult,
 )
 
-
-class CSVConnector(Connector):
+class RAGResultsLoader:
     def __init__(self, csv_path: str):
-        """Initialize the CSV connector with path to CSV file."""
         self.csv_path = csv_path
+        super().__init__()
 
-    def fetch_data(self) -> List[RAGResult]:
+    def load(self) -> List[RAGResult]:
         """Read the CSV file and convert to RAGResult objects."""
         # Read CSV file
         df = pd.read_csv(self.csv_path)
