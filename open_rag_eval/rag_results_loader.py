@@ -13,7 +13,6 @@ from open_rag_eval.data_classes.rag_results import (
 class RAGResultsLoader:
     def __init__(self, csv_path: str):
         self.csv_path = csv_path
-        super().__init__()
 
     def load(self) -> List[RAGResult]:
         """Read the CSV file and convert to RAGResult objects."""
