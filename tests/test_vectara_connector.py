@@ -4,8 +4,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch, MagicMock
 from open_rag_eval.connectors.vectara_connector import (
-    VectaraConnector, DEFAULT_VECTARA_CONFIG,
-    _get_config_section
+    VectaraConnector,
 )
 import omegaconf
 
@@ -15,13 +14,51 @@ DUMMY_RESPONSE = {
     "search_results": [{"text": "Passage one"}, {"text": "Passage two"}],
 }
 
+DEFAULT_VECTARA_CONFIG = {
+    "search": {
+        "lexical_interpolation": 0.005,
+        "limit": 100,
+        "context_configuration": {
+            "sentences_before": 3,
+            "sentences_after": 3,
+            "start_tag": "<em>",
+            "end_tag": "</em>"
+        },
+        "reranker": {
+            "type": "chain",
+            "rerankers": [
+                {
+                    "type": "customer_reranker",
+                    "reranker_name": "Rerank_Multilingual_v1",
+                    "limit": 50
+                },
+                {
+                    "type": "mmr",
+                    "diversity_bias": 0.01,
+                    "limit": 10
+                }
+            ]
+        }
+    },
+    "generation": {
+        "generation_preset_name": "vectara-summary-table-md-query-ext-jan-2025-gpt-4o",
+        "max_used_search_results": 5,
+        "response_language": "eng",
+        "citations": {"style": "numeric"},
+        "enable_factual_consistency_score": False
+    },
+    "intelligent_query_rewriting": False,
+    "save_history": True,
+}
 
 class TestVectaraConnector(unittest.TestCase):
     def setUp(self):
         # Create a temporary CSV file with one test query.
-        self.test_csv_path = Path("tests/data/test_vectara_connector.csv")
-        self.test_csv_path.parent.mkdir(exist_ok=True)
-        with self.test_csv_path.open("w", newline="", encoding="utf-8") as f:
+        self.data_path = 'tests/data'
+        os.makedirs(self.data_path, exist_ok=True)
+        self.input_queries = os.path.join(self.data_path, "test_vectara_connector.csv")
+
+        with open(self.input_queries, "w", newline="", encoding="utf-8") as f:
             writer = csv.DictWriter(f, fieldnames=["query_id", "query"])
             writer.writeheader()
             writer.writerow(
@@ -29,27 +66,27 @@ class TestVectaraConnector(unittest.TestCase):
             )
 
         # Output CSV file for testing.
-        self.generated_answers = "results.csv"
+        self.generated_answers = os.path.join(self.data_path,'results.csv')
 
         # Retrieve test credentials (or set dummy values for unit testing)
         api_key = os.getenv("VECTARA_API_KEY", "dummy_api_key")
         corpus_key = os.getenv("VECTARA_CORPUS_KEY", "dummy_corpus_key")
         self.connector = VectaraConnector(
-            config= omegaconf.OmegaConf.create({
-                'input_queries': str(self.test_csv_path), 
+            config=omegaconf.OmegaConf.create({
+                'input_queries': self.input_queries,
                 'results_folder': '.',
                 'generated_answers': self.generated_answers
             }),
-            api_key=api_key, 
+            api_key=api_key,
             corpus_key=corpus_key,
-            query_config= omegaconf.OmegaConf.create({})
+            query_config=omegaconf.OmegaConf.create(DEFAULT_VECTARA_CONFIG)
         )
 
     def tearDown(self):
         # Cleanup the temporary test CSV and output CSV.
-        if self.test_csv_path.exists():
-            self.test_csv_path.unlink()
-        if Path(self.generated_answers).exists():
+        if os.path.exists(self.input_queries):
+            Path(self.input_queries).unlink()
+        if os.path.exists(self.generated_answers):
             Path(self.generated_answers).unlink()
 
     @patch("requests.post")
@@ -85,44 +122,6 @@ class TestVectaraConnector(unittest.TestCase):
         self.assertEqual(row2["passage_id"], "[2]")
         self.assertEqual(row2["passage"], "Passage two")
         self.assertEqual(row2["generated_answer"], "")
-
-    def test_get_max_used_search_results(self):
-        # Test with default config (None)
-        self.assertEqual(self.connector._get_max_used_search_results(None), 5)
-
-        # Test with custom config
-        custom_config = {"generation": {"max_used_search_results": 10}}
-        self.assertEqual(self.connector._get_max_used_search_results(custom_config), 10)
-
-        # Test with empty config
-        empty_config = {}
-        self.assertEqual(self.connector._get_max_used_search_results(empty_config), 5)
-
-        # Test with config missing the key
-        no_key_config = {"generation": {"other_setting": "value"}}
-        self.assertEqual(self.connector._get_max_used_search_results(no_key_config), 5)
-
-    def test_get_config_section(self):
-        # Test with None config
-        search_section = _get_config_section(None, "search")
-        self.assertEqual(search_section, DEFAULT_VECTARA_CONFIG["search"])
-
-        # Test with custom config that has the section
-        custom_config = {
-            "search": {"limit": 50},
-            "generation": {"max_used_search_results": 3},
-        }
-        search_section = _get_config_section(custom_config, "search")
-        self.assertEqual(search_section["limit"], 50)
-
-        # Test with custom config missing the section
-        partial_config = {"search": {"limit": 50}}
-        generation_section = _get_config_section(
-            partial_config, "generation"
-        )
-        self.assertEqual(
-            generation_section, DEFAULT_VECTARA_CONFIG["generation"]
-        )
 
 
 if __name__ == "__main__":

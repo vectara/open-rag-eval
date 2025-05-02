@@ -35,67 +35,6 @@ def tqdm_progress_callback(retry_state):
     if retry_state.attempt_number == retry_state.retry_object.stop.max_attempt_number:
         retry_state.tqdm_pbar.close()
 
-DEFAULT_MAX_USED_SEARCH_RESULTS = 5
-DEFAULT_VECTARA_CONFIG = {
-    "search": {
-        "lexical_interpolation": 0.005,
-        "limit": 100,
-        "context_configuration": {
-            "sentences_before": 3,
-            "sentences_after": 3,
-            "start_tag": "<em>",
-            "end_tag": "</em>"
-        },
-        "reranker": {
-            "type": "chain",
-            "rerankers": [
-                {
-                    "type": "customer_reranker",
-                    "reranker_name": "Rerank_Multilingual_v1",
-                    "limit": 50
-                },
-                {
-                    "type": "mmr",
-                    "diversity_bias": 0.01,
-                    "limit": 10
-                }
-            ]
-        }
-    },
-    "generation": {
-        "generation_preset_name": "vectara-summary-table-md-query-ext-jan-2025-gpt-4o",
-        "max_used_search_results": DEFAULT_MAX_USED_SEARCH_RESULTS,
-        "response_language": "eng",
-        "citations": {"style": "numeric"},
-        "enable_factual_consistency_score": False
-    },
-    "intelligent_query_rewriting": False,
-    "save_history": True,
-}
-
-def _get_config_section(query_config, section_name):
-    # 1) build the default and user DictConfig
-    default_conf = omegaconf.OmegaConf.create(DEFAULT_VECTARA_CONFIG[section_name])
-    if not query_config or section_name not in query_config:
-        return omegaconf.OmegaConf.to_container(default_conf, resolve=True)
-
-    user_section = query_config[section_name]
-    user_conf = (
-        user_section
-        if isinstance(user_section, omegaconf.dictconfig.DictConfig)
-        else omegaconf.OmegaConf.create(user_section)
-    )
-
-    # 2) merge defaults + user overrides
-    merged = omegaconf.OmegaConf.merge(default_conf, user_conf)
-
-    # 3) handle special cases of reranker
-    if section_name == "search" and "reranker" in user_conf:
-        merged.reranker = user_conf.reranker
-
-    # 4) return a plain Python dict
-    return omegaconf.OmegaConf.to_container(merged, resolve=True)
-
 class VectaraConnector(Connector):
     def __init__(
         self,
@@ -108,13 +47,6 @@ class VectaraConnector(Connector):
         self._api_key = api_key
         self._corpus_key = corpus_key
         self.query_config = query_config
-
-    def _get_max_used_search_results(self, query_config):
-        """
-        Get the maximum number of search results to use for generation.
-        """
-        generation = _get_config_section(query_config, 'generation')
-        return generation.get("max_used_search_results", DEFAULT_MAX_USED_SEARCH_RESULTS)
 
     def fetch_data(self):
         if not all([self._api_key, self._corpus_key]):
@@ -155,7 +87,8 @@ class VectaraConnector(Connector):
 
                 # Get the search results.
                 search_results = data.get("search_results", [])
-                for idx, result in enumerate(islice(search_results, self._get_max_used_search_results(self.query_config)), start=1):
+                num_results_used = self.query_config.generation.get("max_used_search_results")
+                for idx, result in enumerate(islice(search_results, num_results_used), start=1):
                     # Only include the generated summary in the first row.
                     row = {
                         "query_id": query["queryId"],
@@ -217,8 +150,8 @@ class VectaraConnector(Connector):
             JSON response from the Vectara API
         """
         # Get configs or use defaults
-        search = _get_config_section(query_config, 'search')
-        generation = _get_config_section(query_config, 'generation')
+        search = query_config.search
+        generation = query_config.generation
 
         search_dict = (
             omegaconf.OmegaConf.to_container(search, resolve=True)

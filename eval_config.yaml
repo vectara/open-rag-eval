@@ -24,16 +24,27 @@ connector:
     corpus_key: "fiqa"
     query_config:
       search:
-        limit: 5
+        lexical_interpolation: 0.005
+        limit: 100
         context_configuration:
-          sentences_before: 3
-          sentences_after: 3
+          sentences_before: 2
+          sentences_after": 2
+          start_tag: "<em>"
+          end_tag: "</em>"
+        reranker:
+          - type: "chain"
+            rerankers:
+              - type: "customer_reranker"
+                reranker_name: "Rerank_Multilingual_v1"
+                limit: 50
+              - type: "mmr"
+                diversity_bias: 0.01
+                limit: 20
       generation:
-        generation_preset_name: "mockingbird-2.0"
+        generation_preset_name: "vectara-summary-table-md-query-ext-jan-2025-gpt-4o"
         max_used_search_results: 5
-        max_response_characters: 1000
+        citations: {"style": "numeric"}
         response_language: "eng"
-        # Uncomment if you want to specify a custom prompt template.
         # prompt_template: "sample_prompt.txt"
         enable_factual_consistency_score: False
       intelligent_query_rewriting: False
