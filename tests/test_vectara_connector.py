@@ -3,7 +3,11 @@ import csv
 import unittest
 from pathlib import Path
 from unittest.mock import patch, MagicMock
-from open_rag_eval.connectors.vectara_connector import VectaraConnector
+from open_rag_eval.connectors.vectara_connector import (
+    VectaraConnector, DEFAULT_VECTARA_CONFIG,
+    _get_config_section
+)
+import omegaconf
 
 # Dummy response JSON to simulate the Vectara API response.
 DUMMY_RESPONSE = {
@@ -24,13 +28,22 @@ class TestVectaraConnector(unittest.TestCase):
                 {"query_id": "query_1", "query": "What is the meaning of life?"}
             )
 
+        # Output CSV file for testing.
+        self.generated_answers = "results.csv"
+
         # Retrieve test credentials (or set dummy values for unit testing)
         api_key = os.getenv("VECTARA_API_KEY", "dummy_api_key")
         corpus_key = os.getenv("VECTARA_CORPUS_KEY", "dummy_corpus_key")
-        self.connector = VectaraConnector(api_key, corpus_key)
-
-        # Output CSV file for testing.
-        self.generated_answers = "results.csv"
+        self.connector = VectaraConnector(
+            config= omegaconf.OmegaConf.create({
+                'input_queries': str(self.test_csv_path), 
+                'results_folder': '.',
+                'generated_answers': self.generated_answers
+            }),
+            api_key=api_key, 
+            corpus_key=corpus_key,
+            query_config= omegaconf.OmegaConf.create({})
+        )
 
     def tearDown(self):
         # Cleanup the temporary test CSV and output CSV.
@@ -48,9 +61,7 @@ class TestVectaraConnector(unittest.TestCase):
         mock_post.return_value = mock_response
 
         # Call the fetch_data method.
-        self.connector.fetch_data(
-            input_csv=str(self.test_csv_path), output_csv=self.generated_answers
-        )
+        self.connector.fetch_data()
 
         # Now read the output CSV and validate its contents.
         with open(self.generated_answers, newline="", encoding="utf-8") as csvfile:
@@ -93,24 +104,24 @@ class TestVectaraConnector(unittest.TestCase):
 
     def test_get_config_section(self):
         # Test with None config
-        search_section = self.connector._get_config_section(None, "search")
-        self.assertEqual(search_section, self.connector.default_config["search"])
+        search_section = _get_config_section(None, "search")
+        self.assertEqual(search_section, DEFAULT_VECTARA_CONFIG["search"])
 
         # Test with custom config that has the section
         custom_config = {
             "search": {"limit": 50},
             "generation": {"max_used_search_results": 3},
         }
-        search_section = self.connector._get_config_section(custom_config, "search")
-        self.assertEqual(search_section, {"limit": 50})
+        search_section = _get_config_section(custom_config, "search")
+        self.assertEqual(search_section["limit"], 50)
 
         # Test with custom config missing the section
         partial_config = {"search": {"limit": 50}}
-        generation_section = self.connector._get_config_section(
+        generation_section = _get_config_section(
             partial_config, "generation"
         )
         self.assertEqual(
-            generation_section, self.connector.default_config["generation"]
+            generation_section, DEFAULT_VECTARA_CONFIG["generation"]
         )
 
 

@@ -35,7 +35,6 @@ def tqdm_progress_callback(retry_state):
     if retry_state.attempt_number == retry_state.retry_object.stop.max_attempt_number:
         retry_state.tqdm_pbar.close()
 
-
 DEFAULT_MAX_USED_SEARCH_RESULTS = 5
 DEFAULT_VECTARA_CONFIG = {
     "search": {
