@@ -1,5 +1,4 @@
 import os
-import csv
 import unittest
 from pathlib import Path
 from unittest.mock import patch, MagicMock
@@ -7,6 +6,7 @@ from open_rag_eval.connectors.vectara_connector import (
     VectaraConnector,
 )
 import omegaconf
+import pandas as pd
 
 # Dummy response JSON to simulate the Vectara API response.
 DUMMY_RESPONSE = {
@@ -54,19 +54,17 @@ DEFAULT_VECTARA_CONFIG = {
 class TestVectaraConnector(unittest.TestCase):
     def setUp(self):
         # Create a temporary CSV file with one test query.
-        self.data_path = 'tests/data'
-        os.makedirs(self.data_path, exist_ok=True)
-        self.input_queries = os.path.join(self.data_path, "test_vectara_connector.csv")
+        self.outputs_path = 'tests/outputs'
+        os.makedirs(self.outputs_path, exist_ok=True)
+        self.input_queries = os.path.join(self.outputs_path, "test_vectara_queries.csv")
 
-        with open(self.input_queries, "w", newline="", encoding="utf-8") as f:
-            writer = csv.DictWriter(f, fieldnames=["query_id", "query"])
-            writer.writeheader()
-            writer.writerow(
-                {"query_id": "query_1", "query": "What is the meaning of life?"}
-            )
+        self.queries = ["What is the meaning of life?"]
+        queries_df = pd.DataFrame(self.queries, columns=["query"])
+        queries_df["query_id"] = [f"query_{inx}" for inx in range(len(self.queries))]
+        queries_df.to_csv(self.input_queries, index=False)
 
         # Output CSV file for testing.
-        self.generated_answers = os.path.join(self.data_path,'results.csv')
+        self.generated_answers = os.path.join(self.outputs_path,'results.csv')
 
         # Retrieve test credentials (or set dummy values for unit testing)
         api_key = os.getenv("VECTARA_API_KEY", "dummy_api_key")
@@ -101,23 +99,19 @@ class TestVectaraConnector(unittest.TestCase):
         self.connector.fetch_data()
 
         # Now read the output CSV and validate its contents.
-        with open(self.generated_answers, newline="", encoding="utf-8") as csvfile:
-            reader = csv.DictReader(csvfile)
-            rows = list(reader)
-
-        # We expect two rows since our dummy response returns 1 search result with citations.
-        self.assertEqual(len(rows), 2)
+        results = pd.read_csv(self.generated_answers, header=0, encoding="utf-8").fillna("")
+        self.assertEqual(results.shape[0], len(self.queries) * 2)
 
         # Check the first row: it should have the generated summary and passage_id "[1]"
-        row1 = rows[0]
-        self.assertEqual(row1["query_id"], "query_1")
+        row1 = results.iloc[0,:]
+        self.assertEqual(row1["query_id"], "query_0")
         self.assertEqual(row1["query"], "What is the meaning of life?")
         self.assertEqual(row1["passage_id"], "[1]")
         self.assertEqual(row1["passage"], "Passage one")
         self.assertEqual(row1["generated_answer"], "Test summary[1]")
 
-        row2 = rows[1]
-        self.assertEqual(row2["query_id"], "query_1")
+        row2 = results.iloc[1,:]
+        self.assertEqual(row2["query_id"], "query_0")
         self.assertEqual(row2["query"], "What is the meaning of life?")
         self.assertEqual(row2["passage_id"], "[2]")
         self.assertEqual(row2["passage"], "Passage two")
