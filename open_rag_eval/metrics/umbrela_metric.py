@@ -76,8 +76,6 @@ class UMBRELAMetric(RetrievalMetric):
 
     def compute(self, retrieval_result: RetrievalResult) -> dict[str, int]:
         scores = {}
-        score_map = {"0": 0, "1": 1, "2": 2, "3": 3}
-
         for key, passage in retrieval_result.retrieved_passages.items():
             try:
                 query = retrieval_result.query
@@ -87,7 +85,7 @@ class UMBRELAMetric(RetrievalMetric):
                 if not response.score:
                     raise ValueError(f"Failed to parse response: {response.refusal}")
 
-                scores[key] = score_map[response.score.value]
+                scores[key] = int(response.score.value)
 
             except Exception as e:
                 raise Exception(f"Error computing UMBRELA score: {str(e)}") from e
