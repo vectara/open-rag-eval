@@ -17,10 +17,11 @@ class LlamaIndexConnector(Connector):
         self,
         config: dict,
         folder: str,
+        top_k: int = 10,
     ) -> BaseQueryEngine:
         documents = SimpleDirectoryReader(folder).load_data()
         index = VectorStoreIndex.from_documents(documents)
-        self.query_engine = index.as_query_engine()
+        self.query_engine = index.as_query_engine(similarity_top_k=top_k)
         self.queries_csv = config.input_queries
         self.outputs_csv = os.path.join(config.results_folder, config.generated_answers)
 

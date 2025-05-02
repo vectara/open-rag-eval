@@ -1,0 +1,24 @@
+# input_results need to be specified if a connector is not present,
+# and we already have retrieved results from a RAG system. In this case
+# this file is produced by the connector below.
+# input_results: ""
+
+# Evaluation results are written to this folder.
+input_queries: "sm_queries.csv"
+results_folder: "results/"
+generated_answers: "sm_answers_1.csv"
+eval_results_file: "sm_results_1.csv"
+metrics_file: "metrics.png"
+
+evaluator:
+  type: "TRECEvaluator"  
+  model:
+    type: "OpenAIModel"
+    name: "gpt-4o-mini"
+    api_key: ${oc.env:OPENAI_API_KEY}  # Reads from environment variable.
+
+connector:
+  type: "LlamaIndexConnector"  
+  options:
+    folder: /path/to/folder-with-files/
+    top_k: 10
