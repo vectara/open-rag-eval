@@ -18,7 +18,7 @@ class TestVectaraConnector(unittest.TestCase):
     def setUp(self):
         # Create a temporary CSV file with one test query.
         self.outputs_path = 'tests/outputs'
-        self.data_path = 'tests/data'
+        self.data_path = 'data/pdfs/'
         os.makedirs(self.outputs_path, exist_ok=True)
         self.input_queries = os.path.join(self.outputs_path, "test_llamaindex_queries.csv")
 

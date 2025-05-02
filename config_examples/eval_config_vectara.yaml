@@ -4,10 +4,10 @@
 # input_results: ""
 
 # Evaluation results are written to this folder.
-input_queries: "sm_queries.csv"
+input_queries: "queries.csv"
 results_folder: "results/"
-generated_answers: "sm_answers_1.csv"
-eval_results_file: "sm_results_1.csv"
+generated_answers: "answers_1.csv"
+eval_results_file: "results_1.csv"
 metrics_file: "metrics.png"
 
 evaluator:
@@ -45,7 +45,7 @@ connector:
         max_used_search_results: 5
         citations: {"style": "numeric"}
         response_language: "eng"
-        # prompt_template: "sample_prompt.txt"
+        # prompt_template: "sample_prompt.txt"   - Optional
         enable_factual_consistency_score: False
       intelligent_query_rewriting: False
       save_history: False

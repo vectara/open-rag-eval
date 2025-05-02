@@ -61,38 +61,11 @@ After installing the library you can follow instructions below to run a sample e
 
 ## Using Open RAG Eval with the Vectara connector
 
-### Step 1. Configure Evaluation Settings
+### Step 1. Define Queries for Evaluation
 
-Edit the [eval_config.yaml](https://github.com/vectara/open-rag-eval/blob/main/eval_config.yaml) file. This file controls the evaluation process, including connector details, evaluator choices, and metric settings. Update the `connector` section with your Vectara `customer_id` and `corpus_key`.
+Create a CSV file that contains the queries (for example `queries.csv`), which contains a single column named `query`, with each row representing a query you want to test against your RAG system.
 
-You can also customize the prompt used for the RAG generative LLM by adding a `prompt_template` parameter under the `generation` section:
-
-```yaml
-generation:
-  generation_preset_name: "vectara-summary-ext-24-05-med-omni"
-  max_used_search_results: 5
-  max_response_characters: 1000
-  response_language: "eng"
-  enable_factual_consistency_score: False
-  prompt_template: "path_to_your_prompt_template.txt" # Points to a file containing your custom prompt
-```
-
-In addition, make sure you have `VECTARA_API_KEY` and `OPENAI_API_KEY` available in your environment. For example:
-
-- export VECTARA_API_KEY='your-vectara-api-key'
-- export OPENAI_API_KEY='your-openai-api-key'
-
-### Step 2. Prepare RAG Output
-
-You need the results (answers and retrieved contexts) from your RAG system for the queries you want to evaluate.
-
-open-rag-eval will automatically query your Vectara corpus and retrieve the results, as defined in your `eval_config.yaml` file.
-
-### Step 3. Define Queries for Evaluation
-
-Create a CSV file named `queries.csv` in the root directory. It should contain a single column named `query`, with each row representing a query you want to test against your RAG system.
-
-Example `queries.csv`:
+Example queries file:
 
 ```csv
 query
@@ -101,24 +74,40 @@ How big is the sun?
 How many moons does jupiter have?
 ```
 
-### Step 4. Run evaluation!
+### Step 2. Configure Evaluation Settings
+
+Edit the [eval_config_vectara.yaml](https://github.com/vectara/open-rag-eval/blob/main/config_examples/eval_config_vectara.yaml) file. This file controls the evaluation process, including connector options, evaluator choices, and metric settings. 
+
+* Ensure your queries file is listed under `input_queries`, and fill in the correct values for `generated_answers` and `eval_results_file`
+* Choose an output folder (where all artifacts will be stored) and put it unde `results_folder`
+* Update the `connector` section (under `options`/`query_config`) with your Vectara `corpus_key`.
+* Customize any Vectara query parameter to tailor this evaluation to a query configuration set.
+
+In addition, make sure you have `VECTARA_API_KEY` and `OPENAI_API_KEY` available in your environment. For example:
+
+- export VECTARA_API_KEY='your-vectara-api-key'
+- export OPENAI_API_KEY='your-openai-api-key'
+
+### Step 3. Run evaluation!
 
 With everything configured, now is the time to run evaluation! Run the following command from the root folder of open-rag-eval:
 
 ```bash
-python open_rag_eval/run_eval.py --config eval_config.yaml
+python open_rag_eval/run_eval.py --config eval_config_vectara.yaml
 ```
 
-and you should see the evaluation progress on your command line. Once it's done, detailed results will be saved to a local CSV file where you can see the score assigned to each sample along with intermediate output useful for debugging and explainability.
+You should see the evaluation progress on your command line. Once it's done, detailed results will be saved to a local CSV file (in the file listed under `eval_results_file`) where you can see the score assigned to each sample along with intermediate output useful for debugging and explainability.
 
-### Step 5. Visualize results
+Note that a local plot for each evaluation is also stored in the output folder, under the filename listed as `metrics_file`.
+
+### Step 4. Visualize results
 
 You can use the `plot_results.py` script to plot results from your eval runs. Multiple different runs can be plotted on the same plot allowing for easy comparison of different configurations or RAG providers:
 
 To plot one result:
 
 ```bash
-python open_rag_eval/plot_results.py open_eval_results.csv
+python open_rag_eval/plot_results.py results.csv
 ```
 
 Or to plot multiple results:
