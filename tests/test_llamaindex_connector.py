@@ -14,6 +14,8 @@ DUMMY_RESPONSE = {
     "search_results": [{"text": "Passage one"}, {"text": "Passage two"}],
 }
 
+TOP_K = 10
+
 class TestVectaraConnector(unittest.TestCase):
     def setUp(self):
         # Create a temporary CSV file with one test query.
@@ -36,6 +38,7 @@ class TestVectaraConnector(unittest.TestCase):
                 'generated_answers': self.generated_answers
             }),
             folder = self.data_path,
+            top_k=TOP_K
         )
 
     def tearDown(self):
@@ -58,7 +61,7 @@ class TestVectaraConnector(unittest.TestCase):
 
         # Now read the output CSV and validate its contents.
         results = pd.read_csv(self.generated_answers, header=0, encoding="utf-8")
-        self.assertEqual(results.shape[0], len(self.queries) * 2)
+        self.assertEqual(results.shape[0], len(self.queries) * TOP_K)
 
         # Check the first row: it should have the generated summary and passage_id "[1]"
         count = results["query_id"].value_counts()[0]

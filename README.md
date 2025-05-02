@@ -124,7 +124,7 @@ If you are using RAG outputs from your own pipeline, make sure to put your RAG o
 
 ### Step 1. Configure Evaluation Settings
 
-Update the `eval_config.yaml` as follows:
+Update the `vectara_eval_config.yaml` as follows:
 
 - Comment out or delete the connector section
 - uncomment input_results and point it to the CSV file where your RAG results are stored.
