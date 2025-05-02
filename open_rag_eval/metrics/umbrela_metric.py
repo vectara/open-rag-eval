@@ -99,47 +99,63 @@ class UMBRELAMetric(RetrievalMetric):
 
     def add_retrieval_metrics(self, scores: dict[str, int]) -> None:
         """Add traditional retrieval metrics to the scores dictionary.
+        Calculates Precision@K, Average Precision (AP@K), and Mean Reciprocal Rank (MRR).
 
         Args:
-            scores (dict): The scores dictionary to update.
+            scores (dict): The scores dictionary to update with retrieval metrics.
         """
-
-        # Calculate precision@K where K is the number of retrieved passages.
         k = len(scores)
         if k == 0:
             return
-        
-        scores[f"precision_at_{k}"] = sum(
-            1 for score in scores.values() if score >= self._umbrela_relevant_threshold
-        ) / len(scores)
 
-        # Calculate Average Precision (AP@k )
         binary_relevance = [
             1 if score >= self._umbrela_relevant_threshold else 0
             for score in scores.values()
         ]
         total_relevant = sum(binary_relevance)
 
+        # Calculate precision@K
+        scores[f"precision_at_{k}"] = total_relevant / k if k > 0 else 0.0
+
+        # Calculate Average Precision (AP@K)
+        scores[f"ap_at_{k}"] = self._calculate_average_precision(binary_relevance, total_relevant)
+
+        # Calculate Mean Reciprocal Rank (MRR)
+        scores["MRR"] = self._calculate_mrr(binary_relevance)
+
+    def _calculate_average_precision(self, binary_relevance: list[int], total_relevant: int) -> float:
+        """Calculate Average Precision from binary relevance scores.
+
+        Args:
+            binary_relevance: List of 1s and 0s indicating relevant and non-relevant items
+            total_relevant: Total number of relevant items
+
+        Returns:
+            float: Average Precision score
+        """
         if total_relevant == 0:
-            scores[f"ap_at_{k}"] = 0.0
-        else:
-            precision_at_k = []
-            relevant_so_far = 0
+            return 0.0
 
-            for i, is_relevant in enumerate(binary_relevance, start=1):
-                if is_relevant == 1:
-                    relevant_so_far += 1
-                    precision = relevant_so_far / i
-                    precision_at_k.append(precision)
+        precision_at_k = []
+        relevant_so_far = 0
 
-            # Calculate AP as the average of precision values at relevant positions
-            ap = sum(precision_at_k) / len(precision_at_k)
-            scores[f"ap_at_{k}"] = ap
+        for i, is_relevant in enumerate(binary_relevance, start=1):
+            if is_relevant == 1:
+                relevant_so_far += 1
+                precision_at_k.append(relevant_so_far / i)
 
-        # Mean Reciprocal Rank (MRR).
-        scores["MRR"] = 0.0
-        for i, (_, score) in enumerate(scores.items(), start=1):
-            if score >= self._umbrela_relevant_threshold:
-                scores["MRR"] = 1.0 / i
-                # Only consider the first relevant item for MRR.
-                break
+        return sum(precision_at_k) / len(precision_at_k)
+
+    def _calculate_mrr(self, binary_relevance: list[int]) -> float:
+        """Calculate Mean Reciprocal Rank from binary relevance scores.
+
+        Args:
+            binary_relevance: List of 1s and 0s indicating relevant and non-relevant items
+
+        Returns:
+            float: MRR score
+        """
+        for i, is_relevant in enumerate(binary_relevance, start=1):
+            if is_relevant == 1:
+                return 1.0 / i
+        return 0.0
