@@ -16,3 +16,4 @@ tenacity~=9.1.2
 torch==2.6.0
 tqdm==4.67.1
 transformers==4.49.0
+llama_index==0.12.34
