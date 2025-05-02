@@ -124,17 +124,17 @@ If you are using RAG outputs from your own pipeline, make sure to put your RAG o
 
 ### Step 1. Configure Evaluation Settings
 
-Update the `vectara_eval_config.yaml` as follows:
+Copy `vectara_eval_config.yaml` to `xxx_eval_config.yaml` (where `xxx` is the name of your RAG pipeline) as follows:
 
 - Comment out or delete the connector section
-- uncomment input_results and point it to the CSV file where your RAG results are stored.
+- Ensure `input_queries`, `results_folder`, `generated_answers` and `eval_results_file` are properly configured. Specifically the generated answers need to exist in the results folder. 
 
 ### Step 2. Run evaluation!
 
 With everything configured, now is the time to run evaluation! Run the following command:
 
 ```bash
-python open_rag_eval/run_eval.py --config eval_config.yaml
+python open_rag_eval/run_eval.py --config xxx_eval_config.yaml
 ```
 
 and you should see the evaluation progress on your command line. Once it's done, detailed results will be saved to a local CSV file where you can see the score assigned to each sample along with intermediate output useful for debugging and explainability.
@@ -144,19 +144,19 @@ and you should see the evaluation progress on your command line. Once it's done,
 You can use the `open_rag_eval/plot_results.py` script to plot results from your eval runs. Multiple different runs can be plotted on the same plot allowing for easy comparison of different configurations or RAG providers. For example if the output evaluation results from two runs are saved in `open_eval_results_1.csv` and `open_eval_results_2.csv` you can plot both of them as follows:
 
 ```bash
-python open_rag_eval/plot_results.py open_eval_results_1.csv open_eval_results_2.csv
+python open_rag_eval/plot_results.py results_1.csv results_2.csv
 ```
 
-### Step 4. Deep dive into results
+## Visualization: Deep dive into results
 
-The visualization in step 3. above shows you the aggregated metrics across one or more runs of the evaluation on several queries. If you want to deep dive into the results, we have a results viewer which enables easy viewing od the produced metrics CSV where you can look at the intermediate results and detailed breakdown of scores and metrics on a per query basis. To do this:
+The visualization in the steps abopve shows you the aggregated metrics across one or more runs of the evaluation on several queries. If you want to deep dive into the results, we have a results viewer which enables easy viewing od the produced metrics CSV where you can look at the intermediate results and detailed breakdown of scores and metrics on a per query basis. To do this:
 
 ```bash
 cd open_rag_eval/viz/
 streamlit run visualize.py
 ```
 
-Note that you will need to have streamlit installed in your environment (which should be the case if you've installed open-rag-eval). Once you upload your evaluation results CSV (`open_eval_results.csv` by default) you can select a query to view detailed metrics for such as the produced nuggets by the AutoNuggetizer, the UMBRELA scores assigned to each retrieved result and so on.
+Note that you will need to have streamlit installed in your environment (which should be the case if you've installed open-rag-eval). Once you upload your evaluation results CSV (`results.csv` by default) you can select a query to view detailed metrics for such as the produced nuggets by the AutoNuggetizer, the UMBRELA scores assigned to each retrieved result and so on.
 
 <p align="center">
   <img width="45%" alt="visualization 1" src="img/viz_1.png"/>
