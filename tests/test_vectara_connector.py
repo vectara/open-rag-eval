@@ -58,7 +58,7 @@ class TestVectaraConnector(unittest.TestCase):
         os.makedirs(self.outputs_path, exist_ok=True)
         self.input_queries = os.path.join(self.outputs_path, "test_vectara_queries.csv")
 
-        self.queries = ["What is the meaning of life?"]
+        self.queries = ["What is the meaning of life?", "What is the best planet?"]
         queries_df = pd.DataFrame(self.queries, columns=["query"])
         queries_df["query_id"] = [f"query_{inx}" for inx in range(len(self.queries))]
         queries_df.to_csv(self.input_queries, index=False)
@@ -88,7 +88,7 @@ class TestVectaraConnector(unittest.TestCase):
             Path(self.generated_answers).unlink()
 
     @patch("requests.post")
-    def test_fetch_data(self, mock_post):
+    def test_fetch_data_mock(self, mock_post):
         # Configure the mock to return a dummy response.
         mock_response = MagicMock()
         mock_response.status_code = 200
@@ -116,6 +116,18 @@ class TestVectaraConnector(unittest.TestCase):
         self.assertEqual(row2["passage_id"], "[2]")
         self.assertEqual(row2["passage"], "Passage two")
         self.assertEqual(row2["generated_answer"], "")
+
+    def test_fetch_data(self):
+        # This integration test hits the real Vectara API.
+        self.connector.fetch_data(input_csv=str(self.test_csv_path), output_csv=self.generated_answers)
+
+        # Verify that the output CSV file exists.
+        output_path = Path(self.generated_answers)
+        self.assertTrue(output_path.exists(), "Output CSV was not created.")
+
+        # Read the output CSV and check that it contains at least one row.
+        results = pd.read_csv(self.generated_answers, header=0, encoding="utf-8").fillna("")
+        self.assertGreater(results.shape[0], 0, "Output CSV is empty.")
 
 
 if __name__ == "__main__":

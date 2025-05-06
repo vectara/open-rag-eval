@@ -115,5 +115,6 @@ class TestRAGResultsLoader(unittest.TestCase):
             [GeneratedAnswerPart(text='Based on the provided sources, the purpose of job training is to acquire marketable skills that are necessary for a particular job or profession. This training can be done on the job, through formal education, or through specialized training programs. The purpose of job training is to equip individuals with the skills and knowledge they need to perform their jobs effectively and to increase their chances of getting hired or promoted.', citations=['[1]', '[2]', '[3]', '[4]', '[5]'])]
         )
 
+
 if __name__ == '__main__':
     unittest.main()
