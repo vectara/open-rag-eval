@@ -118,8 +118,14 @@ class TestVectaraConnector(unittest.TestCase):
         self.assertEqual(row2["generated_answer"], "")
 
     def test_fetch_data(self):
+        required_vars = ["VECTARA_API_KEY", "VECTARA_CORPUS_KEY"]
+        missing = [var for var in required_vars if not os.getenv(var)]
+        if missing:
+            raise unittest.SkipTest(
+                f"Skipping integration tests, missing env vars: {', '.join(missing)}")
+
         # This integration test hits the real Vectara API.
-        self.connector.fetch_data(input_csv=str(self.test_csv_path), output_csv=self.generated_answers)
+        self.connector.fetch_data()
 
         # Verify that the output CSV file exists.
         output_path = Path(self.generated_answers)

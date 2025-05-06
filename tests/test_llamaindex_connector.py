@@ -1,6 +1,5 @@
 import os
 import unittest
-from unittest.mock import patch, MagicMock
 from pathlib import Path
 from open_rag_eval.connectors.llama_index_connector import (
     LlamaIndexConnector,
@@ -22,11 +21,11 @@ class TestVectaraConnector(unittest.TestCase):
         self.outputs_path = 'tests/outputs'
         self.data_path = 'data/pdfs/'
         os.makedirs(self.outputs_path, exist_ok=True)
-        self.input_queries = os.path.join(self.outputs_path, "test_llamaindex_queries.csv")
 
-        self.queries = ["What is the meaning of life?", "what is a transformer?", "waht is attention?"]
+        self.queries = ["What is the meaning of life?", "what is a transformer?", "what is attention?"]
         queries_df = pd.DataFrame(self.queries, columns=["query"])
         queries_df["query_id"] = [f"query_{inx}" for inx in range(len(self.queries))]
+        self.input_queries = os.path.join(self.outputs_path, "test_llamaindex_queries.csv")
         queries_df.to_csv(self.input_queries, index=False)
 
         # Output CSV file for testing.
@@ -48,14 +47,7 @@ class TestVectaraConnector(unittest.TestCase):
         if os.path.exists(self.generated_answers):
             Path(self.generated_answers).unlink()
 
-    @patch("requests.post")
-    def test_fetch_data(self, mock_post):
-        # Configure the mock to return a dummy response.
-        mock_response = MagicMock()
-        mock_response.status_code = 200
-        mock_response.json.return_value = DUMMY_RESPONSE
-        mock_post.return_value = mock_response
-
+    def test_fetch_data(self):
         # Call the fetch_data method.
         self.connector.fetch_data()
 

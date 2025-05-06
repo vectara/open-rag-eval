@@ -22,9 +22,11 @@ class LlamaIndexConnector(Connector):
     ) -> BaseQueryEngine:
         documents = SimpleDirectoryReader(folder).load_data()
         index = VectorStoreIndex.from_documents(documents)
+        retriever = index.as_retriever(similarity_top_k=top_k)
+        self.top_k = top_k
         self.query_engine = CitationQueryEngine.from_args(
             index,
-            similarity_top_k=top_k,
+            retriever=retriever,
         )
         self.queries_csv = config.input_queries
         self.outputs_csv = os.path.join(config.results_folder, config.generated_answers)
@@ -58,7 +60,7 @@ class LlamaIndexConnector(Connector):
                     continue
 
                 # Get the search results.
-                for idx, node in enumerate(res.source_nodes, start=1):
+                for idx, node in enumerate(res.source_nodes[:self.top_k], start=1):
                     row = {
                         "query_id": query["queryId"],
                         "query": query["query"],
