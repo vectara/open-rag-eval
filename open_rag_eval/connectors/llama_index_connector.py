@@ -6,6 +6,7 @@ from tqdm import tqdm
 
 from llama_index.core import VectorStoreIndex, SimpleDirectoryReader
 from llama_index.core.base.base_query_engine import BaseQueryEngine
+from llama_index.core.query_engine.citation_query_engine import CitationQueryEngine
 
 from open_rag_eval.connectors.connector import Connector
 
@@ -21,7 +22,10 @@ class LlamaIndexConnector(Connector):
     ) -> BaseQueryEngine:
         documents = SimpleDirectoryReader(folder).load_data()
         index = VectorStoreIndex.from_documents(documents)
-        self.query_engine = index.as_query_engine(similarity_top_k=top_k)
+        self.query_engine = CitationQueryEngine.from_args(
+            index,
+            similarity_top_k=top_k,
+        )
         self.queries_csv = config.input_queries
         self.outputs_csv = os.path.join(config.results_folder, config.generated_answers)
 
