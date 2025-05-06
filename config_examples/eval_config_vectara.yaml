@@ -1,10 +1,7 @@
-# input_results need to be specified if a connector is not present,
-# and we already have retrieved results from a RAG system. In this case
-# this file is produced by the connector below.
-# input_results: ""
+input_queries: "queries.csv"  # file with a list of queries to use for evaluation
 
-# Evaluation results are written to this folder.
-input_queries: "queries.csv"
+# Evaluation results are written to the "results_folder" folder.
+# Specify the names of file where the answers, results and metrics will be generated.
 results_folder: "results/"
 generated_answers: "answers_1.csv"
 eval_results_file: "results_1.csv"

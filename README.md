@@ -93,7 +93,7 @@ In addition, make sure you have `VECTARA_API_KEY` and `OPENAI_API_KEY` available
 With everything configured, now is the time to run evaluation! Run the following command from the root folder of open-rag-eval:
 
 ```bash
-python open_rag_eval/run_eval.py --config eval_config_vectara.yaml
+python open_rag_eval/run_eval.py --config config_examples/eval_config_vectara.yaml
 ```
 
 You should see the evaluation progress on your command line. Once it's done, detailed results will be saved to a local CSV file (in the file listed under `eval_results_file`) where you can see the score assigned to each sample along with intermediate output useful for debugging and explainability.
