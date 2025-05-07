@@ -1,15 +1,15 @@
 import unittest
 from pathlib import Path
-from open_rag_eval.connectors.csv_connector import CSVConnector
+from open_rag_eval.rag_results_loader import RAGResultsLoader
 from open_rag_eval.data_classes.rag_results import GeneratedAnswerPart
 
-class TestCSVConnector(unittest.TestCase):
+class TestRAGResultsLoader(unittest.TestCase):
     def setUp(self):
-        test_csv_path = Path("tests/data/test_csv_connector.csv")
-        self.connector = CSVConnector(test_csv_path)
+        test_csv_path = Path("tests/test_data/csv_results.csv")
+        self.loader = RAGResultsLoader(test_csv_path)
 
     def test_read_results(self):
-        results = self.connector.fetch_data()
+        results = self.loader.load()
 
         # Should return 5 RAGResults (one per query_id)
         self.assertEqual(len(results), 5)

@@ -12,6 +12,7 @@ from omegaconf import OmegaConf
 
 from open_rag_eval import connectors, data_classes, models
 from open_rag_eval import evaluators
+from open_rag_eval.rag_results_loader import RAGResultsLoader
 
 
 def get_evaluator(config: Dict[str, Any]) -> evaluators.Evaluator:
@@ -64,12 +65,8 @@ def get_connector(config: Dict[str, Any]) -> connectors.Connector:
         return None
     connector_type = config.connector.type
     try:
-        # Import the connector module
         connector_class = getattr(connectors, connector_type)
-
-        # Create connector instance with options from config
-        connector_options = config.connector.options
-        return connector_class(connector_options.api_key, connector_options.corpus_key)
+        return connector_class(config, **config.connector.options)
 
     except (ImportError, AttributeError) as e:
         raise ImportError(f"Could not load connector {connector_type}: {str(e)}") from e
@@ -88,49 +85,33 @@ def run_eval(config_path: str):
     config = OmegaConf.load(config_path)
 
     # Create output folder.
-    results_folder = config.evaluation_results
+    results_folder = config.results_folder
     if os.path.exists(results_folder):
-        raise FileExistsError(f"Output folder already exists: {results_folder}")
-    os.makedirs(results_folder)
+        print(f"WARNING: Output folder {results_folder} already exists...")
+    os.makedirs(results_folder, exist_ok=True)
 
     # Copy the config file from config_path to the output folder.
     config_file_name = os.path.basename(config_path)
-    config_file_output_path = os.path.join(results_folder, config_file_name)
-    shutil.copy2(config_path, config_file_output_path)
+    shutil.copy2(config_path, os.path.join(results_folder, config_file_name))
 
-    # Create an evaluator based on config
-    evaluator = get_evaluator(config)
-
-    # Get a connector based on config.
+    # If connector configured - run it to generate results (or read results)
     connector = get_connector(config)
-
     if connector:
-        config["input_results"] = config.connector.options.generated_answers
-        # Run queries and save results using connector if one is present.
-        connector.fetch_data(
-            config.connector.options.query_config,
-            config.connector.options.input_queries,
-            config.connector.options.generated_answers,
-        )
+        connector.fetch_data()
 
-    rag_results = connectors.CSVConnector(config.input_results).fetch_data()
-
-    # Run the evaluation
+    # Run evaluation
+    evaluator = get_evaluator(config)
+    answer_path = os.path.join(config.results_folder, config.generated_answers)
+    rag_results = RAGResultsLoader(answer_path).load()
     scored_results = evaluator.evaluate_batch(rag_results)
 
-    # Save the results and any intermediate output to the configured output folder
-    shutil.copy2(
-        config.input_results,
-        os.path.join(results_folder, os.path.basename(config.input_results)),
-    )
-
-    eval_results_file = os.path.join(results_folder, "eval_results.csv")
-    data_classes.eval_scores.to_csv(scored_results, eval_results_file)
+    eval_results_path = os.path.join(results_folder, config.eval_results_file)
+    data_classes.eval_scores.to_csv(scored_results, eval_results_path)
 
     # Plot the metrics.
     evaluator.plot_metrics(
-        csv_files=[eval_results_file],
-        output_file=os.path.join(results_folder, "metrics.png"),
+        csv_files=[eval_results_path],
+        output_file=os.path.join(results_folder, config.metrics_file),
     )
 
 
