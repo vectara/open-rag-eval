@@ -1,5 +1,5 @@
 from enum import Enum
-
+from collections import defaultdict
 from pydantic import BaseModel
 
 from open_rag_eval.models.llm_judges import LLMJudgeModel
@@ -74,8 +74,13 @@ class UMBRELAMetric(RetrievalMetric):
         # calculation of traditional retrieval metrics like MAP, Precison@k, etc.
         self._umbrela_relevant_threshold = 2
 
-    def compute(self, retrieval_result: RetrievalResult) -> dict[str, int]:
+    def compute(
+        self, retrieval_result: RetrievalResult, k_values: list[int]
+    ) -> dict[str, int]:
         scores = {}
+
+        scores["umbrela_scores"] = {}
+        umbrela_scores = scores["umbrela_scores"]
         for key, passage in retrieval_result.retrieved_passages.items():
             try:
                 query = retrieval_result.query
@@ -85,43 +90,59 @@ class UMBRELAMetric(RetrievalMetric):
                 if not response.score:
                     raise ValueError(f"Failed to parse response: {response.refusal}")
 
-                scores[key] = int(response.score.value)
+                umbrela_scores[key] = int(response.score.value)
 
             except Exception as e:
                 raise Exception(f"Error computing UMBRELA score: {str(e)}") from e
 
         # Calculate traditional retrieval metrics.
-        self.add_retrieval_metrics(scores)
+        self.add_retrieval_metrics(scores, k_values)
 
         return scores
 
-    def add_retrieval_metrics(self, scores: dict[str, int]) -> None:
+    def add_retrieval_metrics(
+        self, scores: dict[str, int], k_values: list[int]
+    ) -> None:
         """Add traditional retrieval metrics to the scores dictionary.
         Calculates Precision@K, Average Precision (AP@K), and Mean Reciprocal Rank (MRR).
 
         Args:
             scores (dict): The scores dictionary to update with retrieval metrics.
+            k_values (list): List of K values for which to calculate metrics.
         """
-        k = len(scores)
-        if k == 0:
+        umbrela_scores = scores.get("umbrela_scores", {})
+        if len(umbrela_scores) == 0:
             return
 
         binary_relevance = [
             1 if score >= self._umbrela_relevant_threshold else 0
-            for score in scores.values()
+            for score in umbrela_scores.values()
         ]
-        total_relevant = sum(binary_relevance)
 
-        # Calculate precision@K
-        scores[f"precision_at_{k}"] = total_relevant / k if k > 0 else 0.0
+        scores["retrieval_scores"] = defaultdict(dict)
+        retrieval_scores = scores["retrieval_scores"]
+        for k in k_values:
+            if k > len(umbrela_scores):
+                continue
 
-        # Calculate Average Precision (AP@K)
-        scores[f"ap_at_{k}"] = self._calculate_average_precision(binary_relevance, total_relevant)
+            relevant_at_k = sum(binary_relevance[:k])
+
+            # Calculate precision@K
+            retrieval_scores["precision@"][f"{k}"] = (
+                relevant_at_k / k if k > 0 else 0.0
+            )
+
+            # Calculate Average Precision (AP@K)
+            retrieval_scores["AP@"][f"{k}"] = self._calculate_average_precision(
+                binary_relevance[:k], relevant_at_k
+            )
 
         # Calculate Mean Reciprocal Rank (MRR)
-        scores["MRR"] = self._calculate_mrr(binary_relevance)
+        retrieval_scores["MRR"] = self._calculate_mrr(binary_relevance)
 
-    def _calculate_average_precision(self, binary_relevance: list[int], total_relevant: int) -> float:
+    def _calculate_average_precision(
+        self, binary_relevance: list[int], total_relevant: int
+    ) -> float:
         """Calculate Average Precision from binary relevance scores.
 
         Args:
