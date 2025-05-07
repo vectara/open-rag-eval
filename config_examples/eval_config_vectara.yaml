@@ -1,10 +1,10 @@
 input_queries: "queries.csv"  # file with a list of queries to use for evaluation
 
 # Evaluation results are written to the "results_folder" folder.
-# Specify the names of file where the answers, results and metrics will be generated.
+# You can oerride the names of files in this folder by specifying 'generated_answers', 'eval_results_file', and 'metrics_file'.
 results_folder: "results/"
-generated_answers: "answers_1.csv"
-eval_results_file: "results_1.csv"
+generated_answers: "answers.csv"
+eval_results_file: "results.csv"
 metrics_file: "metrics.png"
 
 evaluator:
