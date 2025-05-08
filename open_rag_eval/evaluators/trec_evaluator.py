@@ -103,14 +103,31 @@ class TRECEvaluator(Evaluator):
             output_file (str): File name to save the resulting figure.
         """
 
-        # Helper function to calculate percentage of answered questions
         def get_answered_percentage(df):
-            try:
-                answers = df["generation_score_no_answer_score"].apply(json.loads)
-                answered = answers.apply(lambda x: x["query_answered"] == "yes").sum()
-                return (answered / len(df)) * 100
-            except (KeyError, ValueError, json.JSONDecodeError):
-                return 0
+            # First, fill empty values with a valid default JSON or NaN
+            df_processed = df.copy()                        
+            answered_count = 0
+            total_valid_rows = 0
+            
+            for idx, row in df_processed.iterrows():
+                value = row["generation_score_no_answer_score"]
+                
+                # Skip NaN values
+                if pd.isna(value):
+                    continue
+                    
+                try:
+                    answer_data = json.loads(value)
+                    total_valid_rows += 1
+                    if answer_data["query_answered"] == "yes":
+                        answered_count += 1
+                except (ValueError, json.JSONDecodeError, TypeError):
+                    print(f"Invalid JSON at row index {idx}")
+            
+            if total_valid_rows > 0:
+                return (answered_count / total_valid_rows) * 100
+            else:
+                return 0        
 
         # Helper function to draw a boxplot on the given axis.
         def plot_boxplot(ax, data_list, xtick_labels, metric_title, single=True):
