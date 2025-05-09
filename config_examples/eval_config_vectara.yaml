@@ -13,6 +13,9 @@ evaluator:
     type: "OpenAIModel"
     name: "gpt-4o-mini"
     api_key: ${oc.env:OPENAI_API_KEY}  # Reads from environment variable.
+  options:
+    # The k values to evaluate metrics like precision@k at.
+    k_values: [1, 3, 5]    
 
 connector:
   type: "VectaraConnector"
