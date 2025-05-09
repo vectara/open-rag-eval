@@ -116,17 +116,17 @@ class TRECEvaluator(Evaluator):
 
         def get_answered_percentage(df):
             # First, fill empty values with a valid default JSON or NaN
-            df_processed = df.copy()                        
+            df_processed = df.copy()
             answered_count = 0
             total_valid_rows = 0
-            
+
             for idx, row in df_processed.iterrows():
                 value = row["generation_score_no_answer_score"]
-                
+
                 # Skip NaN values
                 if pd.isna(value):
                     continue
-                    
+
                 try:
                     answer_data = json.loads(value)
                     total_valid_rows += 1
@@ -134,11 +134,11 @@ class TRECEvaluator(Evaluator):
                         answered_count += 1
                 except (ValueError, json.JSONDecodeError, TypeError):
                     logging.error(f"Invalid JSON at row index {idx}")
-            
+
             if total_valid_rows > 0:
                 return (answered_count / total_valid_rows) * 100
-            else:
-                return 0        
+
+            return 0
 
         # Helper function to draw a boxplot on the given axis.
         def plot_boxplot(ax, data_list, xtick_labels, metric_title, single=True):
