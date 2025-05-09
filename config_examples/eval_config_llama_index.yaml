@@ -1,0 +1,27 @@
+
+input_queries: "queries.csv"  # file with a list of queries to use for evaluation
+
+# Evaluation results are written to the "results_folder" folder.
+# You can oerride the names of files in this folder by specifying 'generated_answers', 'eval_results_file', and 'metrics_file'.
+results_folder: "results/"
+generated_answers: "answers.csv"
+eval_results_file: "results.csv"
+metrics_file: "metrics.png"
+
+evaluator:
+  type: "TRECEvaluator"  
+  model:
+    type: "OpenAIModel"
+    name: "gpt-4o-mini"
+    api_key: ${oc.env:OPENAI_API_KEY}  # Reads from environment variable.
+  options:
+    # The k values to evaluate metrics like precision@k at.
+    k_values: [1, 5, 10]    
+
+connector:
+  type: "LlamaIndexConnector"  
+  options:
+    # the folder with the files to be indexed into LlamaIndex
+    # all files in this folder and any subfolders will be indexed
+    folder: /path/to/folder-with-files/   
+    top_k: 10

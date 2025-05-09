@@ -278,7 +278,7 @@ class TRECEvaluator(Evaluator):
         # Hide the last subplot (since we're using 5 out of 6 slots)
         axs[5].set_visible(False)
 
-        fig.suptitle("Open-RAG-Eval Metrics", fontsize=16)
+        fig.suptitle("Open RAG Eval Metrics", fontsize=16)
         plt.tight_layout(rect=[0, 0.03, 1, 0.95])
         fig.savefig(output_file, dpi=300, bbox_inches="tight")
         plt.close(fig)

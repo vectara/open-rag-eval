@@ -1,6 +1,6 @@
-# Contributing to Open-RAG-Eval
+# Contributing to Open RAG Eval
 
-Thank you for your interest in open-rag-eval and considering contributing to our project! 
+Thank you for your interest in open-rag-eval and considering contributing to our project!
 Whether it's a bug, a new metric or connector, updates to the README or anything else - we truly appreciate your time and effort.
 
 This document provides guidelines and best practices to help you contribute effectively.
@@ -11,7 +11,7 @@ This document provides guidelines and best practices to help you contribute effe
 2. Create a new branch for your changes (e.g. `bug-fix-1234`)
 3. Make your changes in the new branch and test.
 4. Commit and push your changes to your fork. Add useful comments to describe your changes.
-6. Create a pull request following the guidelines in the [Submitting Pull Requests](#submitting-pull-requests) section.
+5. Create a pull request following the guidelines in the [Submitting Pull Requests](#submitting-pull-requests) section.
 
 ## How to Contribute
 
