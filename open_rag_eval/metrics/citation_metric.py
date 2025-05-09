@@ -90,8 +90,8 @@ class CitationMetric(AugmentedGenerationMetric):
                 )
                 response = self.model.parse(prompt, response_format=CitationSupport)
                 if not response.support:
-                    logging.error(f"While calculating citation metrics: "
-                                  "Failed to parse response: {response.refusal}")
+                    logging.error("While calculating citation metrics: "
+                                  f"Failed to parse response: {response.refusal}")
                     continue
 
                 label = response.support.value
