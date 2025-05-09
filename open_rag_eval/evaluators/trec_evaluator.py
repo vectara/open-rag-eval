@@ -122,7 +122,7 @@ class TRECEvaluator(Evaluator):
                     if answer_data["query_answered"] == "yes":
                         answered_count += 1
                 except (ValueError, json.JSONDecodeError, TypeError):
-                    print(f"Invalid JSON at row index {idx}")
+                    logging.error(f"Invalid JSON at row index {idx}")
             
             if total_valid_rows > 0:
                 return (answered_count / total_valid_rows) * 100
