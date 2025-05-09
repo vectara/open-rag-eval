@@ -16,7 +16,7 @@ evaluator:
     api_key: ${oc.env:OPENAI_API_KEY}  # Reads from environment variable.
 
 connector:
-  type: "LlamaIndexConnector"  
+  type: "LangChainConnector"  
   options:
     # the folder with the files to be indexed into LlamaIndex
     # all files in this folder and any subfolders will be indexed

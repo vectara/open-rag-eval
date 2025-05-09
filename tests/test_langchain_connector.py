@@ -1,8 +1,8 @@
 import os
 import unittest
 from pathlib import Path
-from open_rag_eval.connectors.llama_index_connector import (
-    LlamaIndexConnector,
+from open_rag_eval.connectors.langchain_connector import (
+    LangchainConnector
 )
 import omegaconf
 import pandas as pd
@@ -15,7 +15,7 @@ DUMMY_RESPONSE = {
 
 TOP_K = 10
 
-class TestLlamaIndexConnector(unittest.TestCase):
+class TestLangchainConnector(unittest.TestCase):
     def setUp(self):
         # Create a temporary CSV file with one test query.
         self.outputs_path = 'tests/outputs'
@@ -25,12 +25,12 @@ class TestLlamaIndexConnector(unittest.TestCase):
         self.queries = ["What is the meaning of life?", "what is a transformer?", "what is attention?"]
         queries_df = pd.DataFrame(self.queries, columns=["query"])
         queries_df["query_id"] = [f"query_{inx}" for inx in range(len(self.queries))]
-        self.input_queries = os.path.join(self.outputs_path, "test_llamaindex_queries.csv")
+        self.input_queries = os.path.join(self.outputs_path, "test_langchain_queries.csv")
         queries_df.to_csv(self.input_queries, index=False)
 
         # Output CSV file for testing.
         self.generated_answers = os.path.join(self.outputs_path,'results.csv')
-        self.connector = LlamaIndexConnector(
+        self.connector = LangchainConnector(
             config=omegaconf.OmegaConf.create({
                 'input_queries': self.input_queries,
                 'results_folder': '.',
