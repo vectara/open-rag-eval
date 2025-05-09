@@ -29,14 +29,14 @@ connector:
           start_tag: "<em>"
           end_tag: "</em>"
         reranker:
-          - type: "chain"
-            rerankers:
-              - type: "customer_reranker"
-                reranker_name: "Rerank_Multilingual_v1"
-                limit: 50
-              - type: "mmr"
-                diversity_bias: 0.01
-                limit: 20
+          type: "chain"
+          rerankers:
+            - type: "customer_reranker"
+              reranker_name: "Rerank_Multilingual_v1"
+              limit: 100
+            - type: "mmr"
+              diversity_bias: 0.01
+              limit: 50
       generation:
         generation_preset_name: "vectara-summary-table-md-query-ext-jan-2025-gpt-4o"
         max_used_search_results: 5
