@@ -219,6 +219,8 @@ Here's how connectors work:
    - `passage_id`: a unique ID for this passage (you can use just the passage number as a string)
    - `generated_answer`: text of the generated response or answer from your RAG pipeline, including citations in [N] format.
 
+See the [example results file](https://github.com/vectara/open-rag-eval/blob/dev/data/test_csv_connector.csv) for an example results file
+
 All 3 existing connectors (Vectara, Langchain and LlamaIndex) provide a good reference for how to implement a connector.
 
 ## Author
