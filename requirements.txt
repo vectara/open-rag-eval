@@ -16,4 +16,6 @@ tenacity~=9.1.2
 torch==2.6.0
 tqdm==4.67.1
 transformers==4.50.0
-llama_index==0.12.34
+llama_index>=0.12.34
+langchain_chroma>=0.2.3
+langchain_openai>=0.3.16

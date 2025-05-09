@@ -27,6 +27,7 @@ class LlamaIndexConnector(Connector):
         self.query_engine = CitationQueryEngine.from_args(
             index,
             retriever=retriever,
+            citation_chunk_size=65536, citation_chunk_overlap=0,   # make every node be a single chunk
         )
         self.queries_csv = config.input_queries
         self.outputs_csv = os.path.join(config.results_folder, config.generated_answers)

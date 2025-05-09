@@ -1,5 +1,7 @@
 from typing import Dict
+
 from enum import Enum
+import logging
 from pydantic import BaseModel
 
 from open_rag_eval.models.llm_judges import LLMJudgeModel
@@ -78,7 +80,9 @@ class CitationMetric(AugmentedGenerationMetric):
             try:
                 passage = retrieval_result.retrieved_passages.get(key, "")
                 if not passage:
-                    raise ValueError(f"No corresponding passage found for key: {key}")
+                    logging.error(f"While calculating citation metrics: Passage not found for key: {key}"
+                                  "Skipping this citation.")
+                    continue
 
                 prompt = self._CITATION_PROMPT.format(
                     statement=answer_sentence,
@@ -86,7 +90,9 @@ class CitationMetric(AugmentedGenerationMetric):
                 )
                 response = self.model.parse(prompt, response_format=CitationSupport)
                 if not response.support:
-                    raise ValueError(f"Failed to parse response: {response.refusal}")
+                    logging.error(f"While calculating citation metrics: "
+                                  "Failed to parse response: {response.refusal}")
+                    continue
 
                 label = response.support.value
                 scores[f"citation_score_{key}"] = self.score_map[label]
