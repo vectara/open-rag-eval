@@ -67,7 +67,7 @@ class TRECEvaluator(Evaluator):
                 RetrievalScores(
                     scores={
                         "umbrela_scores": umbrela_scores,
-                        "precision_recall_metrics": retrieval_scores["retrieval_scores"],
+                        "precision_metrics": retrieval_scores["retrieval_scores"],
                         "mean_umbrela_score": mean_umbrela_score,
                     }
                 ),

@@ -209,7 +209,7 @@ def main():
             st.subheader("Evaluation Metrics")
             metrics_columns = [
                 "retrieval_score_mean_umbrela_score",
-                "retrieval_score_precision_recall_metrics",
+                "retrieval_score_precision_metrics",
                 "generation_score_autonugget_scores",
                 "generation_score_mean_nugget_assignment_score",
                 "generation_score_hallucination_scores",
