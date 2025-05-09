@@ -19,3 +19,4 @@ transformers==4.50.0
 llama_index>=0.12.34
 langchain_chroma>=0.2.3
 langchain_openai>=0.3.16
+langchain_community>=0.3.23
