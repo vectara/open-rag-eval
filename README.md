@@ -15,10 +15,14 @@
 
 Evaluating RAG quality can be complex. `open-rag-eval` provides a flexible and extensible framework to measure the performance of your RAG system, helping you identify areas for improvement. Its modular design allows easy integration of custom metrics and connectors for various RAG implementations.
 
+Importantly, open-rag-eval's metrics do not require golden chunks or golden answer, making RAG evaluation easy and scalable. This is achieved by utilizing
+[UMBRELA](https://arxiv.org/pdf/2406.06519) and [AutoNuggetizer](https://arxiv.org/pdf/2411.09607), techniques originating and researched in [Jimmy Lin's lab at UWaterloo](https://cs.uwaterloo.ca/~jimmylin/).
+
 Out-of-the-box, the toolkit includes:
 
 - An implementation of the evaluation metrics used in the **TREC-RAG benchmark**.
 - A connector for the **Vectara RAG platform**.
+- Connectors for [LlamaIndex](https://github.com/run-llama/llama_index) and [LangChain](https://github.com/langchain-ai/langchain) (more coming soon...)
 
 # Key Features
 
@@ -198,6 +202,26 @@ python open_rag_eval/run_server.py
 ```
 
 See the [API README](/api/README.md) for detailed documentation for the API.
+
+## About Connectors
+
+Open-RAG-Eval uses a plug-in connector architecture to enable testing various RAG platforms. Out of the box it includes connectors for Vectara, LlamaIndex and Langchain.
+
+Here's how connectors work:
+
+1. All connectors are derived from the `Connector` class, and need to define the `fetch_data` method.
+2. The Connector class has a utility method called `read_queries` which is helpful in reading the input queries.
+3. When implementing `fetch_data` you simply go through all the queries, one by one, and call the RAG system with that query. 
+4. The output is stored in the `results` file, with a N rows per query, where N is the number of passages (or chunks) including these fields
+   - `query_id`: a unique ID for the query
+   - `query text`: the actual query text string
+   - `passage`: the passage (aka chunk) 
+   - `passage_id`: a unique ID for this passage (you can use just the passage number as a string)
+   - `generated_answer`: text of the generated response or answer from your RAG pipeline, including citations in [N] format.
+
+See the [example results file](https://github.com/vectara/open-rag-eval/blob/dev/data/test_csv_connector.csv) for an example results file
+
+All 3 existing connectors (Vectara, Langchain and LlamaIndex) provide a good reference for how to implement a connector.
 
 ## Author
 
