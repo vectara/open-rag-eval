@@ -1,7 +1,7 @@
 input_queries: "queries.csv"  # file with a list of queries to use for evaluation
 
 # Evaluation results are written to the "results_folder" folder.
-# You can oerride the names of files in this folder by specifying 'generated_answers', 'eval_results_file', and 'metrics_file'.
+# You can override the names of files in this folder by specifying 'generated_answers', 'eval_results_file', and 'metrics_file'.
 results_folder: "results/"
 generated_answers: "answers.csv"
 eval_results_file: "results.csv"
@@ -13,6 +13,9 @@ evaluator:
     type: "OpenAIModel"
     name: "gpt-4o-mini"
     api_key: ${oc.env:OPENAI_API_KEY}  # Reads from environment variable.
+  options:
+    # The k values to evaluate metrics like precision@k at.
+    k_values: [1, 3, 5]    
 
 connector:
   type: "VectaraConnector"
@@ -29,14 +32,14 @@ connector:
           start_tag: "<em>"
           end_tag: "</em>"
         reranker:
-          - type: "chain"
-            rerankers:
-              - type: "customer_reranker"
-                reranker_name: "Rerank_Multilingual_v1"
-                limit: 50
-              - type: "mmr"
-                diversity_bias: 0.01
-                limit: 20
+          type: "chain"
+          rerankers:
+            - type: "customer_reranker"
+              reranker_name: "Rerank_Multilingual_v1"
+              limit: 100
+            - type: "mmr"
+              diversity_bias: 0.01
+              limit: 50
       generation:
         generation_preset_name: "vectara-summary-table-md-query-ext-jan-2025-gpt-4o"
         max_used_search_results: 5

@@ -167,3 +167,5 @@ cython_debug/
 queries.csv
 vectara_results.csv
 open_eval_results/
+
+tests/outputs

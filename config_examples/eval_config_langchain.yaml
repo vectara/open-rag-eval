@@ -14,12 +14,9 @@ evaluator:
     type: "OpenAIModel"
     name: "gpt-4o-mini"
     api_key: ${oc.env:OPENAI_API_KEY}  # Reads from environment variable.
-  options:
-    # The k values to evaluate metrics like precision@k at.
-    k_values: [1, 3, 5, 10]    
 
 connector:
-  type: "LlamaIndexConnector"  
+  type: "LangChainConnector"  
   options:
     # the folder with the files to be indexed into LlamaIndex
     # all files in this folder and any subfolders will be indexed
