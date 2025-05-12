@@ -4,8 +4,6 @@ import os
 
 from tqdm import tqdm
 
-from open_rag_eval.connectors.connector import Connector
-
 from langchain_community.document_loaders import DirectoryLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_chroma import Chroma
@@ -13,6 +11,8 @@ from langchain_openai import OpenAIEmbeddings, ChatOpenAI
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.runnables import RunnablePassthrough
 from langchain import hub
+
+from open_rag_eval.connectors.connector import Connector
 
 logger = logging.getLogger(__name__)
 

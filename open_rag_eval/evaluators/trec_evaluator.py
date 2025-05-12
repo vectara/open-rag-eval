@@ -137,7 +137,6 @@ class TRECEvaluator(Evaluator):
 
             if total_valid_rows > 0:
                 return (answered_count / total_valid_rows) * 100
-
             return 0
 
         # Helper function to draw a boxplot on the given axis.
