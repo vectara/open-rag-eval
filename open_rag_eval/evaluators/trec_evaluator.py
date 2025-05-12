@@ -1,3 +1,5 @@
+from typing import Optional
+
 import logging
 import os
 import json
@@ -25,7 +27,7 @@ from .base_evaluator import Evaluator
 
 
 class TRECEvaluator(Evaluator):
-    def __init__(self, model: LLMJudgeModel):
+    def __init__(self, model: LLMJudgeModel, options: Optional[dict] = None):
         self.model = model
         self.retrieval_metric = UMBRELAMetric(model)
         self.generation_metric = AutoNuggetMetric(model)
@@ -33,9 +35,17 @@ class TRECEvaluator(Evaluator):
         self.hallucination_metric = HallucinationMetric()
         self.no_answer_metric = NoAnswerMetric(model)
 
+        if not options:
+            self.k_values = [1, 3, 5]
+        else:
+            self.k_values = options["k_values"]
+
     def evaluate(self, rag_results: RAGResult) -> ScoredRAGResult:
         try:
-            umbrela_scores = self.retrieval_metric.compute(rag_results.retrieval_result)
+            retrieval_scores = self.retrieval_metric.compute(
+                rag_results.retrieval_result, self.k_values
+            )
+            umbrela_scores = retrieval_scores["umbrela_scores"]
             autonugget_scores = self.generation_metric.compute(
                 rag_results, umbrela_scores
             )
@@ -57,6 +67,7 @@ class TRECEvaluator(Evaluator):
                 RetrievalScores(
                     scores={
                         "umbrela_scores": umbrela_scores,
+                        "precision_metrics": retrieval_scores["retrieval_scores"],
                         "mean_umbrela_score": mean_umbrela_score,
                     }
                 ),
@@ -103,14 +114,30 @@ class TRECEvaluator(Evaluator):
             output_file (str): File name to save the resulting figure.
         """
 
-        # Helper function to calculate percentage of answered questions
         def get_answered_percentage(df):
-            try:
-                answers = df["generation_score_no_answer_score"].apply(json.loads)
-                answered = answers.apply(lambda x: x["query_answered"] == "yes").sum()
-                return (answered / len(df)) * 100
-            except (KeyError, ValueError, json.JSONDecodeError):
-                return 0
+            # First, fill empty values with a valid default JSON or NaN
+            df_processed = df.copy()
+            answered_count = 0
+            total_valid_rows = 0
+
+            for idx, row in df_processed.iterrows():
+                value = row["generation_score_no_answer_score"]
+
+                # Skip NaN values
+                if pd.isna(value):
+                    continue
+
+                try:
+                    answer_data = json.loads(value)
+                    total_valid_rows += 1
+                    if answer_data["query_answered"] == "yes":
+                        answered_count += 1
+                except (ValueError, json.JSONDecodeError, TypeError):
+                    logging.error(f"Invalid JSON at row index {idx}")
+
+            if total_valid_rows > 0:
+                return (answered_count / total_valid_rows) * 100
+            return 0
 
         # Helper function to draw a boxplot on the given axis.
         def plot_boxplot(ax, data_list, xtick_labels, metric_title, single=True):

@@ -1,5 +1,9 @@
 flask==3.0.3
 Flask-Cors>=4.0.2
+langchain_chroma>=0.2.3
+langchain_openai>=0.3.16
+langchain_community>=0.3.23
+llama_index>=0.12.34
 matplotlib~=3.10.1
 numpy~=2.2.4
 omegaconf~=2.3.0
@@ -16,4 +20,5 @@ tenacity~=9.1.2
 torch==2.6.0
 tqdm==4.67.1
 transformers==4.50.0
-llama_index==0.12.34
+unstructured>=0.17.2
+unstructured[pdf]>=0.17.2

@@ -1,18 +1,23 @@
 from typing import Dict
+
 from enum import Enum
+import logging
 from pydantic import BaseModel
 
 from open_rag_eval.models.llm_judges import LLMJudgeModel
 from open_rag_eval.metrics.base_metrics import AugmentedGenerationMetric
 from open_rag_eval.data_classes.rag_results import RAGResult
 
+
 class CitationSupportValues(str, Enum):
     FULL = "full_support"
     PARTIAL = "partial_support"
     NONE = "no_support"
 
+
 class CitationSupport(BaseModel):
     support: CitationSupportValues
+
 
 class CitationMetric(AugmentedGenerationMetric):
     """
@@ -59,11 +64,7 @@ class CitationMetric(AugmentedGenerationMetric):
             model (LLMJudgeModel): The model to use for the metric assessment.
         """
         self.model = model
-        self.score_map = {
-            "full_support": 1,
-            "partial_support": 0.5,
-            "no_support": 0
-        }
+        self.score_map = {"full_support": 1, "partial_support": 0.5, "no_support": 0}
 
     def compute(self, rag_result: RAGResult) -> Dict[str, str]:
         scores = {}
@@ -71,22 +72,32 @@ class CitationMetric(AugmentedGenerationMetric):
         generation_result = rag_result.generation_result
 
         for generated_answer_part in generation_result.generated_answer:
-            answer_sentence, citations = generated_answer_part.text, generated_answer_part.citations
+            answer_sentence, citations = (
+                generated_answer_part.text,
+                generated_answer_part.citations,
+            )
             if len(citations) == 0:
                 continue
             key = citations[0]
             try:
                 passage = retrieval_result.retrieved_passages.get(key, "")
                 if not passage:
-                    raise ValueError(f"No corresponding passage found for key: {key}")
+                    logging.error(
+                        f"While calculating citation metrics: Passage not found for key: {key}"
+                        "Skipping this citation."
+                    )
+                    continue
 
                 prompt = self._CITATION_PROMPT.format(
-                    statement=answer_sentence,
-                    citation=passage
+                    statement=answer_sentence, citation=passage
                 )
                 response = self.model.parse(prompt, response_format=CitationSupport)
                 if not response.support:
-                    raise ValueError(f"Failed to parse response: {response.refusal}")
+                    logging.error(
+                        "While calculating citation metrics: "
+                        f"Failed to parse response: {response.refusal}"
+                    )
+                    continue
 
                 label = response.support.value
                 scores[f"citation_score_{key}"] = self.score_map[label]
@@ -96,7 +107,11 @@ class CitationMetric(AugmentedGenerationMetric):
         # Weighted precision i.e.the weighted proportion of "citations" that support the answer sentence.
         p = sum(scores.values()) / len(scores) if scores else 0.0
         # Weighted recall i.e. proportion of answer sentences that are correctly cited.
-        r = sum(scores.values()) / len(generation_result.generated_answer) if generation_result.generated_answer else 0.0
+        r = (
+            sum(scores.values()) / len(generation_result.generated_answer)
+            if generation_result.generated_answer
+            else 0.0
+        )
 
         scores["weighted_precision"] = p
         scores["weighted_recall"] = r
@@ -104,6 +119,10 @@ class CitationMetric(AugmentedGenerationMetric):
         if scores["weighted_precision"] + scores["weighted_recall"] == 0:
             scores["f1"] = 0.0
         else:
-            scores["f1"] = 2 * (scores["weighted_precision"] * scores["weighted_recall"]) / (scores["weighted_precision"] + scores["weighted_recall"])
+            scores["f1"] = (
+                2
+                * (scores["weighted_precision"] * scores["weighted_recall"])
+                / (scores["weighted_precision"] + scores["weighted_recall"])
+            )
 
         return scores
