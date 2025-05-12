@@ -45,7 +45,8 @@ def get_evaluator(config: Dict[str, Any]) -> evaluators.Evaluator:
         model = model_class(model_name=model_config.name, api_key=model_config.api_key)
 
         # Instantiate the evaluator with the model
-        return evaluator_class(model=model)
+        options = config.evaluator.options if hasattr(config.evaluator, "options") else None
+        return evaluator_class(model=model, options=options)
 
     except (ImportError, AttributeError) as e:
         raise ImportError(f"Could not load evaluator {evaluator_type}: {str(e)}") from e
