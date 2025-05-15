@@ -15,10 +15,11 @@ class LLMJudgeModel(ABC):
 class OpenAIModel(LLMJudgeModel):
     """Supports any model that conforms to the OpenAI API spec."""
 
-    def __init__(self, model_name: str, api_key: str, base_url: str = None):
-        self.model_name = model_name
-        openai.api_key = api_key
-        self.client = openai.OpenAI(base_url=base_url)
+    def __init__(self, model_options: dict):
+        self.model_name = model_options["name"]
+        openai.api_key = model_options["api_key"]
+        self.base_url = model_options.get("base_url", None)
+        self.client = openai.OpenAI(base_url=self.base_url)
 
     def call(self, prompt: str, model_kwargs=None) -> str:
         """
@@ -81,9 +82,9 @@ class OpenAIModel(LLMJudgeModel):
 class GeminiModel(LLMJudgeModel):
     """LLMJudge that supports Google Gemini models."""
 
-    def __init__(self, model_name: str, api_key: str):
-        self.model_name = model_name
-        self.client = genai.Client(api_key=api_key)
+    def __init__(self, model_options: dict):
+        self.model_name = model_options["name"]
+        self.client = genai.Client(api_key=model_options["api_key"])
 
     def call(self, prompt: str, model_kwargs=None) -> str:
         """

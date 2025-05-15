@@ -38,10 +38,11 @@ def get_evaluator(evaluator_name: str, model_name: str):
         raise ValueError(f"Unsupported evaluator: {evaluator_name}")
 
     # Create model
-    model = OpenAIModel(
-        model_name=model_name,
-        api_key=os.getenv("OPENAI_API_KEY")
-    )
+    openai_options = {
+        "name": model_name,
+        "api_key": os.getenv("OPENAI_API_KEY")
+    }
+    model = OpenAIModel(model_options=openai_options)
 
     # Create and return evaluator
     return EVALUATOR_MAP[evaluator_name](model=model)
