@@ -165,7 +165,5 @@ cython_debug/
 
 # Ignore the default input/output files.
 queries.csv
-vectara_results.csv
-open_eval_results/
-
+results/
 tests/outputs

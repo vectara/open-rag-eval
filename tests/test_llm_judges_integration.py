@@ -83,13 +83,17 @@ class TestLLMJudgesIntegration(unittest.TestCase):
 
     def setUp(self):
         if "openai" in self.available_models:
-            self.openai_model = OpenAIModel(
-                model_name="gpt-4o-mini", api_key=self.openai_key
-            )
+            openai_options = {
+                "name": "gpt-4o-mini",
+                "api_key": self.openai_key,
+            }
+            self.openai_model = OpenAIModel(openai_options)
         if "gemini" in self.available_models:
-            self.gemini_model = GeminiModel(
-                model_name="gemini-2.0-flash", api_key=self.gemini_key
-            )
+            gemini_options = {
+                "name": "gemini-2.0-flash",
+                "api_key": self.gemini_key,
+            }
+            self.gemini_model = GeminiModel(gemini_options)
 
     def test_openai_integration(self):
         """Test OpenAI model with actual API calls"""
