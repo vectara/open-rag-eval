@@ -68,6 +68,7 @@ class UMBRELAMetric(RetrievalMetric):
             "top_p": 1.0,
             "presence_penalty": 0.5,
             "frequency_penalty": 0.0,
+            "seed": 42
         }
         self.prompt = self._UMBRELA_PROMPT
         # Any UMBRELA score above this threshold is considered relevant for
