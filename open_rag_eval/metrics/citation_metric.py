@@ -91,7 +91,11 @@ class CitationMetric(AugmentedGenerationMetric):
                 prompt = self._CITATION_PROMPT.format(
                     statement=answer_sentence, citation=passage
                 )
-                response = self.model.parse(prompt, response_format=CitationSupport)
+                response = self.model.parse(
+                    prompt, 
+                    response_format=CitationSupport,
+                    model_kwargs = {"temperature": 0.0}
+                )
                 if not response.support:
                     logging.error(
                         "While calculating citation metrics: "

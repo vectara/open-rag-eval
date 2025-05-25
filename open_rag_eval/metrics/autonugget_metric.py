@@ -112,6 +112,9 @@ class AutoNuggetMetric(AugmentedGenerationMetric):
             "partial_support": 0.5,
             "not_support": 0.0,
         }
+        self.model_kwargs = {
+            "temperature": 0.0,
+        }
 
     def compute(
         self, rag_result: RAGResult, umbrela_scores: Dict[str, int]
@@ -180,7 +183,11 @@ class AutoNuggetMetric(AugmentedGenerationMetric):
                 max_nuggets=self.max_nuggets,
             )
             try:
-                response = self.model.parse(prompt, response_format=Nuggets)
+                response = self.model.parse(
+                    prompt, 
+                    response_format=Nuggets,
+                    model_kwargs=self.model_kwargs
+                )
             except Exception as e:
                 logging.error(f"Failed to create nuggets: {e}")
                 raise e
@@ -220,7 +227,11 @@ class AutoNuggetMetric(AugmentedGenerationMetric):
                 nuggets=nuggets[i : i + 10],
             )
             try:
-                response = self.model.parse(prompt, response_format=NuggetImportance)
+                response = self.model.parse(
+                    prompt, 
+                    response_format=NuggetImportance,
+                    model_kwargs=self.model_kwargs
+                )
             except Exception as e:
                 logging.error(f"Failed to create nuggets: {e}")
                 raise e
@@ -267,7 +278,11 @@ class AutoNuggetMetric(AugmentedGenerationMetric):
                 generated_passage=generated_passage,
             )
             try:
-                response = self.model.parse(prompt, response_format=NuggetAssignment)
+                response = self.model.parse(
+                    prompt, 
+                    response_format=NuggetAssignment,
+                    model_kwargs=self.model_kwargs
+                )
             except Exception as e:
                 logging.error(f"Failed to create nuggets: {e}")
                 raise e
