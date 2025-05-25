@@ -149,6 +149,10 @@ Upload your `results.csv` file and enjoy:
 
 This is the easiest and most user-friendly way to explore detailed RAG evaluation metrics. To see an example of how the visualization works, go the website and click on "Try our demo evaluation reports" 
 
+<p align="center">
+  <img width="90%" alt="visualization 1" src="img/OpenEvaluation1.png"/>
+  <img width="90%" alt="visualization 2" src="img/OpenEvaluation2.png"/>
+</p>
 
 ### Option 2: CLI Plotting with plot_results.py
 
