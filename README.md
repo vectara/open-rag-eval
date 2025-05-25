@@ -104,23 +104,6 @@ You should see the evaluation progress on your command line. Once it's done, det
 
 Note that a local plot for each evaluation is also stored in the output folder, under the filename listed as `metrics_file`.
 
-### Step 4. Visualize results
-
-You can use the `plot_results.py` script to plot results from your eval runs. Multiple different runs can be plotted on the same plot allowing for easy comparison of different configurations or RAG providers:
-
-To plot one result:
-
-```bash
-python open_rag_eval/plot_results.py results.csv
-```
-
-Or to plot multiple results:
-
-```bash
-python open_rag_eval/plot_results.py results_1.csv results_2.csv results_3.csv
-```
-
-By default the `run_eval.py` script will plot metrics and save them to the results folder.
 
 ## Using Open RAG Eval with your own RAG outputs
 
@@ -143,24 +126,62 @@ python open_rag_eval/run_eval.py --config xxx_eval_config.yaml
 
 and you should see the evaluation progress on your command line. Once it's done, detailed results will be saved to a local CSV file where you can see the score assigned to each sample along with intermediate output useful for debugging and explainability.
 
-### Step 3. Visualize results
 
-You can use the `open_rag_eval/plot_results.py` script to plot results from your eval runs. Multiple different runs can be plotted on the same plot allowing for easy comparison of different configurations or RAG providers. For example if the output evaluation results from two runs are saved in `open_eval_results_1.csv` and `open_eval_results_2.csv` you can plot both of them as follows:
+## Visualize the Results 
+
+Once your evaluation run is complete, you can visualize and explore the results in several convenient ways:
+
+### Option 1: Open Evaluation Web Viewer (Recommended)
+
+We highly recommend using the Open Evaluation Viewer for an intuitive and powerful visual analysis experience. You can drag add multiple reports to view them as a comparison. 
+
+Visit https://openevaluation.ai
+
+Upload your `results.csv` file and enjoy:
+
+\* Dashboards of evaluation results.
+
+\* Query-by-query breakdowns.
+
+\* Easy comparison between different runs (upload multiple files).
+
+\* No setup required—fully web-based.
+
+This is the easiest and most user-friendly way to explore detailed RAG evaluation metrics. To see an example of how the visualization works, go the website and click on "Try our demo evaluation reports" 
+
+<p align="center">
+  <img width="90%" alt="visualization 1" src="img/OpenEvaluation1.png"/>
+  <img width="90%" alt="visualization 2" src="img/OpenEvaluation2.png"/>
+</p>
+
+### Option 2: CLI Plotting with plot_results.py
+
+For those who prefer local or scriptable visualization, you can use the CLI plotting utility. Multiple different runs can be plotted on the same plot allowing for easy comparison of different configurations or RAG providers:
+
+To plot one result:
 
 ```bash
-python open_rag_eval/plot_results.py results_1.csv results_2.csv
+python open_rag_eval/plot_results.py results.csv
 ```
 
-## Visualization: Deep dive into results
+Or to plot multiple results:
 
-The visualization in the steps abopve shows you the aggregated metrics across one or more runs of the evaluation on several queries. If you want to deep dive into the results, we have a results viewer which enables easy viewing od the produced metrics CSV where you can look at the intermediate results and detailed breakdown of scores and metrics on a per query basis. To do this:
+```bash
+python open_rag_eval/plot_results.py results_1.csv results_2.csv results_3.csv
+```
+
+By default the run_eval.py script will plot metrics and save them to the results folder.
+
+### Option 3: Streamlit-Based Local Viewer 
+
+For an advanced local viewing experience, you can use the included Streamlit-based visualization app: 
 
 ```bash
 cd open_rag_eval/viz/
 streamlit run visualize.py
 ```
 
-Note that you will need to have streamlit installed in your environment (which should be the case if you've installed open-rag-eval). Once you upload your evaluation results CSV (`results.csv` by default) you can select a query to view detailed metrics for such as the produced nuggets by the AutoNuggetizer, the UMBRELA scores assigned to each retrieved result and so on.
+Note that you will need to have streamlit installed in your environment (which should be the case if you've installed open-rag-eval). 
 
 <p align="center">
   <img width="45%" alt="visualization 1" src="img/viz_1.png"/>
