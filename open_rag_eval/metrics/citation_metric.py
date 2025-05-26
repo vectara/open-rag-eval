@@ -94,7 +94,7 @@ class CitationMetric(AugmentedGenerationMetric):
                 response = self.model.parse(
                     prompt,
                     response_format=CitationSupport,
-                    model_kwargs = {"temperature": 0.0}
+                    model_kwargs={"temperature": 0.0}
                 )
                 if not response.support:
                     logging.error(
