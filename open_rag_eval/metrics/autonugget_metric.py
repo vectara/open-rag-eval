@@ -185,11 +185,7 @@ class AutoNuggetMetric(AugmentedGenerationMetric):
             )
             try:
                 response = self.model.parse(
-<<<<<<< HEAD
                     prompt,
-=======
-                    prompt, 
->>>>>>> 0320283 (initial)
                     response_format=Nuggets,
                     model_kwargs=self.model_kwargs
                 )
@@ -233,11 +229,7 @@ class AutoNuggetMetric(AugmentedGenerationMetric):
             )
             try:
                 response = self.model.parse(
-<<<<<<< HEAD
                     prompt,
-=======
-                    prompt, 
->>>>>>> 0320283 (initial)
                     response_format=NuggetImportance,
                     model_kwargs=self.model_kwargs
                 )
@@ -289,11 +281,7 @@ class AutoNuggetMetric(AugmentedGenerationMetric):
             )
             try:
                 response = self.model.parse(
-<<<<<<< HEAD
                     prompt,
-=======
-                    prompt, 
->>>>>>> 0320283 (initial)
                     response_format=NuggetAssignment,
                     model_kwargs=self.model_kwargs
                 )
