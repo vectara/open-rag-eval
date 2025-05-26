@@ -184,7 +184,7 @@ class AutoNuggetMetric(AugmentedGenerationMetric):
             )
             try:
                 response = self.model.parse(
-                    prompt, 
+                    prompt,
                     response_format=Nuggets,
                     model_kwargs=self.model_kwargs
                 )
@@ -228,7 +228,7 @@ class AutoNuggetMetric(AugmentedGenerationMetric):
             )
             try:
                 response = self.model.parse(
-                    prompt, 
+                    prompt,
                     response_format=NuggetImportance,
                     model_kwargs=self.model_kwargs
                 )
@@ -250,8 +250,8 @@ class AutoNuggetMetric(AugmentedGenerationMetric):
             raise ValueError("Number of labels does not match number of nuggets.")
         sorted_pairs = sorted(zip(nuggets, labels), key=lambda x: x[1] == "okay")
         sorted_nuggets, sorted_labels = zip(*sorted_pairs)
-        N_nuggets = 20
-        return list(sorted_nuggets[:N_nuggets]), list(sorted_labels[:N_nuggets])
+        n_nuggets = 20      # return top 20 nuggets, as per the paper implementation.
+        return list(sorted_nuggets[:n_nuggets]), list(sorted_labels[:n_nuggets])
 
     def _assign_nuggets(
         self, query: str, generated_answer: Dict[str, str], nuggets: List[str]
@@ -280,7 +280,7 @@ class AutoNuggetMetric(AugmentedGenerationMetric):
             )
             try:
                 response = self.model.parse(
-                    prompt, 
+                    prompt,
                     response_format=NuggetAssignment,
                     model_kwargs=self.model_kwargs
                 )

@@ -92,7 +92,7 @@ class CitationMetric(AugmentedGenerationMetric):
                     statement=answer_sentence, citation=passage
                 )
                 response = self.model.parse(
-                    prompt, 
+                    prompt,
                     response_format=CitationSupport,
                     model_kwargs = {"temperature": 0.0}
                 )

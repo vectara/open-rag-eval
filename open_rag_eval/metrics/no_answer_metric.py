@@ -87,7 +87,7 @@ class NoAnswerMetric(AugmentedGenerationMetric):
                 query=generation_result.query, answer=summary
             )
             response = self.model.parse(
-                prompt, 
+                prompt,
                 response_format=QueryAnswered,
                 model_kwargs={"temperature": 0.0},
             )
