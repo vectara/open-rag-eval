@@ -114,6 +114,7 @@ class AutoNuggetMetric(AugmentedGenerationMetric):
         }
         self.model_kwargs = {
             "temperature": 0.0,
+            "seed": 42
         }
 
     def compute(

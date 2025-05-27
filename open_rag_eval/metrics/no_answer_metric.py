@@ -89,7 +89,10 @@ class NoAnswerMetric(AugmentedGenerationMetric):
             response = self.model.parse(
                 prompt,
                 response_format=QueryAnswered,
-                model_kwargs={"temperature": 0.0},
+                model_kwargs={
+                    "temperature": 0.0,
+                    "seed": 42
+                },
             )
             if not response.answered:
                 raise ValueError(f"Failed to parse response: {response.refusal}")
