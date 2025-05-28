@@ -82,7 +82,7 @@ class VectaraConnector(Connector):
                 generated_answer = data.get("summary", "")
 
                 if not generated_answer:
-                    # Skip queries with no generated answer.
+                    print(f"No generated answer for query {query['query']}. Skipping...")
                     continue
 
                 # Get the search results.
