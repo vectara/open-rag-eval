@@ -107,9 +107,7 @@ class GeminiModel(LLMJudgeModel):
     @retry(
         retry=retry_if_exception_type(
             (
-                openai.RateLimitError,
-                openai.APIConnectionError,
-                openai.APIError,
+                genai.exceptions.BaseApiException,
                 ValueError,  # catch our “none‐response” too
             )
         ),
