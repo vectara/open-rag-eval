@@ -112,6 +112,10 @@ class AutoNuggetMetric(AugmentedGenerationMetric):
             "partial_support": 0.5,
             "not_support": 0.0,
         }
+        self.model_kwargs = {
+            "temperature": 0.0,
+            "seed": 42
+        }
 
     def compute(
         self, rag_result: RAGResult, umbrela_scores: Dict[str, int]
@@ -180,7 +184,11 @@ class AutoNuggetMetric(AugmentedGenerationMetric):
                 max_nuggets=self.max_nuggets,
             )
             try:
-                response = self.model.parse(prompt, response_format=Nuggets)
+                response = self.model.parse(
+                    prompt,
+                    response_format=Nuggets,
+                    model_kwargs=self.model_kwargs
+                )
             except Exception as e:
                 logging.error(f"Failed to create nuggets: {e}")
                 raise e
@@ -220,26 +228,31 @@ class AutoNuggetMetric(AugmentedGenerationMetric):
                 nuggets=nuggets[i : i + 10],
             )
             try:
-                response = self.model.parse(prompt, response_format=NuggetImportance)
+                response = self.model.parse(
+                    prompt,
+                    response_format=NuggetImportance,
+                    model_kwargs=self.model_kwargs
+                )
             except Exception as e:
-                logging.error(f"Failed to create nuggets: {e}")
+                logging.error(f"Failed to evaluate nuggets: {e}")
                 raise e
 
             if response.importance:
                 labels.extend(response.importance)
             else:
                 logging.error(
-                    f"Failed to score nuggets from response: {response.refusal} for query {query}."
+                    f"Failed to evaluate nuggets from response: {response.refusal} for query {query}."
                 )
                 raise ValueError(
-                    f"Failed to score nuggets from response: {response.refusal} for query {query}."
+                    f"Failed to evaluate nuggets from response: {response.refusal} for query {query}."
                 )
 
         if len(labels) != len(nuggets):
             raise ValueError("Number of labels does not match number of nuggets.")
         sorted_pairs = sorted(zip(nuggets, labels), key=lambda x: x[1] == "okay")
         sorted_nuggets, sorted_labels = zip(*sorted_pairs)
-        return list(sorted_nuggets[:20]), list(sorted_labels[:20])
+        n_nuggets = 20      # return top 20 nuggets, as per the paper implementation.
+        return list(sorted_nuggets[:n_nuggets]), list(sorted_labels[:n_nuggets])
 
     def _assign_nuggets(
         self, query: str, generated_answer: Dict[str, str], nuggets: List[str]
@@ -267,9 +280,13 @@ class AutoNuggetMetric(AugmentedGenerationMetric):
                 generated_passage=generated_passage,
             )
             try:
-                response = self.model.parse(prompt, response_format=NuggetAssignment)
+                response = self.model.parse(
+                    prompt,
+                    response_format=NuggetAssignment,
+                    model_kwargs=self.model_kwargs
+                )
             except Exception as e:
-                logging.error(f"Failed to create nuggets: {e}")
+                logging.error(f"Failed to assign nuggets: {e}")
                 raise e
             if response.assignment:
                 assignments.extend(response.assignment)

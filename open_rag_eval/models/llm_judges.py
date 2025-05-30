@@ -3,8 +3,15 @@ import json
 
 import openai
 from google import genai
+from google.genai.errors import APIError
 from pydantic import BaseModel, parse_obj_as
 
+from tenacity import (
+    retry,
+    stop_after_attempt,
+    wait_exponential,
+    retry_if_exception_type,
+)
 
 class LLMJudgeModel(ABC):
     """Abstract base class for LLM judge models."""
@@ -15,11 +22,24 @@ class LLMJudgeModel(ABC):
 class OpenAIModel(LLMJudgeModel):
     """Supports any model that conforms to the OpenAI API spec."""
 
-    def __init__(self, model_name: str, api_key: str, base_url: str = None):
-        self.model_name = model_name
-        openai.api_key = api_key
-        self.client = openai.OpenAI(base_url=base_url)
+    def __init__(self, model_options: dict):
+        self.model_name = model_options["name"]
+        openai.api_key = model_options["api_key"]
+        self.base_url = model_options.get("base_url", None)
+        self.client = openai.OpenAI(base_url=self.base_url)
 
+    @retry(
+        retry=retry_if_exception_type(
+            (
+                openai.RateLimitError,
+                openai.APIConnectionError,
+                openai.APIError,
+                ValueError,  # catch our “none‐response” too
+            )
+        ),
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=1, max=10),
+    )
     def call(self, prompt: str, model_kwargs=None) -> str:
         """
         Call the OpenAI API compatible model with the given prompt.
@@ -81,10 +101,15 @@ class OpenAIModel(LLMJudgeModel):
 class GeminiModel(LLMJudgeModel):
     """LLMJudge that supports Google Gemini models."""
 
-    def __init__(self, model_name: str, api_key: str):
-        self.model_name = model_name
-        self.client = genai.Client(api_key=api_key)
+    def __init__(self, model_options: dict):
+        self.model_name = model_options["name"]
+        self.client = genai.Client(api_key=model_options["api_key"])
 
+    @retry(
+        retry=retry_if_exception_type((APIError, ValueError)),
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=1, max=10),
+    )
     def call(self, prompt: str, model_kwargs=None) -> str:
         """
         Call the Gemini API model with the given prompt.

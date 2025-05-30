@@ -42,7 +42,7 @@ def get_evaluator(config: Dict[str, Any]) -> evaluators.Evaluator:
             raise TypeError(f"{model_config.type} is not a subclass of LLMJudgeModel")
 
         # Instantiate the model with config parameters
-        model = model_class(model_name=model_config.name, api_key=model_config.api_key)
+        model = model_class(model_options = model_config)
 
         # Instantiate the evaluator with the model
         options = config.evaluator.options if hasattr(config.evaluator, "options") else None
