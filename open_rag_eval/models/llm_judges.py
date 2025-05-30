@@ -3,6 +3,7 @@ import json
 
 import openai
 from google import genai
+from google.genai.errors import APIError
 from pydantic import BaseModel, parse_obj_as
 
 from tenacity import (
@@ -105,12 +106,7 @@ class GeminiModel(LLMJudgeModel):
         self.client = genai.Client(api_key=model_options["api_key"])
 
     @retry(
-        retry=retry_if_exception_type(
-            (
-                genai.exceptions.BaseApiException,
-                ValueError,  # catch our “none‐response” too
-            )
-        ),
+        retry=retry_if_exception_type((APIError, ValueError)),
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=1, max=10),
     )    
