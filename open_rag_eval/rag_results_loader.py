@@ -3,6 +3,7 @@ import re
 import uuid
 import logging
 import pandas as pd
+import logging
 
 from open_rag_eval.utils.constants import NO_ANSWER, API_ERROR
 from open_rag_eval.data_classes.rag_results import (
