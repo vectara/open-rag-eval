@@ -2,7 +2,7 @@ import os
 import unittest
 from pathlib import Path
 from open_rag_eval.connectors.langchain_connector import (
-    LangchainConnector
+    LangChainConnector
 )
 import omegaconf
 import pandas as pd
@@ -30,7 +30,7 @@ class TestLangchainConnector(unittest.TestCase):
 
         # Output CSV file for testing.
         self.generated_answers = os.path.join(self.outputs_path,'results.csv')
-        self.connector = LangchainConnector(
+        self.connector = LangChainConnector(
             config=omegaconf.OmegaConf.create({
                 'input_queries': self.input_queries,
                 'results_folder': '.',

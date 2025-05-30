@@ -2,12 +2,11 @@ from abc import abstractmethod
 import csv
 import uuid
 
+
 class Connector:
 
     @abstractmethod
-    def fetch_data(
-        self,
-    ) -> None:
+    def fetch_data(self,) -> None:
         pass
 
     def read_queries(self, queries_file_name: str) -> list:
@@ -17,11 +16,11 @@ class Connector:
         a unique ID will be generated for each query.
         """
         queries = []
-        with open(queries_file_name, newline='', encoding='utf-8') as csvfile:
+        with open(queries_file_name, newline="", encoding="utf-8") as csvfile:
             reader = csv.DictReader(csvfile)
             for row in reader:
                 query_text = row.get("query")
-                if not query_text:
+                if not (query_text and query_text.strip()):
                     print(f"Skipping row without query: {row}")
                     continue  # skip rows without a query
                 # Use provided query_id or generate one if not present.
