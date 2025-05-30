@@ -109,7 +109,7 @@ class GeminiModel(LLMJudgeModel):
         retry=retry_if_exception_type((APIError, ValueError)),
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=1, max=10),
-    )    
+    )
     def call(self, prompt: str, model_kwargs=None) -> str:
         """
         Call the Gemini API model with the given prompt.
