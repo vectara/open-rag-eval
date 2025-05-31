@@ -2,7 +2,9 @@ from typing import List
 import re
 import uuid
 import pandas as pd
+import logging
 
+from open_rag_eval.utils.constants import NO_ANSWER, API_ERROR
 from open_rag_eval.data_classes.rag_results import (
     RAGResult,
     RetrievalResult,
@@ -10,7 +12,11 @@ from open_rag_eval.data_classes.rag_results import (
     AugmentedGenerationResult,
 )
 
+logger = logging.getLogger(__name__)
+
+
 class RAGResultsLoader:
+
     def __init__(self, csv_path: str):
         self.csv_path = csv_path
 
@@ -37,25 +43,28 @@ class RAGResultsLoader:
 
             # Create retrieval result
             retrieval_result = RetrievalResult(
-                query=query, retrieved_passages=retrieved_passages
-            )
+                query=query, retrieved_passages=retrieved_passages)
 
             # Get the generated answer and parse passage attributions
             # Take first non-empty generated answer
             generated_answer_raw = group["generated_answer"].dropna().iloc[0]
+            if not generated_answer_raw or generated_answer_raw == NO_ANSWER or generated_answer_raw == API_ERROR:
+                logger.warning(
+                    "Skipping query %s with no generated answer/API error.", query
+                )
+                continue
 
             # Parse generated answer to map passages to text segments
-            generated_answer = self._parse_generated_answer(generated_answer_raw)
+            generated_answer = self._parse_generated_answer(
+                generated_answer_raw)
 
             # Create generation result
             generation_result = AugmentedGenerationResult(
-                query=query, generated_answer=generated_answer
-            )
+                query=query, generated_answer=generated_answer)
 
             # Create final RAG result
-            rag_result = RAGResult(
-                retrieval_result=retrieval_result, generation_result=generation_result
-            )
+            rag_result = RAGResult(retrieval_result=retrieval_result,
+                                   generation_result=generation_result)
 
             results.append(rag_result)
 
@@ -102,10 +111,11 @@ class RAGResultsLoader:
 
             # Add the segment with its citations if it's not empty
             if text_part:
-                results.append(GeneratedAnswerPart(text=text_part, citations=citations))
+                results.append(
+                    GeneratedAnswerPart(text=text_part, citations=citations))
 
         # Process the last segment (after the last citation)
-        last_segment = text[citation_blocks[-1].end() :].strip()
+        last_segment = text[citation_blocks[-1].end():].strip()
         if len(last_segment) > 1:
             results.append(GeneratedAnswerPart(text=last_segment, citations=[]))
 
