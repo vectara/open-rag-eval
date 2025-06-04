@@ -20,3 +20,6 @@ disable =
     logging-fstring-interpolation,
     too-many-statements,
     too-many-branches,
+    duplicate-code,
+    too-many-positional-arguments,
+    
