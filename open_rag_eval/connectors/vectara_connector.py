@@ -8,7 +8,6 @@ import requests
 from tqdm import tqdm
 import omegaconf
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
-from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from open_rag_eval.connectors.connector import Connector
 from open_rag_eval.utils.constants import NO_ANSWER, API_ERROR
