@@ -120,16 +120,18 @@ class CitationMetric(AugmentedGenerationMetric):
                     )
                     if not response.support:
                         logging.error(
-                            "While calculating citation metrics: "
-                            f"Failed to parse response: {response.refusal}"
+                            "While calculating citation metrics: ",
+                            f"Failed to parse response: {response.refusal}",
+                            getattr(response, "refusal",
+                                    "No error details available")
                         )
                         continue
 
-                        label = response.support.value
-                        score = self.score_map[label]
-                        citation_to_scores[f"citation_score_{citation_key}"].append(
-                            score)
-                        part_to_scores[f"part_score_{part_idx}"].append(score)
+                    label = response.support.value
+                    score = self.score_map[label]
+                    citation_to_scores[f"citation_score_{citation_key}"].append(
+                        score)
+                    part_to_scores[f"part_score_{part_idx}"].append(score)
                 except Exception as e:
                     raise Exception(
                         f"Error computing Citation score: {str(e)}") from e
