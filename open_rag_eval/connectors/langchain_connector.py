@@ -13,8 +13,6 @@ from langchain_core.output_parsers import StrOutputParser
 from langchain_core.runnables import RunnablePassthrough
 from langchain import hub
 
-from concurrent.futures import ThreadPoolExecutor, as_completed
-
 from open_rag_eval.connectors.connector import Connector
 from open_rag_eval.utils.constants import API_ERROR
 
