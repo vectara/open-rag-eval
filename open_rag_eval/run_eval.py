@@ -8,24 +8,24 @@ import os
 import shutil
 
 from pathlib import Path
-from omegaconf import OmegaConf
+from omegaconf import OmegaConf, ListConfig
 
 from open_rag_eval import connectors, data_classes, models
 from open_rag_eval import evaluators
 from open_rag_eval.rag_results_loader import RAGResultsLoader
 
 
-def get_evaluator(config: Dict[str, Any]) -> evaluators.Evaluator:
+def get_evaluator(evaluator_config: Dict[str, Any]) -> evaluators.Evaluator:
     """
     Dynamically import and instantiate an evaluator class based on configuration.
 
     Args:
-        config: Configuration dictionary containing evaluator settings
+        evaluator_config: Configuration dictionary containing evaluator settings
 
     Returns:
         An instance of the specified evaluator
     """
-    evaluator_type = config.evaluator.type
+    evaluator_type = evaluator_config.type
     try:
         evaluator_class = getattr(evaluators, f"{evaluator_type}")
 
@@ -34,7 +34,7 @@ def get_evaluator(config: Dict[str, Any]) -> evaluators.Evaluator:
             raise TypeError(f"{evaluator_type} is not a subclass of Evaluator")
 
         # Create the model instance based on config
-        model_config = config.evaluator.model
+        model_config = evaluator_config.model
         model_class = getattr(models, model_config.type)
 
         # Verify it's a subclass of LLMJudgeModel
@@ -45,7 +45,7 @@ def get_evaluator(config: Dict[str, Any]) -> evaluators.Evaluator:
         model = model_class(model_options = model_config)
 
         # Instantiate the evaluator with the model
-        options = config.evaluator.options if hasattr(config.evaluator, "options") else None
+        options = evaluator_config.options if hasattr(evaluator_config, "options") else None
         return evaluator_class(model=model, options=options)
 
     except (ImportError, AttributeError) as e:
@@ -100,21 +100,25 @@ def run_eval(config_path: str):
     if connector:
         connector.fetch_data()
 
-    # Run evaluation
-    evaluator = get_evaluator(config)
-    answer_path = os.path.join(config.results_folder, config.generated_answers)
+    answer_path = os.path.join(results_folder, config.generated_answers)
     rag_results = RAGResultsLoader(answer_path).load()
-    scored_results = evaluator.evaluate_batch(rag_results)
 
-    eval_results_path = os.path.join(results_folder, config.eval_results_file)
-    data_classes.eval_scores.to_csv(scored_results, eval_results_path)
+    # Run evaluation
+    evaluator_configs = config.evaluator if isinstance(config.evaluator, ListConfig) else [config.evaluator]
+    for eval_config in evaluator_configs:
+        evaluator_type = eval_config.type
+        evaluator = get_evaluator(eval_config)
+        scored_results = evaluator.evaluate_batch(rag_results)
+        eval_results_file = f"{evaluator_type}-{config.eval_results_file}"
+        eval_results_path = os.path.join(results_folder, eval_results_file)
+        evaluator.to_csv(scored_results, eval_results_path)
 
-    # Plot the metrics.
-    evaluator.plot_metrics(
-        csv_files=[eval_results_path],
-        output_file=os.path.join(results_folder, config.metrics_file),
-    )
-
+        # Plot individual metrics for this evaluator
+        metrics_file = f'{evaluator_type}-{config.metrics_file}'
+        evaluator.plot_metrics(
+            csv_files=[eval_results_path],
+            output_file=os.path.join(results_folder, metrics_file),
+        )
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run RAG evaluation")
