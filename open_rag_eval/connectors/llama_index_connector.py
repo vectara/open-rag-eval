@@ -23,6 +23,7 @@ class LlamaIndexConnector(Connector):
         folder: str,
         top_k: int = 10,
         max_workers: int = -1,
+        repeat_query: int = 1,  # Add repeat_query parameter
     ) -> BaseQueryEngine:
         documents = SimpleDirectoryReader(folder).load_data()
         index = VectorStoreIndex.from_documents(documents)
@@ -42,6 +43,7 @@ class LlamaIndexConnector(Connector):
             self.max_workers = min(32, os.cpu_count() * 4)
         else:
             self.max_workers = max_workers
+        self.repeat_query = repeat_query  # Store the repeat_query parameter
 
     def fetch_data(self) -> None:
         if self.query_engine is None:
@@ -50,7 +52,7 @@ class LlamaIndexConnector(Connector):
 
         queries = self.read_queries(self.queries_csv)
         fieldnames = [
-            "query_id", "query", "passage_id", "passage", "generated_answer"
+            "query_id", "query", "query_run", "passage_id", "passage", "generated_answer"
         ]
 
         if not self.parallel:
@@ -59,25 +61,31 @@ class LlamaIndexConnector(Connector):
                 writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
                 writer.writeheader()
                 for query in tqdm(queries,
-                                  total=len(queries),
+                                  total=len(queries) * self.repeat_query,
                                   desc="Running LlamaIndex queries"):
-                    results = self.process_query(query)
-                    if results:
-                        for row in results:
-                            writer.writerow(row)
+                    for run_idx in range(self.repeat_query):
+                        results = self.process_query(query, run_idx + 1)
+                        if results:
+                            for row in results:
+                                writer.writerow(row)
         else:
             # Use ThreadPoolExecutor to process queries in parallel
-            indexed_queries = list(enumerate(queries))  # (index, query)
+            # Create repeated queries based on self.repeat_query
+            repeated_queries = []
+            for query in queries:
+                for run_idx in range(self.repeat_query):
+                    repeated_queries.append((query, run_idx + 1))
+
             results_buffer = []
             with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
-                future_to_index = {
-                    executor.submit(self.process_query, query): idx
-                    for idx, query in indexed_queries
+                future_to_query_info = {
+                    executor.submit(self.process_query, query, run_idx):
+                        (i, run_idx) for i, (query, run_idx) in enumerate(repeated_queries)
                 }
-                for future in tqdm(as_completed(future_to_index),
-                                   total=len(queries),
+                for future in tqdm(as_completed(future_to_query_info),
+                                   total=len(queries) * self.repeat_query,
                                    desc="Running LlamaIndex queries"):
-                    idx = future_to_index[future]
+                    idx, run_idx = future_to_query_info[future]
                     results = future.result()
                     if results:
                         for row in results:
@@ -94,10 +102,11 @@ class LlamaIndexConnector(Connector):
             "LlamaIndex query processing is complete. Results saved to %s",
             self.outputs_csv)
 
-    def process_query(self, query):
+    def process_query(self, query, run_idx=1):
         """ Process a single query using the LlamaIndex query engine.
         Args:
             query: A dictionary containing the query text and its ID.
+            run_idx: The index of the query run (1-based)
         Returns:
             A list of dictionaries with query results, including passage text and generated answer.
         """
@@ -110,6 +119,7 @@ class LlamaIndexConnector(Connector):
                 return [{
                     "query_id": query["queryId"],
                     "query": query["query"],
+                    "query_run": run_idx,
                     "passage_id": "NA",
                     "passage": "NA",
                     "generated_answer": NO_ANSWER
@@ -120,6 +130,7 @@ class LlamaIndexConnector(Connector):
                 row = {
                     "query_id": query["queryId"],
                     "query": query["query"],
+                    "query_run": run_idx,
                     "passage_id": f"[{idx}]",
                     "passage": node.text,
                     "generated_answer": generated_answer if idx == 1 else ""
@@ -137,6 +148,7 @@ class LlamaIndexConnector(Connector):
             return [{
                 "query_id": query["queryId"],
                 "query": query["query"],
+                "query_run": run_idx,
                 "passage_id": "ERROR",
                 "passage": f"Runtime error: {ex}",
                 "generated_answer": API_ERROR,

@@ -11,11 +11,11 @@ class TestRAGResultsLoader(unittest.TestCase):
     def test_read_results(self):
         results = self.loader.load()
 
-        # Should return 5 RAGResults (one per query_id)
-        self.assertEqual(len(results), 5)
+        # Should return 6 MultiRAGResults (one per query_id)
+        self.assertEqual(len(results), 6)
 
         # Test first result (query_1)
-        result1 = results[0]
+        result1 = results[0].rag_results[0]
         self.assertEqual(result1.retrieval_result.query, "What is a blackhole?")
         self.assertEqual(len(result1.retrieval_result.retrieved_passages), 3)
         self.assertEqual(
@@ -40,7 +40,7 @@ class TestRAGResultsLoader(unittest.TestCase):
         )
 
         # Test second result (query_2)
-        result2 = results[1]
+        result2 = results[1].rag_results[0]
         self.assertEqual(result2.retrieval_result.query, "How big is the sun?")
         self.assertEqual(len(result2.retrieval_result.retrieved_passages), 1)
         self.assertEqual(
@@ -53,7 +53,7 @@ class TestRAGResultsLoader(unittest.TestCase):
         )
 
         # Test third result (query_3)
-        result3 = results[2]
+        result3 = results[2].rag_results[0]
         self.assertEqual(result3.retrieval_result.query, "How many planets have moons?")
         self.assertEqual(len(result3.retrieval_result.retrieved_passages), 2)
         self.assertEqual(
@@ -70,7 +70,7 @@ class TestRAGResultsLoader(unittest.TestCase):
         )
 
         # Test fourth result (query_4)
-        result4 = results[3]
+        result4 = results[3].rag_results[0]
         self.assertEqual(result4.retrieval_result.query, "What does the Dodd-Frank Act regulate?")
         self.assertEqual(len(result4.retrieval_result.retrieved_passages), 2)
         self.assertEqual(
@@ -87,7 +87,7 @@ class TestRAGResultsLoader(unittest.TestCase):
         )
 
         # Test fifth result (query_5)
-        result5 = results[4]
+        result5 = results[4].rag_results[0]
         self.assertEqual(result5.retrieval_result.query, "What is the purpose of job training?")
         self.assertEqual(len(result5.retrieval_result.retrieved_passages), 5)
         self.assertEqual(
@@ -113,6 +113,37 @@ class TestRAGResultsLoader(unittest.TestCase):
         self.assertEqual(
             result5.generation_result.generated_answer,
             [GeneratedAnswerPart(text='Based on the provided sources, the purpose of job training is to acquire marketable skills that are necessary for a particular job or profession. This training can be done on the job, through formal education, or through specialized training programs. The purpose of job training is to equip individuals with the skills and knowledge they need to perform their jobs effectively and to increase their chances of getting hired or promoted.', citations=['[1]', '[2]', '[3]', '[4]', '[5]'])]
+        )
+
+        # Test sixth result (query_6, should have two runs)
+        result6 = results[5]
+        self.assertEqual(len(result6.rag_results), 2)
+        result6_run_1 = result6.rag_results[0]
+        self.assertEqual(result6_run_1.retrieval_result.query, "How many planets have moons?")
+        self.assertEqual(len(result6_run_1.retrieval_result.retrieved_passages), 1)
+        self.assertEqual(
+            result6_run_1.retrieval_result.retrieved_passages["[1]"],
+            "Seven planets have a moon."
+        )
+        self.assertEqual(
+            result6_run_1.generation_result.generated_answer,
+            [GeneratedAnswerPart(text="Seven planets have moon", citations=["[1]"])]
+        )
+
+        result6_run_2 = result6.rag_results[1]
+        self.assertEqual(result6_run_2.retrieval_result.query, "How many planets have moons?")
+        self.assertEqual(len(result6_run_2.retrieval_result.retrieved_passages), 2)
+        self.assertEqual(
+            result6_run_2.retrieval_result.retrieved_passages["[1]"],
+            "Seven planets have a moon."
+        )
+        self.assertEqual(
+            result6_run_2.retrieval_result.retrieved_passages["[2]"],
+            "Earth has a moon."
+        )
+        self.assertEqual(
+            result6_run_2.generation_result.generated_answer,
+            [GeneratedAnswerPart(text="There are seven planets with moon", citations=["[1]"])]
         )
 
 
