@@ -1,8 +1,6 @@
 from itertools import islice
 import logging
 import os
-import csv
-from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import requests
 from tqdm import tqdm
@@ -45,78 +43,26 @@ class VectaraConnector(Connector):
                  api_key: str,
                  corpus_key: str,
                  max_workers: int = -1,
+                 repeat_query: int = 1,
                  query_config: dict = None) -> None:
         self.config = config
         self._api_key = api_key
         self._corpus_key = corpus_key
         self.query_config = query_config
-        self.parallel = max_workers > 0 or max_workers == -1
-        if max_workers == -1:
-            self.max_workers = min(32, os.cpu_count() * 4)
-        else:
-            self.max_workers = max_workers
 
-    def fetch_data(self):
-        if not all([self._api_key, self._corpus_key]):
-            raise ValueError(
-                "Missing Vectara API configuration (api_key, corpus_key)")
+        # Configuration for paths
+        queries_csv = config.get("input_queries", "")
+        results_folder = config.get("results_folder",
+                                    ".")  # Default to current directory
+        generated_answers_filename = config.get(
+            "generated_answers", "vectara_generated_answers.csv")
+        outputs_csv = os.path.join(results_folder, generated_answers_filename)
 
-        queries = self.read_queries(self.config.input_queries)
-        headers = {
-            "Content-Type": "application/json",
-            "Accept": "application/json",
-            "x-api-key": f"{self._api_key}"
-        }
-
-        endpoint_url = f"https://api.vectara.io/v2/corpora/{self._corpus_key}/query"
-
-        # Open the output CSV file, write header, and process queries with parallel execution
-        answers_path = os.path.join(self.config.results_folder,
-                                    self.config.generated_answers)
-        fieldnames = [
-            "query_id", "query", "passage_id", "passage", "generated_answer"
-        ]
-
-        if not self.parallel:
-            with open(answers_path, "w", newline="",
-                      encoding="utf-8") as csvfile:
-                writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-                writer.writeheader()
-                for query in tqdm(queries,
-                                  total=len(queries),
-                                  desc="Processing Vectara queries"):
-                    results = self.process_query(query, endpoint_url, headers,
-                                                 self.query_config)
-                    if results:
-                        for row in results:
-                            writer.writerow(row)
-        else:
-            # Use ThreadPoolExecutor to process queries in parallel
-            indexed_queries = list(enumerate(queries))  # (index, query)
-            results_buffer = []
-            with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
-                future_to_index = {
-                    executor.submit(self.process_query, query, endpoint_url, headers, self.query_config):
-                        idx for idx, query in indexed_queries
-                }
-                for future in tqdm(as_completed(future_to_index),
-                                   total=len(queries),
-                                   desc="Processing Vectara queries"):
-                    idx = future_to_index[future]
-                    results = future.result()
-                    if results:
-                        for row in results:
-                            results_buffer.append((idx, row))
-            with open(answers_path, "w", newline="",
-                      encoding="utf-8") as csvfile:
-                writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-                writer.writeheader()
-                results_buffer.sort(key=lambda x: x[0])
-                for _, row in results_buffer:
-                    writer.writerow(row)
-
-        logger.info("Vectara query processing is complete. Results saved to %s",
-                    answers_path)
+        # Initialize base class with calculated values
+        super().__init__(queries_csv=queries_csv,
+                         output_path=outputs_csv,
+                         max_workers=max_workers,
+                         repeat_query=repeat_query)
 
     @retry(stop=stop_after_attempt(5),
            wait=wait_exponential(multiplier=1, min=1, max=60),
@@ -213,7 +159,24 @@ class VectaraConnector(Connector):
         return self._send_request(endpoint_url, headers, payload,
                                   query["queryId"])
 
-    def process_query(self, query, endpoint_url, headers, query_config):
+    def process_query(self, query, run_idx=1):
+        if not all([self._api_key, self._corpus_key]):
+            raise ValueError(
+                "Missing Vectara API configuration (api_key, corpus_key)")
+
+        headers = {
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+            "x-api-key": f"{self._api_key}"
+        }
+
+        endpoint_url = f"https://api.vectara.io/v2/corpora/{self._corpus_key}/query"
+
+        return self.execute_vectara_query(query, endpoint_url, headers,
+                                   self.query_config, run_idx)
+
+    def execute_vectara_query(self, query, endpoint_url, headers, query_config,
+                       run_idx):
         """
         Process a single query by sending it to the Vectara API and handling the response.
         Args:
@@ -221,6 +184,7 @@ class VectaraConnector(Connector):
             endpoint_url: The Vectara API endpoint URL
             headers: Request headers
             query_config: Configuration for search and generation
+            run_idx: The index of the query run (1-based)
         """
         try:
             data = self.query(endpoint_url, headers, query, query_config)
@@ -234,6 +198,7 @@ class VectaraConnector(Connector):
                 return [{
                     "query_id": query["queryId"],
                     "query": query["query"],
+                    "query_run": run_idx,
                     "passage_id": "NA",
                     "passage": "NA",
                     "generated_answer": NO_ANSWER
@@ -251,6 +216,7 @@ class VectaraConnector(Connector):
                 row = {
                     "query_id": query["queryId"],
                     "query": query["query"],
+                    "query_run": run_idx,
                     "passage_id": f"[{idx}]",
                     "passage": result.get("text", ""),
                     "generated_answer": generated_answer if idx == 1 else ""
@@ -268,6 +234,7 @@ class VectaraConnector(Connector):
             return [{
                 "query_id": query["queryId"],
                 "query": query["query"],
+                "query_run": run_idx,
                 "passage_id": "ERROR",
                 "passage": f"Runtime error: {ex}",
                 "generated_answer": API_ERROR,

@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, List
 
 import logging
 import os
@@ -8,12 +8,13 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
 
-from open_rag_eval.data_classes.rag_results import RAGResult
+from open_rag_eval.data_classes.rag_results import MultiRAGResult
 from open_rag_eval.data_classes.eval_scores import (
     AugmentedGenerationScores,
     RetrievalScores,
     RAGScores,
     ScoredRAGResult,
+    MultiScoredRAGResult,
 )
 from open_rag_eval.models.llm_judges import LLMJudgeModel
 from open_rag_eval.metrics import (
@@ -27,7 +28,10 @@ from .base_evaluator import Evaluator
 
 
 class TRECEvaluator(Evaluator):
-    def __init__(self, model: LLMJudgeModel, options: Optional[dict] = None):
+
+    def __init__(self,
+                 model: LLMJudgeModel,
+                 options: Optional[dict] = None):
         self.model = model
         self.retrieval_metric = UMBRELAMetric(model)
         self.generation_metric = AutoNuggetMetric(model)
@@ -37,63 +41,94 @@ class TRECEvaluator(Evaluator):
 
         if not options:
             self.k_values = [1, 3, 5]
+            self.run_consistency = False
         else:
             self.k_values = options["k_values"]
+            self.run_consistency = options.get("run_consistency", False)
 
-    def evaluate(self, rag_results: RAGResult) -> ScoredRAGResult:
-        try:
-            retrieval_scores = self.retrieval_metric.compute(
-                rag_results.retrieval_result, self.k_values
-            )
-            umbrela_scores = retrieval_scores["umbrela_scores"]
-            autonugget_scores = self.generation_metric.compute(
-                rag_results, umbrela_scores
-            )
-            hallucination_scores = self.hallucination_metric.compute(rag_results)
-            citation_scores = self.citation_metric.compute(rag_results)
-            no_answer_score = self.no_answer_metric.compute(
-                rag_results.generation_result
-            )
+    def evaluate(self, multi_rag_result: MultiRAGResult) -> MultiScoredRAGResult:
+        """ Evaluate the RAG results for a single query.
+        This method processes each RAG result, computes various metrics,
+        and returns a MultiScoredRAGResult containing all scored results.
+        Args:
+            multi_rag_result (MultiRAGResult): The RAG results for a single query.
+        Returns:
+            MultiScoredRAGResult: A container with scored RAG results for the query.
+        """
 
-            # Create aggregate example scores where needed from the finegrained scores.
-            mean_umbrela_score = sum(umbrela_scores.values()) / len(umbrela_scores)
+        # Create a list to store all scored results for this query
+        all_scored_results = []
 
-            assignment_scores = autonugget_scores["assignment_scores"]
-            mean_assignment_score = sum(assignment_scores) / len(assignment_scores)
+        # Process each RAG result
+        for i, rag_result in enumerate(multi_rag_result.rag_results):
+            # Break after the first result if consistency is not needed
+            if i > 0 and not self.run_consistency:
+                break
 
-            hallucination_scores = hallucination_scores["hhem_score"]
+            try:
+                retrieval_scores = self.retrieval_metric.compute(
+                    rag_result.retrieval_result, self.k_values)
+                umbrela_scores = retrieval_scores["umbrela_scores"]
+                autonugget_scores = self.generation_metric.compute(
+                    rag_result, umbrela_scores)
+                hallucination_scores = self.hallucination_metric.compute(
+                    rag_result)
+                citation_scores = self.citation_metric.compute(rag_result)
+                no_answer_score = self.no_answer_metric.compute(
+                    rag_result.generation_result)
 
-            rag_scores = RAGScores(
-                RetrievalScores(
-                    scores={
-                        "umbrela_scores": umbrela_scores,
-                        "precision_metrics": retrieval_scores["retrieval_scores"],
-                        "mean_umbrela_score": mean_umbrela_score,
-                    }
-                ),
-                AugmentedGenerationScores(
-                    scores={
-                        "autonugget_scores": autonugget_scores,
-                        "mean_nugget_assignment_score": mean_assignment_score,
-                        "vital_nuggetizer_score": autonugget_scores[
-                            "nuggetizer_scores"
-                        ]["Vital"],
-                        "hallucination_scores": hallucination_scores,
-                        "citation_scores": citation_scores,
-                        "citation_f1_score": citation_scores["f1"],
-                        "no_answer_score": no_answer_score,
-                    }
-                ),
-            )
+                # Create aggregate scores
+                mean_umbrela_score = sum(
+                    umbrela_scores.values()) / len(umbrela_scores)
+                assignment_scores = autonugget_scores["assignment_scores"]
+                mean_assignment_score = sum(assignment_scores) / len(
+                    assignment_scores)
+                hallucination_scores = hallucination_scores["hhem_score"]
 
-            return ScoredRAGResult(rag_result=rag_results, scores=rag_scores)
+                rag_scores = RAGScores(
+                    RetrievalScores(
+                        scores={
+                            "umbrela_scores":
+                                umbrela_scores,
+                            "precision_metrics":
+                                retrieval_scores["retrieval_scores"],
+                            "mean_umbrela_score":
+                                mean_umbrela_score,
+                        }),
+                    AugmentedGenerationScores(
+                        scores={
+                            "autonugget_scores":
+                                autonugget_scores,
+                            "mean_nugget_assignment_score":
+                                mean_assignment_score,
+                            "vital_nuggetizer_score":
+                                autonugget_scores["nuggetizer_scores"]["Vital"],
+                            "hallucination_scores":
+                                hallucination_scores,
+                            "citation_scores":
+                                citation_scores,
+                            "citation_f1_score":
+                                citation_scores["f1"],
+                            "no_answer_score":
+                                no_answer_score,
+                        }),
+                )
 
-        except Exception as e:
-            logging.exception("Error in TRECEvaluator.evaluate: %s", str(e))
-            rag_scores = RAGScores(
-                RetrievalScores(scores={}), AugmentedGenerationScores(scores={})
-            )
-            return ScoredRAGResult(rag_result=rag_results, scores=rag_scores)
+                scored_result = ScoredRAGResult(rag_result=rag_result,
+                                                scores=rag_scores)
+                all_scored_results.append(scored_result)
+
+            except Exception as e:
+                logging.exception("Error evaluating result: %s", str(e))
+                rag_scores = RAGScores(RetrievalScores(scores={}),
+                                       AugmentedGenerationScores(scores={}))
+
+                scored_result = ScoredRAGResult(rag_result=rag_result,
+                                                scores=rag_scores)
+                all_scored_results.append(scored_result)
+        return MultiScoredRAGResult(query_id=multi_rag_result.query_id,
+                                query=multi_rag_result.query,
+                                scored_rag_results=all_scored_results)
 
     @classmethod
     def plot_metrics(cls, csv_files: list, output_file: str = "metrics_comparison.png"):
@@ -299,3 +334,48 @@ class TRECEvaluator(Evaluator):
         fig.savefig(output_file, dpi=300, bbox_inches="tight")
         plt.close(fig)
         print(f"Graph saved to {output_file}")
+
+    def to_csv(self, multi_scored_results: List[MultiScoredRAGResult], file_path: str) -> None:
+        """
+        Saves the scored results to a CSV file.
+
+        Note: For simplicity, only the first scored RAG result from each query is saved
+        to the CSV file, even when multiple runs were evaluated. The complete results
+        for all runs are preserved in the MultiScoredRAGResult objects and can be used
+        by the ConsistencyEvaluator (CE) for further analysis.
+        """
+        results_dict = []
+        for multi_scored_result in multi_scored_results:
+            # Skip empty results
+            if not multi_scored_result.scored_rag_results:
+                continue
+
+            # Only use the first scored result from each MultiScoredRAGResult
+            result = multi_scored_result.scored_rag_results[0]
+            result_dict = {}
+
+            # Get fields if they exist
+            if result.rag_result and result.rag_result.retrieval_result:
+                result_dict["query"] = result.rag_result.retrieval_result.query
+                result_dict["retrieved_passages"] = json.dumps(result.rag_result.retrieval_result.retrieved_passages)
+
+            if result.rag_result and result.rag_result.generation_result:
+                result_dict["query"] = result.rag_result.generation_result.query
+                generated_answer_dict = [{"text": part.text,
+                                          "citations": part.citations} for part in
+                                         result.rag_result.generation_result.generated_answer]
+                result_dict["generated_answer"] = json.dumps(generated_answer_dict)
+
+            # Add scores if they exist
+            if result.scores and result.scores.retrieval_score:
+                for key, value in result.scores.retrieval_score.scores.items():
+                    result_dict[f"retrieval_score_{key}"] = json.dumps(value)
+
+            if result.scores and result.scores.generation_score:
+                for key, value in result.scores.generation_score.scores.items():
+                    result_dict[f"generation_score_{key}"] = json.dumps(value)
+
+            results_dict.append(result_dict)
+
+        df = pd.DataFrame(results_dict)
+        df.to_csv(file_path, index=False)

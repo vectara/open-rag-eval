@@ -23,6 +23,7 @@ connector:
     api_key: ${oc.env:VECTARA_API_KEY}
     corpus_key: "fiqa"
     max_workers: -1  # -1 to use all available CPU cores for parallel processing.
+    repeat_query: 1 # set this more than one to repeat the query multiple times for consistency evaluation
     query_config:
       search:
         lexical_interpolation: 0.005
