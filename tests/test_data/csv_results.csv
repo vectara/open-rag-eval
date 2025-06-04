@@ -1,18 +1,21 @@
-query_id,query,passage_id,passage,generated_answer
-query_1,What is a blackhole?,[1],Blackholes are big.,Black holes are dense [1] They are also big and round [2][3] My name is x[4]
-query_1,What is a blackhole?,[2],Blackholes are dense.,
-query_1,What is a blackhole?,[3],The earth is round.,
-query_2,How big is the sun?,[1],The sun is several million kilometers in diameter.,The sun is several million kilometers in diameter [1]
-query_3,How many planets have moons?,[2],Seven planets have a moon.,Seven [2]
-query_3,How many planets have moons?,[3],Earth has a moon.,
-query_4,What does the Dodd-Frank Act regulate?,[1],"The Dodd-Frank Act regulates the use of credit ratings by financial institutions, requiring them to perform due diligence before purchasing financial instruments.","Based on the provided sources, the DFA also regulates the use of credit ratings by financial institutions, requiring them to do their own due diligence before buying financial instruments [1].
+query_id,query,query_run,passage_id,passage,generated_answer
+query_1,What is a blackhole?,1,[1],Blackholes are big.,Black holes are dense [1] They are also big and round [2][3] My name is x[4]
+query_1,What is a blackhole?,1,[2],Blackholes are dense.,
+query_1,What is a blackhole?,1,[3],The earth is round.,
+query_2,How big is the sun?,1,[1],The sun is several million kilometers in diameter.,The sun is several million kilometers in diameter [1]
+query_3,How many planets have moons?,1,[2],Seven planets have a moon.,Seven [2]
+query_3,How many planets have moons?,1,[3],Earth has a moon.,
+query_4,What does the Dodd-Frank Act regulate?,1,[1],"The Dodd-Frank Act regulates the use of credit ratings by financial institutions, requiring them to perform due diligence before purchasing financial instruments.","Based on the provided sources, the DFA also regulates the use of credit ratings by financial institutions, requiring them to do their own due diligence before buying financial instruments [1].
 
 No other information about the DFA is provided in the given sources.
 
 Sources: [1], [2]"
-query_4,What does the Dodd-Frank Act regulate?,[2],The Dodd-Frank Act was passed in 2010 in response to the financial crisis.,
-query_5,What is the purpose of job training?,[1],Job training helps individuals acquire marketable skills necessary for specific jobs or professions.,"Based on the provided sources, the purpose of job training is to acquire marketable skills that are necessary for a particular job or profession. This training can be done on the job, through formal education, or through specialized training programs. The purpose of job training is to equip individuals with the skills and knowledge they need to perform their jobs effectively and to increase their chances of getting hired or promoted. [1, 2, 3, 4, 5]"
-query_5,What is the purpose of job training?,[2],"Training can occur on the job, through formal education, or specialized programs.",
-query_5,What is the purpose of job training?,[3],The primary purpose of job training is to equip workers with essential skills and knowledge.,
-query_5,What is the purpose of job training?,[4],Effective job training increases an individual's chances of getting hired.,
-query_5,What is the purpose of job training?,[5],Job training can also improve promotion opportunities for employees.,
+query_4,What does the Dodd-Frank Act regulate?,1,[2],The Dodd-Frank Act was passed in 2010 in response to the financial crisis.,
+query_5,What is the purpose of job training?,1,[1],Job training helps individuals acquire marketable skills necessary for specific jobs or professions.,"Based on the provided sources, the purpose of job training is to acquire marketable skills that are necessary for a particular job or profession. This training can be done on the job, through formal education, or through specialized training programs. The purpose of job training is to equip individuals with the skills and knowledge they need to perform their jobs effectively and to increase their chances of getting hired or promoted. [1, 2, 3, 4, 5]"
+query_5,What is the purpose of job training?,1,[2],"Training can occur on the job, through formal education, or specialized programs.",
+query_5,What is the purpose of job training?,1,[3],The primary purpose of job training is to equip workers with essential skills and knowledge.,
+query_5,What is the purpose of job training?,1,[4],Effective job training increases an individual's chances of getting hired.,
+query_5,What is the purpose of job training?,1,[5],Job training can also improve promotion opportunities for employees.,
+query_6,How many planets have moons?,1,[1],Seven planets have a moon.,Seven planets have moon [1]
+query_6,How many planets have moons?,2,[1],Seven planets have a moon.,There are seven planets with moon [1]
+query_6,How many planets have moons?,2,[2],Earth has a moon.,
