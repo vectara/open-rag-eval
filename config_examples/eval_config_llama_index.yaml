@@ -25,3 +25,4 @@ connector:
     # all files in this folder and any subfolders will be indexed
     folder: /path/to/folder-with-files/   
     top_k: 10
+    max_workers: -1  # -1 to use all available CPU cores for parallel processing.
