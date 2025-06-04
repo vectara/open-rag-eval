@@ -108,26 +108,28 @@ class CitationMetric(AugmentedGenerationMetric):
                         continue
 
                     prompt = self._CITATION_PROMPT.format(
-                        statement=answer_sentence, citation=passage)
-                    response = self.model.parse(prompt,
-                                                response_format=CitationSupport,
-                                                model_kwargs={
-                                                    "temperature": 0.0,
-                                                    "seed": 42
-                                                })
+                        statement=answer_sentence, citation=passage
+                    )
+                    response = self.model.parse(
+                        prompt,
+                        response_format=CitationSupport,
+                        model_kwargs={
+                            "temperature": 0.0,
+                            "seed": 42
+                        }
+                    )
                     if not response.support:
                         logging.error(
                             "While calculating citation metrics: "
-                            "Failed to parse response: %s",
-                            getattr(response, "refusal",
-                                    "No error details available"))
+                            f"Failed to parse response: {response.refusal}"
+                        )
                         continue
 
-                    label = response.support.value
-                    score = self.score_map[label]
-                    citation_to_scores[f"citation_score_{citation_key}"].append(
-                        score)
-                    part_to_scores[f"part_score_{part_idx}"].append(score)
+                        label = response.support.value
+                        score = self.score_map[label]
+                        citation_to_scores[f"citation_score_{citation_key}"].append(
+                            score)
+                        part_to_scores[f"part_score_{part_idx}"].append(score)
                 except Exception as e:
                     raise Exception(
                         f"Error computing Citation score: {str(e)}") from e
