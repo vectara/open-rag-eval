@@ -1,7 +1,9 @@
-from typing import Any, List
+from typing import Any, List, Dict, Optional
 from dataclasses import dataclass, field
 
-from .rag_results import RAGResult
+import numpy as np
+
+from .rag_results import RAGResult, MultiRAGResult
 
 @dataclass
 class RetrievalScores():
@@ -29,12 +31,43 @@ class ScoredRAGResult():
     scores: RAGScores
 
 @dataclass
-class MultiScoredRAGResult:
-    """Container class that holds multiple ScoredRAGResult objects for a single query."""
+class ConsistencyScore:
+    """Holds statistical measures for consistency evaluation."""
+    values: List[float]
+    stats: Dict[str, float] = None
+
+    def __post_init__(self):
+        if not self.values:
+            raise ValueError("values list cannot be empty.")
+
+        min_val = float(np.min(self.values))
+        max_val = float(np.max(self.values))
+        q1 = float(np.percentile(self.values, 25))
+        q3 = float(np.percentile(self.values, 75))
+
+        self.stats = {
+            "mean": float(np.mean(self.values)),
+            "median": float(np.median(self.values)),
+            "std": float(np.std(self.values)),
+            "max_min": max_val - min_val,  # range
+            "iqr": q3 - q1
+        }
+
+@dataclass
+class ConsistencyResult:
+    """Holds consistency scores and multi-RAG results across multiple runs."""
     query: str
     query_id: str
-    scored_rag_results: List[ScoredRAGResult] = field(default_factory=list)
+    multi_rag_result: "MultiRAGResult"
+    consistency_scores: Dict[str, "ConsistencyScore"] = field(default_factory=dict)
 
-    def add_scored_result(self, scored_result: ScoredRAGResult):
-        """Add a ScoredRAGResult to the list."""
-        self.scored_rag_results.append(scored_result)
+    def add_score_from_values(self, name: str, values: List[float]):
+        """Compute and add a consistency score from raw values."""
+        self.consistency_scores[name] = ConsistencyScore(values=values)
+
+@dataclass
+class MultiScoredRAGResult:
+    """Container for multiple scored results"""
+    query: str
+    query_id: str
+    scored_rag_results: List["ScoredRAGResult"] = field(default_factory=list)
