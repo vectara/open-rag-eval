@@ -123,21 +123,7 @@ class CitationMetric(AugmentedGenerationMetric):
                             "While calculating citation metrics: "
                             f"Failed to parse response: {response.refusal}"
                         )
-                        response = self.model.parse(
-                            prompt,
-                            response_format=CitationSupport,
-                            model_kwargs={
-                                "temperature": 0.0,
-                                "seed": 42
-                            }
-                        )
-                        if not response.support:
-                            logging.error(
-                                "While calculating citation metrics: "
-                                f"Failed to parse response: {response.refusal} "
-                                f"(details: {getattr(response, 'refusal', 'No error details available')})"
-                            )
-                            continue
+                        continue
 
                     label = response.support.value
                     score = self.score_map[label]
