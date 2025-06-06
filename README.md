@@ -232,10 +232,11 @@ Here's how connectors work:
 
 1. All connectors are derived from the `Connector` class, and need to define the `fetch_data` method.
 2. The Connector class has a utility method called `read_queries` which is helpful in reading the input queries.
-3. When implementing `fetch_data` you simply go through all the queries, one by one, and call the RAG system with that query. 
+3. When implementing `fetch_data` you simply go through all the queries, one by one, and call the RAG system with that query (repeating each query as specified by the `repeat_query` setting in the connector configuration). 
 4. The output is stored in the `results` file, with a N rows per query, where N is the number of passages (or chunks) including these fields
    - `query_id`: a unique ID for the query
    - `query text`: the actual query text string
+   - `query_run`: an identifier for the specific run of the query (useful when you execute the same query multiple times based on the `repeat_query` setting in the connector)
    - `passage`: the passage (aka chunk) 
    - `passage_id`: a unique ID for this passage (you can use just the passage number as a string)
    - `generated_answer`: text of the generated response or answer from your RAG pipeline, including citations in [N] format.

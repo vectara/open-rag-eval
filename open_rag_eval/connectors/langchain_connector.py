@@ -27,6 +27,7 @@ class LangChainConnector(Connector):
         folder: str,
         top_k: int = 10,
         max_workers: int = -1,
+        repeat_query: int = 1,  # Add repeat_query parameter
     ) -> None:
         super().__init__()  # Call to the base class constructor if needed
 
@@ -36,6 +37,7 @@ class LangChainConnector(Connector):
             self.max_workers = min(32, os.cpu_count() * 4)
         else:
             self.max_workers = max_workers
+        self.repeat_query = repeat_query
 
         # Configuration for paths
         self.queries_csv = config.get("input_queries")
@@ -78,49 +80,54 @@ class LangChainConnector(Connector):
         } | prompt | llm | StrOutputParser())
 
     def fetch_data(self) -> None:
-        queries = self.read_queries(
-            self.queries_csv)  # Using method from base or this class
-        logger.info("Starting to process %d queries using LangChain connector.",
-                    len(queries))
+        queries = self.read_queries(self.queries_csv)
+        logger.info("Starting to process %d queries (%d times each) using LangChain connector.",
+                    len(queries), self.repeat_query)
         fieldnames = [
             "query_id",
             "query",
+            "query_run",  # Add query_run field
             "passage_id",
             "passage",
             "generated_answer",
         ]
 
         if not self.parallel:
-            with open(self.outputs_csv, "w", newline="",
-                      encoding="utf-8") as csvfile:
+            with open(self.outputs_csv, "w", newline="", encoding="utf-8") as csvfile:
                 writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
                 writer.writeheader()
                 for query in tqdm(queries,
-                                  total=len(queries),
+                                  total=len(queries) * self.repeat_query,
                                   desc="Running LangChain queries"):
-                    results = self.process_query(query)
-                    if results:
-                        for row in results:
-                            writer.writerow(row)
+                    for run_idx in range(self.repeat_query):
+                        results = self.process_query(query, run_idx + 1)
+                        if results:
+                            for row in results:
+                                writer.writerow(row)
         else:
             # Use ThreadPoolExecutor to process queries in parallel
-            indexed_queries = list(enumerate(queries))  # (index, query)
+            # Create repeated queries based on self.repeat_query
+            repeated_queries = []
+            for query in queries:
+                for run_idx in range(self.repeat_query):
+                    repeated_queries.append((query, run_idx + 1))
+
             results_buffer = []
             with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
-                future_to_index = {
-                    executor.submit(self.process_query, query): idx
-                    for idx, query in indexed_queries
+                future_to_query_info = {
+                    executor.submit(self.process_query, query, run_idx):
+                        (i, run_idx) for i, (query, run_idx) in enumerate(repeated_queries)
                 }
-                for future in tqdm(as_completed(future_to_index),
-                                   total=len(queries),
+                for future in tqdm(as_completed(future_to_query_info),
+                                   total=len(queries) * self.repeat_query,
                                    desc="Running LangChain queries"):
-                    idx = future_to_index[future]
+                    idx, run_idx = future_to_query_info[future]
                     results = future.result()
                     if results:
                         for row in results:
                             results_buffer.append((idx, row))
-            with open(self.outputs_csv, "w", newline="",
-                      encoding="utf-8") as csvfile:
+
+            with open(self.outputs_csv, "w", newline="", encoding="utf-8") as csvfile:
                 writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
                 writer.writeheader()
                 results_buffer.sort(key=lambda x: x[0])
@@ -131,14 +138,14 @@ class LangChainConnector(Connector):
             "LangChain query processing is complete. Results saved to %s",
             self.outputs_csv)
 
-    def process_query(self, query_data):
+    def process_query(self, query_data, run_idx=1):
         """ Process a single query using the LangChain RAG chain.
         Args:
             query_data (dict): A dictionary containing the query and its ID.
-                Expected keys are "query" and "queryId".
+            run_idx (int): The index of the query run (1-based).
         Returns:
             list: A list of dictionaries containing the query ID, query text,
-                passage ID, passage content, and generated answer.
+                  passage ID, passage text, and generated answer.
         """
         query_id = query_data["queryId"]
         actual_query = query_data["query"]
@@ -150,9 +157,10 @@ class LangChainConnector(Connector):
                 rows.append({
                     "query_id": query_id,
                     "query": actual_query,
+                    "query_run": run_idx,  # Add run_idx to output
                     "passage_id": f"[{idx}]",
                     "passage": doc.page_content,
-                    "generated_answer": generated_answer if idx == 1 else "",
+                    "generated_answer": generated_answer if idx == 1 else ""
                 })
             return rows
         except Exception as e:
@@ -166,6 +174,7 @@ class LangChainConnector(Connector):
             return [{
                 "query_id": query_id,
                 "query": actual_query,
+                "query_run": run_idx,  # Add run_idx to error output
                 "passage_id": "ERROR",
                 "passage": f"Runtime error: {e}",
                 "generated_answer": API_ERROR,

@@ -3,8 +3,8 @@ from concurrent.futures import ThreadPoolExecutor
 from typing import List, Optional
 from tqdm import tqdm
 
-from open_rag_eval.data_classes.rag_results import RAGResult
-from open_rag_eval.data_classes.eval_scores import ScoredRAGResult
+from open_rag_eval.data_classes.rag_results import MultiRAGResult
+from open_rag_eval.data_classes.eval_scores import MultiScoredRAGResult
 
 
 class Evaluator(ABC):
@@ -16,19 +16,19 @@ class Evaluator(ABC):
         pass
 
     @abstractmethod
-    def evaluate(self, rag_results: RAGResult) -> ScoredRAGResult:
-        """Evaluate a single RAG result."""
+    def evaluate(self, multi_rag_result: MultiRAGResult) -> MultiScoredRAGResult:
+        """Evaluate results for a single query (which may include multiple runs)."""
         pass
 
     def evaluate_batch(
-        self, rag_results: List[RAGResult], max_workers: Optional[int] = 5
-    ) -> List[ScoredRAGResult]:
+            self, multi_rag_results: List[MultiRAGResult], max_workers: Optional[int] = 5
+    ) -> List[MultiScoredRAGResult]:
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
             eval_scores = list(
                 tqdm(
-                    executor.map(self.evaluate, rag_results),
-                    total=len(rag_results),
-                    desc="Evaluating using TRECRAG evaluator.",
+                    executor.map(self.evaluate, multi_rag_results),
+                    total=len(multi_rag_results),
+                    desc=f"Evaluating using {self.__class__.__name__} evaluator.",
                 )
             )
         return eval_scores
