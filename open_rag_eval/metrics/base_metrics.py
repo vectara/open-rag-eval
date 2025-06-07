@@ -7,3 +7,7 @@ class RetrievalMetric(ABC):
 class AugmentedGenerationMetric(ABC):
     """This class is the base class for all augmented generation metrics."""
     pass
+
+class PairwiseAnswerSimilarityMetric(ABC):
+    """Base class for all pairwise answer similarity metrics."""
+    pass

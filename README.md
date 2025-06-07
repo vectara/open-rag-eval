@@ -161,14 +161,15 @@ For those who prefer local or scriptable visualization, you can use the CLI plot
 To plot one result:
 
 ```bash
-python open_rag_eval/plot_results.py results.csv
+python open_rag_eval/plot_results.py --evaluator trec results.csv
 ```
 
 Or to plot multiple results:
 
 ```bash
-python open_rag_eval/plot_results.py results_1.csv results_2.csv results_3.csv
+python open_rag_eval/plot_results.py --evaluator trec results_1.csv results_2.csv results_3.csv
 ```
+⚠️ Required: The `--evaluator` argument must be specified to indicate which evaluator (trec or consistency) the plots should be generated for.
 
 By default the run_eval.py script will plot metrics and save them to the results folder.
 

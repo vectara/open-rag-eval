@@ -2,7 +2,7 @@ name: Run Python Unit Tests
 
 on:
   pull_request:
-    branches: [ dev, main ]
+    branches: [ dev, main, consistency_eval]
 
 jobs:
   test:
