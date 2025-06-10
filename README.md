@@ -214,6 +214,12 @@ The `open-rag-eval` framework follows these general steps during an evaluation:
   - **ConsistencyEvaluator** evaluates the consistency of a model's responses across multiple generations for the same query. It currently uses two default metrics:
     - **BERTScore**: This metric evaluates the semantic similarity between generations using the multilingual `xlm-roberta-large` model, which supports over 100 languages. In this evaluator, `BERTScore` is computed with baseline rescaling enabled (`rescale_with_baseline=True` by default), which normalizes the similarity scores by subtracting language-specific baselines. This adjustment helps produce more interpretable and comparable scores across languages, reducing the inherent bias that transformer models often exhibit toward unrelated sentence pairs. If a language-specific baseline is not available, the evaluator logs a warning and automatically falls back to raw `BERTScore` values, ensuring robustness.
     - **ROUGE-L**: This metric measures the longest common subsequence (LCS) between two sequences of text, capturing fluency and in-sequence overlap without requiring exact n-gram matches. In this evaluator, `ROUGE-L` is computed without stemming or tokenization, making it most reliable for English-only evaluations. Its accuracy may degrade for other languages due to the lack of language-specific segmentation and preprocessing. As such, it complements `BERTScore` by providing a syntactic alignment signal in English-language scenarios.
+  
+  Evaluators can be chained. For example, ConsistencyEvaluator can operate on the output of TRECEvaluator. To enable this:
+  - Set `"run_consistency": true` in your TRECEvaluator config.
+  - Specify `"metrics_to_run_consistency"` to define which scores you want consistency to be computed for.
+
+  If you're implementing a custom evaluator to work with the `ConsistencyEvaluator`, you must define a `collect_scores_for_consistency` method within your evaluator class. This method should return a dictionary mapping query IDs to their corresponding metric scores, which will be used for consistency evaluation.
 
 # Web API
 

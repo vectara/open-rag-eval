@@ -160,6 +160,71 @@ class TestConsistencyEvaluator(unittest.TestCase):
         mock_bert.compute.assert_called_once_with(multi_rag_result)
         mock_rouge.compute.assert_called_once_with(multi_rag_result)
 
+    def test_evaluate_batch_with_precomputed_scores_stats(self):
+        evaluator = ConsistencyEvaluator()
+
+        mock_result1 = create_mock_multi_rag_result(3)
+        mock_result2 = create_mock_multi_rag_result(3)
+        mock_result1.query_id = "q1"
+        mock_result2.query_id = "q2"
+
+        precomputed = {
+            "q1": {
+                "hhem_score": [0.5, 0.5, 0.5],  # mean = 0.5, std = 0.0
+                "umbrela_score": [0.3, 0.3, 0.3]  # mean = 0.3, std = 0.0
+            },
+            "q2": {
+                "hhem_score": [0.7, 0.6, 0.6],  # mean = 0.633, std ~0.047
+                "umbrela_score": [0.4, 0.4, 0.4]  # mean = 0.4, std = 0.0
+            }
+        }
+
+        results = evaluator.evaluate_batch(
+            [mock_result1, mock_result2],
+            precomputed_metric_scores_by_query=precomputed
+        )
+
+        self.assertEqual(len(results), 2)
+
+        q1 = next(r for r in results if r.query_id == "q1")
+        q2 = next(r for r in results if r.query_id == "q2")
+
+        # ---- q1 assertions ----
+        hhem_stats_q1 = q1.consistency_scores["hhem_score"].stats
+        self.assertAlmostEqual(hhem_stats_q1["mean"], 0.5, places=6)
+        self.assertAlmostEqual(hhem_stats_q1["std"], 0.0, places=6)
+        self.assertAlmostEqual(hhem_stats_q1["median"], 0.5, places=6)
+        self.assertAlmostEqual(hhem_stats_q1["iqr"], 0.0, places=6)
+
+        umbrela_stats_q1 = q1.consistency_scores["umbrela_score"].stats
+        self.assertAlmostEqual(umbrela_stats_q1["mean"], 0.3, places=6)
+        self.assertAlmostEqual(umbrela_stats_q1["std"], 0.0, places=6)
+        self.assertAlmostEqual(umbrela_stats_q1["median"], 0.3, places=6)
+        self.assertAlmostEqual(umbrela_stats_q1["iqr"], 0.0, places=6)
+
+        # ---- q2 assertions ----
+        hhem_values_q2 = [0.7, 0.6, 0.6]
+        hhem_stats_q2 = q2.consistency_scores["hhem_score"].stats
+        self.assertAlmostEqual(hhem_stats_q2["mean"], sum(hhem_values_q2) / 3, places=6)
+        self.assertAlmostEqual(hhem_stats_q2["std"], 0.0471, places=3)
+        self.assertAlmostEqual(hhem_stats_q2["median"], 0.6, places=6)
+        self.assertAlmostEqual(hhem_stats_q2["iqr"], 0.05, places=6)
+
+        umbrela_stats_q2 = q2.consistency_scores["umbrela_score"].stats
+        self.assertAlmostEqual(umbrela_stats_q2["mean"], 0.4, places=6)
+        self.assertAlmostEqual(umbrela_stats_q2["std"], 0.0, places=6)
+        self.assertAlmostEqual(umbrela_stats_q2["median"], 0.4, places=6)
+        self.assertAlmostEqual(umbrela_stats_q2["iqr"], 0.0, places=6)
+
+    def test_evaluate_adds_hallucination_if_missing(self):
+        evaluator = ConsistencyEvaluator()
+        evaluator.hallucination_metric.compute = MagicMock(return_value={"hhem_score": 0.9})
+
+        multi_result = create_mock_multi_rag_result(3)
+        result = evaluator.evaluate(multi_result, precomputed_metric_scores={"bert_score": [0.5, 0.6, 0.7]})
+
+        self.assertIn("hallucination_scores", result.consistency_scores)
+
 
 if __name__ == "__main__":
     unittest.main()
