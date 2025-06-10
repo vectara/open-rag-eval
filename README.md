@@ -204,8 +204,9 @@ The `open-rag-eval` framework follows these general steps during an evaluation:
 - **Metrics:** Metrics are the core of the evaluation. They are used to measure the quality of the RAG system, each metric has a different focus and is used to evaluate different aspects of the RAG system. Metrics can be used to evaluate the quality of the retrieval, the quality of the (augmented) generation, the quality of the RAG system as a whole.
 - **Models:** Models are the underlying judgement models used by some of the metrics. They are used to judge the quality of the RAG system. Models can be diverse: they may be LLMs, classifiers, rule based systems, etc.
 - **Evaluators:** Evaluators can chain together a series of metrics to evaluate the quality of the RAG system.
-- **RAGResults:** Data class representing the output of a RAG pipeline for a single query (input query, generated answer, retrieved contexts/documents). This is the primary input for evaluation.
-- **ScoredRAGResult:** Data class holding the original `RAGResults` plus the scores assigned by the `Evaluator` and its `Metrics`. These are typically collected and saved to the output report file.
+- **RAGResult:** Represents the output of a single run of a RAG pipeline — including the input query, retrieved contexts, and generated answer.
+- **MultiRAGResult:** The main input to evaluators. It holds multiple RAGResult instances for the same query (e.g., different generations or retrievals) and allows comparison across these runs to compute metrics like consistency.
+- **MultiScoredRAGResult**: Currently, the supported trec evaluator returns this data class, which holds a MultiRAGResult along with scores from one or more metrics. It represents the evaluation output for a single query and is typically saved to the output report file. If you're implementing a custom evaluator, you may choose to return a different structure based on your evaluation logic.
 
 # Web API
 
@@ -232,10 +233,11 @@ Here's how connectors work:
 
 1. All connectors are derived from the `Connector` class, and need to define the `fetch_data` method.
 2. The Connector class has a utility method called `read_queries` which is helpful in reading the input queries.
-3. When implementing `fetch_data` you simply go through all the queries, one by one, and call the RAG system with that query. 
+3. When implementing `fetch_data` you simply go through all the queries, one by one, and call the RAG system with that query (repeating each query as specified by the `repeat_query` setting in the connector configuration). 
 4. The output is stored in the `results` file, with a N rows per query, where N is the number of passages (or chunks) including these fields
    - `query_id`: a unique ID for the query
    - `query text`: the actual query text string
+   - `query_run`: an identifier for the specific run of the query (useful when you execute the same query multiple times based on the `repeat_query` setting in the connector)
    - `passage`: the passage (aka chunk) 
    - `passage_id`: a unique ID for this passage (you can use just the passage number as a string)
    - `generated_answer`: text of the generated response or answer from your RAG pipeline, including citations in [N] format.

@@ -1,5 +1,7 @@
 # This file defines classes to hold results from a RAG system which need to be evaluated.
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from typing import List
+
 
 @dataclass
 class RetrievalResult:
@@ -30,3 +32,13 @@ class RAGResult:
     """This class holds the output from a RAG system."""
     retrieval_result: RetrievalResult
     generation_result: AugmentedGenerationResult
+
+@dataclass
+class MultiRAGResult:
+    """Container class that holds multiple RAGResult objects per query."""
+    query: str
+    query_id: str
+    rag_results: List[RAGResult] = field(default_factory=list)
+
+    def add_result(self, rag_result: RAGResult):
+        self.rag_results.append(rag_result)

@@ -1,7 +1,5 @@
 from typing import Any, List
-import json
-from dataclasses import dataclass
-import pandas as pd
+from dataclasses import dataclass, field
 
 from .rag_results import RAGResult
 
@@ -30,33 +28,13 @@ class ScoredRAGResult():
     rag_result: RAGResult
     scores: RAGScores
 
-def to_csv(scored_results: List[ScoredRAGResult], file_path: str) -> None:
-    """Saves the scored results to a CSV file."""
-    results_dict = []
-    for result in scored_results:
-        result_dict = {}
+@dataclass
+class MultiScoredRAGResult:
+    """Container class that holds multiple ScoredRAGResult objects for a single query."""
+    query: str
+    query_id: str
+    scored_rag_results: List[ScoredRAGResult] = field(default_factory=list)
 
-        # Get fields if they exist
-        if result.rag_result and result.rag_result.retrieval_result:
-            result_dict["query"] = result.rag_result.retrieval_result.query
-            result_dict["retrieved_passages"] = json.dumps(result.rag_result.retrieval_result.retrieved_passages)
-
-        if result.rag_result and result.rag_result.generation_result:
-            result_dict["query"] = result.rag_result.generation_result.query
-            generated_answer_dict = [{"text": part.text,
-                                     "citations": part.citations} for part in result.rag_result.generation_result.generated_answer]
-            result_dict["generated_answer"] = json.dumps(generated_answer_dict)
-
-        # Add scores if they exist
-        if result.scores and result.scores.retrieval_score:
-            for key, value in result.scores.retrieval_score.scores.items():
-                result_dict[f"retrieval_score_{key}"] = json.dumps(value)
-
-        if result.scores and result.scores.generation_score:
-            for key, value in result.scores.generation_score.scores.items():
-                result_dict[f"generation_score_{key}"] = json.dumps(value)
-
-        results_dict.append(result_dict)
-
-    df = pd.DataFrame(results_dict)
-    df.to_csv(file_path, index=False)
+    def add_scored_result(self, scored_result: ScoredRAGResult):
+        """Add a ScoredRAGResult to the list."""
+        self.scored_rag_results.append(scored_result)
