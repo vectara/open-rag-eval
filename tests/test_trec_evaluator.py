@@ -23,35 +23,48 @@ class MockEvaluator(Evaluator):
     def __init__(self):
         self.evaluate_called = 0
 
-    def evaluate(self, multi_rag_result: MultiRAGResult) -> MultiScoredRAGResult:
+    def evaluate(self,
+                 multi_rag_result: MultiRAGResult) -> MultiScoredRAGResult:
         self.evaluate_called += 1
         # Create a simple mock ScoredRAGResult for each RAG result in the multi_rag_result
         scored_results = []
 
         for rag_result in multi_rag_result.rag_results:
             retrieval_scores = RetrievalScores(scores={"mock_score": 0.5})
-            generation_scores = AugmentedGenerationScores(scores={"mock_score": 0.7})
+            generation_scores = AugmentedGenerationScores(
+                scores={"mock_score": 0.7})
             rag_scores = RAGScores(retrieval_score=retrieval_scores,
                                    generation_score=generation_scores)
-            scored_result = ScoredRAGResult(rag_result=rag_result, scores=rag_scores)
+            scored_result = ScoredRAGResult(rag_result=rag_result,
+                                            scores=rag_scores)
             scored_results.append(scored_result)
 
         # Return MultiScoredRAGResult with all scored results
-        return MultiScoredRAGResult(
-            query=multi_rag_result.query,
-            query_id=multi_rag_result.query_id,
-            scored_rag_results=scored_results
-        )
+        return MultiScoredRAGResult(query=multi_rag_result.query,
+                                    query_id=multi_rag_result.query_id,
+                                    scored_rag_results=scored_results)
 
     # Make plot_metrics abstract by removing implementation
     @classmethod
-    def plot_metrics(cls, csv_files, output_file="metrics_comparison.png"):
+    def plot_metrics(cls, csv_files, output_file="metrics_comparison.png", metrics_to_plot=None):
         raise NotImplementedError(
-            "plot_metrics must be implemented by concrete evaluators"
-        )
+            "plot_metrics must be implemented by concrete evaluators")
+
+    def to_csv(self, scored_results, output_file: str):
+        raise NotImplementedError(
+            "to_csv must be implemented by concrete evaluators")
+
+    def get_consolidated_columns(self):
+        raise NotImplementedError(
+            "get_consolidated_columns must be implemented by concrete evaluators")
+
+    def get_metrics_to_plot(self):
+        raise NotImplementedError(
+            "get_metrics_to_plot must be implemented by concrete evaluators")
 
 
-def create_mock_multi_rag_result(query: str = "test query", query_id: str = "test_id") -> MultiRAGResult:
+def create_mock_multi_rag_result(query: str = "test query",
+                                 query_id: str = "test_id") -> MultiRAGResult:
     """Helper function to create a mock MultiRAGResult for testing"""
     multi_result = MultiRAGResult(query=query, query_id=query_id)
     # Create first RAG result
@@ -62,14 +75,14 @@ def create_mock_multi_rag_result(query: str = "test query", query_id: str = "tes
     multi_result.add_result(rag_result2)
     return multi_result
 
+
 def create_mock_rag_result(query: str = "test query",
-                          passage: str = "test passage",
-                          answer: str = "test answer") -> RAGResult:
+                           passage: str = "test passage",
+                           answer: str = "test answer") -> RAGResult:
     """Helper function to create a mock RAG result for testing"""
     return RAGResult(
-        retrieval_result=RetrievalResult(
-            query=query, retrieved_passages={"doc1": passage}
-        ),
+        retrieval_result=RetrievalResult(query=query,
+                                         retrieved_passages={"doc1": passage}),
         generation_result=AugmentedGenerationResult(
             query=query,
             generated_answer=[
@@ -80,13 +93,17 @@ def create_mock_rag_result(query: str = "test query",
 
 
 class TestBaseEvaluator(unittest.TestCase):
+
     def setUp(self):
         self.evaluator = MockEvaluator()
 
     def test_evaluate_batch(self):
         """Test that evaluate_batch processes all results and uses ThreadPoolExecutor"""
         # Create a list of MultiRAGResult objects
-        multi_rag_results = [create_mock_multi_rag_result(f"query_{i}", f"id_{i}") for i in range(5)]
+        multi_rag_results = [
+            create_mock_multi_rag_result(f"query_{i}", f"id_{i}")
+            for i in range(5)
+        ]
 
         scored_results = self.evaluator.evaluate_batch(multi_rag_results)
 
@@ -106,21 +123,17 @@ class TestBaseEvaluator(unittest.TestCase):
             self.assertIsInstance(first_scored, ScoredRAGResult)
             self.assertIsInstance(first_scored.scores, RAGScores)
             self.assertEqual(
-                first_scored.scores.retrieval_score.scores["mock_score"], 0.5
-            )
+                first_scored.scores.retrieval_score.scores["mock_score"], 0.5)
             self.assertEqual(
-                first_scored.scores.generation_score.scores["mock_score"], 0.7
-            )
+                first_scored.scores.generation_score.scores["mock_score"], 0.7)
             # Check the second scored result in the multi result
             second_scored = scored_result.scored_rag_results[1]
             self.assertIsInstance(second_scored, ScoredRAGResult)
             self.assertIsInstance(second_scored.scores, RAGScores)
             self.assertEqual(
-                second_scored.scores.retrieval_score.scores["mock_score"], 0.5
-            )
+                second_scored.scores.retrieval_score.scores["mock_score"], 0.5)
             self.assertEqual(
-                second_scored.scores.generation_score.scores["mock_score"], 0.7
-            )
+                second_scored.scores.generation_score.scores["mock_score"], 0.7)
 
     def test_evaluate_batch_empty_list(self):
         """Test that evaluate_batch handles empty input correctly"""

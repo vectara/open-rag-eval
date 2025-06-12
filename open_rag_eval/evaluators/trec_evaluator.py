@@ -1,3 +1,4 @@
+import math
 from typing import Optional, List
 
 import logging
@@ -29,9 +30,7 @@ from .base_evaluator import Evaluator
 
 class TRECEvaluator(Evaluator):
 
-    def __init__(self,
-                 model: LLMJudgeModel,
-                 options: Optional[dict] = None):
+    def __init__(self, model: LLMJudgeModel, options: Optional[dict] = None):
         self.model = model
         self.retrieval_metric = UMBRELAMetric(model)
         self.generation_metric = AutoNuggetMetric(model)
@@ -46,7 +45,8 @@ class TRECEvaluator(Evaluator):
             self.k_values = options["k_values"]
             self.run_consistency = options.get("run_consistency", False)
 
-    def evaluate(self, multi_rag_result: MultiRAGResult) -> MultiScoredRAGResult:
+    def evaluate(self,
+                 multi_rag_result: MultiRAGResult) -> MultiScoredRAGResult:
         """ Evaluate the RAG results for a single query.
         This method processes each RAG result, computes various metrics,
         and returns a MultiScoredRAGResult containing all scored results.
@@ -127,11 +127,14 @@ class TRECEvaluator(Evaluator):
                                                 scores=rag_scores)
                 all_scored_results.append(scored_result)
         return MultiScoredRAGResult(query_id=multi_rag_result.query_id,
-                                query=multi_rag_result.query,
-                                scored_rag_results=all_scored_results)
+                                    query=multi_rag_result.query,
+                                    scored_rag_results=all_scored_results)
 
     @classmethod
-    def plot_metrics(cls, csv_files: list, output_file: str = "metrics_comparison.png"):
+    def plot_metrics(cls,
+                     csv_files: list,
+                     output_file: str = "metrics_comparison.png",
+                     metrics_to_plot=None):
         """
         Plot metrics from CSV files as subplots in a single figure.
 
@@ -147,36 +150,35 @@ class TRECEvaluator(Evaluator):
         Parameters:
             csv_files (list): List of CSV file paths.
             output_file (str): File name to save the resulting figure.
+            metrics_to_plot (list, optional): List of metric column names to plot.
         """
 
+        if metrics_to_plot is None:
+            metrics_to_plot = [
+                "retrieval_score_mean_umbrela_score",
+                "generation_score_vital_nuggetizer_score",
+                "generation_score_hallucination_scores",
+                "generation_score_citation_f1_score",
+                "questions_answered",
+            ]
+
         def get_answered_percentage(df):
-            # First, fill empty values with a valid default JSON or NaN
-            df_processed = df.copy()
             answered_count = 0
             total_valid_rows = 0
-
-            for idx, row in df_processed.iterrows():
-                value = row["generation_score_no_answer_score"]
-
-                # Skip NaN values
+            for idx, row in df.iterrows():
+                value = row.get("generation_score_no_answer_score", None)
                 if pd.isna(value):
                     continue
-
                 try:
                     answer_data = json.loads(value)
                     total_valid_rows += 1
-                    if answer_data["query_answered"] == "yes":
+                    if answer_data.get("query_answered", "") == "yes":
                         answered_count += 1
-                except (ValueError, json.JSONDecodeError, TypeError):
+                except Exception:
                     logging.error(f"Invalid JSON at row index {idx}")
+            return (answered_count / total_valid_rows) * 100 if total_valid_rows > 0 else 0
 
-            if total_valid_rows > 0:
-                return (answered_count / total_valid_rows) * 100
-            return 0
-
-        # Helper function to draw a boxplot on the given axis.
         def plot_boxplot(ax, data_list, xtick_labels, metric_title, single=True):
-            # Positions: single CSV gets position [1], multiple CSVs get positions 1...n.
             positions = [1] if single else list(range(1, len(data_list) + 1))
             bp = ax.boxplot(
                 data_list,
@@ -195,139 +197,84 @@ class TRECEvaluator(Evaluator):
             else:
                 ax.set_xticks([])
 
-            # For each box, add a horizontal mean line spanning only the box width.
-            # Use the box's path vertices to determine the box boundaries.
             for i, d in enumerate(data_list):
                 if len(d) > 0:
                     mean_val = np.mean(d)
-                    # Retrieve the x-coordinates of the box using its path vertices.
                     box_path = bp["boxes"][i].get_path()
                     box_x_data = box_path.vertices[:, 0]
                     left, right = np.min(box_x_data), np.max(box_x_data)
-                    if i == 0:
-                        ax.hlines(
-                            mean_val,
-                            left,
-                            right,
-                            color="blue",
-                            linestyle="--",
-                            linewidth=2,
-                            label="Mean",
-                        )
-                    else:
-                        ax.hlines(
-                            mean_val,
-                            left,
-                            right,
-                            color="blue",
-                            linestyle="--",
-                            linewidth=2,
-                        )
-                    # Scatter the mean point at the box's center.
+                    ax.hlines(mean_val, left, right, color="blue", linestyle="--", linewidth=2,
+                              label="Mean" if i == 0 else None)
                     x_pos = positions[i] if not single else 1
                     ax.scatter(x_pos, mean_val, color="blue", s=50, zorder=5)
-                    # Only label the first median for the legend.
                     if i == 0:
                         bp["medians"][i].set_label("Median")
             ax.legend(fontsize=12 if single else 9)
 
-        # Define the metrics to be plotted
-        metrics = [
-            "retrieval_score_mean_umbrela_score",
-            "generation_score_vital_nuggetizer_score",
-            "generation_score_hallucination_scores",
-            "generation_score_citation_f1_score",
-        ]
+        num_metrics = len(metrics_to_plot)
+        ncols = min(3, num_metrics)
+        nrows = math.ceil(num_metrics / ncols)
+        fig, axs = plt.subplots(nrows, ncols, figsize=(7 * ncols, 5 * nrows))
+        axs = axs.flatten() if isinstance(axs, np.ndarray) else [axs]
 
-        # Create a 2x3 grid of subplots (added one more column)
-        fig, axs = plt.subplots(2, 3, figsize=(20, 10))
-        axs = axs.flatten()
-
-        # Plot the first 4 metrics using existing logic
         if len(csv_files) == 1:
             df = pd.read_csv(csv_files[0])
-            for i, metric in enumerate(metrics):
+            for i, metric in enumerate(metrics_to_plot):
                 ax = axs[i]
+                if metric == "questions_answered":
+                    percentage = get_answered_percentage(df)
+                    ax.bar([os.path.basename(csv_files[0])], [percentage], color="skyblue")
+                    ax.set_title("Questions Answered", fontsize=16)
+                    ax.set_ylabel("Percentage (%)", fontsize=14)
+                    ax.set_ylim(0, 100)
+                    ax.grid(axis="y", linestyle="--", alpha=0.7)
+                    ax.text(0, percentage + 1, f"{percentage:.1f}%", ha="center", fontsize=12)
+                    continue
+
                 if metric in df.columns:
                     values = df[metric].dropna().values
-                    plot_boxplot(
-                        ax,
-                        [values],
-                        [os.path.basename(csv_files[0])],
-                        metric.replace("_", " ").title(),
-                        single=True,
-                    )
-                    if metric == "retrieval_score_mean_umbrela_score":
-                        ax.set_ylim(0, 3)
-                    else:
-                        ax.set_ylim(0, 1)
+                    plot_boxplot(ax, [values], [os.path.basename(csv_files[0])], metric.replace("_", " ").title(),
+                                 single=True)
+                    ax.set_ylim(0, 3 if metric == "retrieval_score_mean_umbrela_score" else 1)
                 else:
-                    ax.text(
-                        0.5,
-                        0.5,
-                        f"No data for {metric}",
-                        transform=ax.transAxes,
-                        ha="center",
-                        va="center",
-                        fontsize=10,
-                    )
-
-            # Add Questions Answered bar plot
-            ax = axs[4]
-            percentage = get_answered_percentage(df)
-            ax.bar([os.path.basename(csv_files[0])], [percentage], color="skyblue")
-            ax.set_title("Questions Answered", fontsize=16)
-            ax.set_ylabel("Percentage (%)", fontsize=14)
-            ax.set_ylim(0, 100)
-            ax.grid(axis="y", linestyle="--", alpha=0.7)
-            for i, v in enumerate([percentage]):
-                ax.text(i, v + 1, f"{v:.1f}%", ha="center", fontsize=12)
+                    ax.text(0.5, 0.5, f"No data for {metric}", transform=ax.transAxes, ha="center", va="center",
+                            fontsize=10)
 
         else:
-            for i, metric in enumerate(metrics):
+            for i, metric in enumerate(metrics_to_plot):
                 ax = axs[i]
                 data_list = []
                 labels = []
+                if metric == "questions_answered":
+                    percentages = []
+                    for csv_file in csv_files:
+                        df = pd.read_csv(csv_file)
+                        percentages.append(get_answered_percentage(df))
+                        labels.append(os.path.basename(csv_file))
+                    ax.bar(range(len(percentages)), percentages, color="skyblue")
+                    ax.set_title("Questions Answered", fontsize=12)
+                    ax.set_ylabel("Percentage (%)", fontsize=10)
+                    ax.set_xticks(range(len(labels)))
+                    ax.set_xticklabels(labels, rotation=45, fontsize=10)
+                    ax.set_ylim(0, 100)
+                    ax.grid(axis="y", linestyle="--", alpha=0.7)
+                    for j, v in enumerate(percentages):
+                        ax.text(j, v + 1, f"{v:.1f}%", ha="center", fontsize=10)
+                    continue
+
                 for csv_file in csv_files:
                     df = pd.read_csv(csv_file)
+                    labels.append(os.path.basename(csv_file))
                     if metric in df.columns:
                         data_list.append(df[metric].dropna().values)
                     else:
                         data_list.append(np.array([]))
-                    labels.append(os.path.basename(csv_file))
-                plot_boxplot(
-                    ax,
-                    data_list,
-                    labels,
-                    metric.replace("_", " ").title(),
-                    single=False,
-                )
-                if metric == "retrieval_score_mean_umbrela_score":
-                    ax.set_ylim(0, 3)
-                else:
-                    ax.set_ylim(0, 1)
 
-            # Add Questions Answered bar plot for multiple CSVs
-            ax = axs[4]
-            percentages = []
-            labels = []
-            for csv_file in csv_files:
-                df = pd.read_csv(csv_file)
-                percentages.append(get_answered_percentage(df))
-                labels.append(os.path.basename(csv_file))
+                plot_boxplot(ax, data_list, labels, metric.replace("_", " ").title(), single=False)
+                ax.set_ylim(0, 3 if metric == "retrieval_score_mean_umbrela_score" else 1)
 
-            ax.bar(range(len(percentages)), percentages, color="skyblue")
-            ax.set_title("Questions Answered", fontsize=12)
-            ax.set_ylabel("Percentage (%)", fontsize=10)
-            ax.set_xticks(range(len(labels)))
-            ax.set_xticklabels(labels, rotation=45, fontsize=10)
-            ax.set_ylim(0, 100)
-            ax.grid(axis="y", linestyle="--", alpha=0.7)
-            for i, v in enumerate(percentages):
-                ax.text(i, v + 1, f"{v:.1f}%", ha="center", fontsize=10)
-
-        # Hide the last subplot (since we're using 5 out of 6 slots)
-        axs[5].set_visible(False)
+        for ax in axs[num_metrics:]:
+            ax.set_visible(False)
 
         fig.suptitle("Open RAG Eval Metrics", fontsize=16)
         plt.tight_layout(rect=[0, 0.03, 1, 0.95])
@@ -335,7 +282,8 @@ class TRECEvaluator(Evaluator):
         plt.close(fig)
         print(f"Graph saved to {output_file}")
 
-    def to_csv(self, multi_scored_results: List[MultiScoredRAGResult], file_path: str) -> None:
+    def to_csv(self, multi_scored_results: List[MultiScoredRAGResult],
+               file_path: str) -> None:
         """
         Saves the scored results to a CSV file.
 
@@ -353,18 +301,23 @@ class TRECEvaluator(Evaluator):
             # Only use the first scored result from each MultiScoredRAGResult
             result = multi_scored_result.scored_rag_results[0]
             result_dict = {}
-
+            result_dict['query_id'] = multi_scored_result.query_id
+            result_dict['query'] = multi_scored_result.query
             # Get fields if they exist
             if result.rag_result and result.rag_result.retrieval_result:
-                result_dict["query"] = result.rag_result.retrieval_result.query
-                result_dict["retrieved_passages"] = json.dumps(result.rag_result.retrieval_result.retrieved_passages)
+                result_dict["retrieved_passages"] = json.dumps(
+                    result.rag_result.retrieval_result.retrieved_passages)
 
             if result.rag_result and result.rag_result.generation_result:
-                result_dict["query"] = result.rag_result.generation_result.query
-                generated_answer_dict = [{"text": part.text,
-                                          "citations": part.citations} for part in
-                                         result.rag_result.generation_result.generated_answer]
-                result_dict["generated_answer"] = json.dumps(generated_answer_dict)
+                generated_answer_dict = [
+                    {
+                        "text": part.text,
+                        "citations": part.citations
+                    } for part in
+                    result.rag_result.generation_result.generated_answer
+                ]
+                result_dict["generated_answer"] = json.dumps(
+                    generated_answer_dict)
 
             # Add scores if they exist
             if result.scores and result.scores.retrieval_score:
@@ -379,3 +332,32 @@ class TRECEvaluator(Evaluator):
 
         df = pd.DataFrame(results_dict)
         df.to_csv(file_path, index=False)
+
+    def get_consolidated_columns(self) -> List[str]:
+        """
+        Returns a list of columns to add to the consolidated CSV file.
+        This includes all retrieval and generation score columns.
+        """
+        return [
+            'query_id', 'query', 'retrieved_passages', 'generated_answer',
+            'retrieval_score_umbrela_scores',
+            'retrieval_score_precision_metrics',
+            'retrieval_score_mean_umbrela_score',
+            'generation_score_autonugget_scores',
+            'generation_score_mean_nugget_assignment_score',
+            'generation_score_vital_nuggetizer_score',
+            'generation_score_hallucination_scores',
+            'generation_score_citation_scores',
+            'generation_score_citation_f1_score',
+            'generation_score_no_answer_score'
+        ]
+
+    def get_metrics_to_plot(self) -> List[str]:
+        """ Returns a list of metrics to plot."""
+        return [
+            "retrieval_score_mean_umbrela_score",
+            "generation_score_vital_nuggetizer_score",
+            "generation_score_hallucination_scores",
+            "generation_score_citation_f1_score",
+            "questions_answered"
+        ]
