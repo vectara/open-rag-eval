@@ -1,11 +1,12 @@
 from abc import ABC, abstractmethod
 from concurrent.futures import ThreadPoolExecutor
-from typing import List, Optional, TypeVar, Generic
+from typing import List, Optional, TypeVar, Generic, Dict
 from tqdm import tqdm
 
 from open_rag_eval.data_classes.rag_results import MultiRAGResult
 
 T = TypeVar("T")
+
 
 class Evaluator(ABC, Generic[T]):
 
@@ -38,12 +39,17 @@ class Evaluator(ABC, Generic[T]):
         """Evaluate results for a single query (which may include multiple runs)."""
         pass
 
-    def evaluate_batch(self,
-                       multi_rag_results: List[MultiRAGResult],
-                       max_workers: Optional[int] = 5) -> List[T]:
+    def evaluate_batch(
+        self,
+        multi_rag_results: List[MultiRAGResult],
+        max_workers: Optional[int] = 5,
+        precomputed_metric_scores_by_query: Optional[Dict[str, Dict[
+            str, List[float]]]] = None
+    ) -> List[T]:
         """Evaluate a batch of results.
         This method can be overridden by child classes to return different result types.
         """
+        _ = precomputed_metric_scores_by_query
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
             eval_scores = list(
                 tqdm(
@@ -53,3 +59,11 @@ class Evaluator(ABC, Generic[T]):
                     f"Evaluating using {self.__class__.__name__} evaluator.",
                 ))
         return eval_scores
+
+    def collect_scores_for_consistency(
+            self,
+            scored_results: T,
+            scores_for_consistency: dict[str, dict[str, list[float]]],
+            max_workers: Optional[int] = 5
+    ) -> dict[str, dict[str, list[float]]]:
+        raise NotImplementedError

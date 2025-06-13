@@ -16,7 +16,7 @@ from omegaconf import OmegaConf, ListConfig, DictConfig
 from open_rag_eval import connectors, models
 from open_rag_eval import evaluators
 from open_rag_eval.rag_results_loader import RAGResultsLoader
-
+from open_rag_eval.utils.constants import CONSISTENCYEVALUATOR
 
 def get_evaluator(evaluator_config: Dict[str, Any]) -> evaluators.Evaluator:
     """
@@ -90,7 +90,6 @@ def get_connector(config: Dict[str, Any]) -> connectors.Connector:
     except (ImportError, AttributeError) as e:
         raise ImportError(
             f"Could not load connector {connector_type}: {str(e)}") from e
-
 
 
 def merge_eval_results(results_folder, config, per_evaluator_columns=None):
@@ -206,36 +205,65 @@ def run_eval(config_path: str):
 
     # Run evaluation
     per_evaluator_columns = {}
-    evaluator_configs = config.evaluator if isinstance(
-        config.evaluator, ListConfig) else [config.evaluator]
+    precomputed_metric_scores_by_query = {}
+
+    # Normalize to list
+    evaluator_configs = config.evaluator if isinstance(config.evaluator, ListConfig) else [config.evaluator]
+
+    # Separate consistency evaluator if present
+    evaluator_configs_filtered = []
+    consistency_eval_config = None
     for eval_config in evaluator_configs:
+        if eval_config.type == CONSISTENCYEVALUATOR:
+            consistency_eval_config = eval_config
+        else:
+            evaluator_configs_filtered.append(eval_config)
+
+    # Append consistency evaluator last, if it exists
+    if consistency_eval_config:
+        evaluator_configs_filtered.append(consistency_eval_config)
+
+    # Run all evaluators
+    for eval_config in evaluator_configs_filtered:
         evaluator_type = eval_config.type
         evaluator = get_evaluator(eval_config)
-        scored_results = evaluator.evaluate_batch(rag_results)
-        eval_results_file = f"{evaluator_type}-{config.eval_results_file}"
-        eval_results_path = os.path.join(results_folder, eval_results_file)
-        evaluator.to_csv(scored_results, eval_results_path)
 
+        # Evaluate (pass precomputed scores only for consistency evaluator)
+        if evaluator_type == CONSISTENCYEVALUATOR:
+            results = evaluator.evaluate_batch(
+                rag_results, precomputed_metric_scores_by_query=precomputed_metric_scores_by_query
+            )
+        else:
+            results = evaluator.evaluate_batch(rag_results)
+            if getattr(eval_config, "options", {}).get("run_consistency", False):
+                precomputed_metric_scores_by_query = evaluator.collect_scores_for_consistency(
+                    results, precomputed_metric_scores_by_query
+                )
+
+        # Save results
+        eval_results_path = os.path.join(results_folder, f"{evaluator_type}-{config.eval_results_file}")
+        evaluator.to_csv(results, eval_results_path)
+
+        # Plot results
         try:
             df = pd.read_csv(eval_results_path)
-            if not df.empty:
-                per_evaluator_columns[evaluator_type] = evaluator.get_consolidated_columns()
-                metrics_to_plot = evaluator.get_metrics_to_plot()
-                metrics_file = f'{evaluator_type}-{config.metrics_file}'
-                evaluator.plot_metrics(
-                    csv_files=[eval_results_path],
-                    output_file=os.path.join(results_folder, metrics_file),
-                    metrics_to_plot=metrics_to_plot
-                )
-            else:
+            if df.empty:
                 logging.warning(f"Skipping plot: {eval_results_path} is empty.")
-        except FileNotFoundError:
-            logging.warning(f"CSV file not found: {eval_results_path}")
-        except EmptyDataError:
-            logging.warning(f"Skipping plot: {eval_results_path} is completely empty (no header, no data).")
+                continue
+
+            per_evaluator_columns[evaluator_type] = evaluator.get_consolidated_columns()
+            evaluator.plot_metrics(
+                csv_files=[eval_results_path],
+                output_file=os.path.join(results_folder, f"{evaluator_type}-{config.metrics_file}"),
+                metrics_to_plot=evaluator.get_metrics_to_plot()
+            )
+            print(f"Graph saved to {os.path.join(results_folder, f'{evaluator_type}-{config.metrics_file}')}")
+        except (FileNotFoundError, EmptyDataError):
+            logging.warning(f"Skipping plot: {eval_results_path} not found or empty.")
         except Exception as e:
             logging.exception(f"Failed to read or plot metrics from {eval_results_path}: {str(e)}")
 
+    # Merge results from all evaluators into a single CSV file
     merge_eval_results(results_folder,
                        config,
                        per_evaluator_columns=per_evaluator_columns)
