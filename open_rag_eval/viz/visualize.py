@@ -109,13 +109,11 @@ def create_nugget_dataframe(data):
         return None
 
     try:
-        df = pd.DataFrame(
-            {
-                "Nugget": data.get("nuggets", []),
-                "Label": data.get("labels", []),
-                "Assignment": data.get("assignments", []),
-            }
-        )
+        df = pd.DataFrame({
+            "Nugget": data.get("nuggets", []),
+            "Label": data.get("labels", []),
+            "Assignment": data.get("assignments", []),
+        })
 
         # Format assignments with colors
         df["Assignment"] = df["Assignment"].apply(format_assignment)
@@ -137,19 +135,17 @@ def format_aggregate_metrics(metrics_dict):
 def main():
     st.title("Open RAG Evaluation Viewer")
 
-    # File uploader
     uploaded_file = st.file_uploader("Upload CSV file", type=["csv"])
 
     if uploaded_file is not None:
-        # Load data
         df = load_data(uploaded_file)
 
-        # Display row selector
         st.subheader("Select a row to view details")
         row_index = st.selectbox(
             "Select row",
             range(len(df)),
-            format_func=lambda x: f"Row {x} - Query: {df.iloc[x]['query'][:50]}...",
+            format_func=lambda x:
+            f"Row {x} - Query: {df.iloc[x]['query'][:50]}...",
         )
 
         if row_index is not None:
@@ -159,16 +155,18 @@ def main():
             st.subheader("Query")
             st.text(selected_row["query"])
 
-            # Display retrieved passages
+            # Retrieved Passages + UMBRELA
             st.subheader("Retrieved Passages")
-            passages = parse_retrieved_passages(selected_row["retrieved_passages"])
+            passages = {}
+            if "retrieved_passages" in selected_row:
+                passages = parse_retrieved_passages(
+                    selected_row["retrieved_passages"])
 
-            # Parse umbrella scores
-            umbrela_scores = parse_json_column(
-                selected_row["retrieval_score_umbrela_scores"]
-            )
+            umbrela_scores = {}
+            if "retrieval_score_umbrela_scores" in selected_row:
+                umbrela_scores = parse_json_column(
+                    selected_row["retrieval_score_umbrela_scores"])
 
-            # Display aggregate metrics if they exist in umbrela_scores
             aggregate_metrics = {
                 k: v
                 for k, v in umbrela_scores.items()
@@ -176,38 +174,40 @@ def main():
             }
             if aggregate_metrics:
                 with st.expander("Aggregate Retrieval Metrics"):
-                    formatted_metrics = format_aggregate_metrics(aggregate_metrics)
+                    formatted_metrics = format_aggregate_metrics(
+                        aggregate_metrics)
                     for metric, value in formatted_metrics.items():
                         st.text(f"{metric}: {value}")
 
-            # Display per-passage scores
             passage_scores = {
                 k: v
                 for k, v in umbrela_scores.items()
-                if k not in ["precision_at_5", "ap_at_5", "MRR"]
+                if k not in aggregate_metrics
             }
             for passage_id, passage_text in passages.items():
                 score = passage_scores.get(passage_id, "N/A")
                 styled_score = style_umbrela_score(score)
-                with st.expander(f"Passage {passage_id} (UMBRELA: {styled_score})"):
+                with st.expander(
+                        f"Passage {passage_id} (UMBRELA: {styled_score})"):
                     st.text(passage_text)
 
-            # Display generated answer
-            st.subheader("Generated Answer")
-            answer = parse_generated_answer(selected_row["generated_answer"])
-            st.text(answer)
+            # Generated Answer
+            if "generated_answer" in selected_row:
+                st.subheader("Generated Answer")
+                answer = parse_generated_answer(
+                    selected_row["generated_answer"])
+                st.text(answer)
 
-            # Display no answer score
+            # No Answer Score
             if "generation_score_no_answer_score" in selected_row:
                 st.subheader("Query Answer Attempted")
                 no_answer_data = parse_json_column(
-                    selected_row["generation_score_no_answer_score"]
-                )
+                    selected_row["generation_score_no_answer_score"])
                 st.text(format_no_answer_score(no_answer_data))
 
-            # Display evaluation metrics
+            # Evaluation Metrics
             st.subheader("Evaluation Metrics")
-            metrics_columns = [
+            base_metrics = [
                 "retrieval_score_mean_umbrela_score",
                 "retrieval_score_precision_metrics",
                 "generation_score_autonugget_scores",
@@ -217,68 +217,102 @@ def main():
                 "generation_score_citation_f1_score",
             ]
 
+            metrics_columns = base_metrics
             for column in metrics_columns:
-                if column in selected_row:
-                    with st.expander(f"{column}"):
-                        parsed_data = parse_json_column(selected_row[column])
+                if column not in selected_row:
+                    continue
 
-                        # Special handling for precision-recall metrics
-                        if column == "retrieval_score_precision_recall_metrics":
-                            if isinstance(parsed_data, dict):
-                                st.subheader("Precision@k")
-                                if "precision@" in parsed_data:
-                                    prec_df = pd.DataFrame(
-                                        parsed_data["precision@"].items(),
-                                        columns=["k", "Precision"],
-                                    )
-                                    prec_df["Precision"] = prec_df["Precision"].apply(
-                                        lambda x: f"{x:.3f}"
-                                    )
-                                    st.dataframe(prec_df, hide_index=True)
+                parsed_data = parse_json_column(selected_row[column])
+                with st.expander(f"{column}"):
+                    if column == "retrieval_score_precision_recall_metrics" and isinstance(
+                            parsed_data, dict):
+                        st.subheader("Precision@k")
+                        if "precision@" in parsed_data:
+                            prec_df = pd.DataFrame(
+                                parsed_data["precision@"].items(),
+                                columns=["k", "Precision"])
+                            prec_df["Precision"] = prec_df["Precision"].apply(
+                                lambda x: f"{x:.3f}")
+                            st.dataframe(prec_df, hide_index=True)
 
-                                st.subheader("Average Precision@k")
-                                if "AP@" in parsed_data:
-                                    ap_df = pd.DataFrame(
-                                        parsed_data["AP@"].items(), columns=["k", "AP"]
-                                    )
-                                    ap_df["AP"] = ap_df["AP"].apply(
-                                        lambda x: f"{x:.3f}"
-                                    )
-                                    st.dataframe(ap_df, hide_index=True)
+                        st.subheader("Average Precision@k")
+                        if "AP@" in parsed_data:
+                            ap_df = pd.DataFrame(parsed_data["AP@"].items(),
+                                                 columns=["k", "AP"])
+                            ap_df["AP"] = ap_df["AP"].apply(
+                                lambda x: f"{x:.3f}")
+                            st.dataframe(ap_df, hide_index=True)
 
-                                if "MRR" in parsed_data:
-                                    st.subheader("Mean Reciprocal Rank")
-                                    st.text(f"{parsed_data['MRR']:.3f}")
+                        if "MRR" in parsed_data:
+                            st.subheader("Mean Reciprocal Rank")
+                            st.text(f"{parsed_data['MRR']:.3f}")
+                        continue
 
-                        # Special handling for autonugget scores
-                        elif column == "generation_score_autonugget_scores":
-                            if isinstance(parsed_data, dict):
-                                # Display overall scores
-                                st.subheader("Overall Scores")
-                                if "nuggetizer_scores" in parsed_data:
-                                    scores_df = pd.DataFrame(
-                                        parsed_data["nuggetizer_scores"].items(),
-                                        columns=["Metric", "Scores"],
-                                    )
-                                    scores_df["Scores"] = scores_df["Scores"].apply(
-                                        lambda x: f"{x:.2%}"
-                                    )
-                                    st.dataframe(scores_df, hide_index=True)
+                    if column == "generation_score_autonugget_scores" and isinstance(
+                            parsed_data, dict):
+                        st.subheader("Overall Scores")
+                        if "nuggetizer_scores" in parsed_data:
+                            scores_df = pd.DataFrame(
+                                parsed_data["nuggetizer_scores"].items(),
+                                columns=["Metric", "Scores"])
+                            scores_df["Scores"] = scores_df["Scores"].apply(
+                                lambda x: f"{x:.2%}")
+                            st.dataframe(scores_df, hide_index=True)
 
-                                # Display nugget details
-                                st.subheader("Nugget Analysis")
-                                nugget_df = create_nugget_dataframe(parsed_data)
-                                if nugget_df is not None:
-                                    st.dataframe(nugget_df, hide_index=True)
-                        else:
-                            if isinstance(parsed_data, dict):
-                                st.json(parsed_data)
-                            else:
-                                st.text(
-                                    f"{parsed_data:.2f}"
-                                    if isinstance(parsed_data, float)
-                                    else parsed_data
-                                )
+                        st.subheader("Nugget Analysis")
+                        nugget_df = create_nugget_dataframe(parsed_data)
+                        if nugget_df is not None:
+                            st.dataframe(nugget_df, hide_index=True)
+                        continue
+
+                    if isinstance(parsed_data, dict):
+                        st.json(parsed_data)
+                    else:
+                        st.text(f"{parsed_data:.2f}" if isinstance(
+                            parsed_data, float) else parsed_data)
+
+            # Fancy Consistency Metrics Viewer
+            consistency_fields = {
+                col: parse_json_column(selected_row[col])
+                for col in selected_row.index
+                if col.startswith("consistency_")
+            }
+
+            if consistency_fields:
+                with st.expander("Consistency Metrics"):
+                    selected_metric = st.selectbox(
+                        "Choose a consistency metric",
+                        options=list(consistency_fields.keys()),
+                        format_func=lambda x: x.replace(
+                            "consistency_", "").replace("_", " ").title())
+
+                    parsed = consistency_fields[selected_metric]
+                    if isinstance(parsed, list) and all(
+                            isinstance(x, (float, int)) for x in parsed):
+                        try:
+                            series = pd.Series(parsed)
+                            mean = series.mean()
+                            std = series.std()
+                            q1 = series.quantile(0.25)
+                            q3 = series.quantile(0.75)
+                            iqr = q3 - q1
+                            min_val = series.min()
+                            max_val = series.max()
+
+                            st.text(f"Mean: {mean:.3f}")
+                            st.text(f"Std Dev: {std:.3f}")
+                            st.text(f"Min: {min_val:.3f}")
+                            st.text(f"Max: {max_val:.3f}")
+                            st.text(f"IQR: {iqr:.3f}")
+                        except Exception as e:
+                            st.warning(
+                                f"Could not compute stats for {selected_metric}: {e}"
+                            )
+                            st.text(parsed)
+                    elif isinstance(parsed, dict):
+                        st.json(parsed)
+                    else:
+                        st.text(parsed)
 
 
 if __name__ == "__main__":
