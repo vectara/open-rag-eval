@@ -9,6 +9,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 
+
 from open_rag_eval.data_classes.rag_results import MultiRAGResult
 from open_rag_eval.data_classes.eval_scores import (
     ConsistencyResult,)
@@ -17,6 +18,7 @@ from open_rag_eval.metrics.bert_score_similarity_metric import BERTScoreSimilari
 from open_rag_eval.metrics.rouge_score_similarity_metric import ROUGEScoreSimilarityMetric
 from open_rag_eval.utils.constants import BERT_SCORE, ROUGE_SCORE, HALLUCINATION_SCORES
 from open_rag_eval.metrics import HallucinationMetric
+from open_rag_eval.utils.constants import CONSISTENCY_STAT, CONSISTENCY
 
 
 class ConsistencyEvaluator(Evaluator):
@@ -36,7 +38,7 @@ class ConsistencyEvaluator(Evaluator):
         self.options = options or {}
         self.metric_calculators = []
         self.metric_names = set([
-            "consistency_" + metric
+            f"{CONSISTENCY_STAT}_{metric}"
             for metric in [BERT_SCORE, ROUGE_SCORE, HALLUCINATION_SCORES]
         ])
         # Default metric names and their default constructors
@@ -171,7 +173,7 @@ class ConsistencyEvaluator(Evaluator):
         if precomputed_metric_scores_by_query:
             for metric in precomputed_metric_scores_by_query[list(
                     precomputed_metric_scores_by_query.keys())[0]].keys():
-                self.metric_names.add(f"consistency_{metric}")
+                self.metric_names.add(f"{CONSISTENCY_STAT}_{metric}")
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
             eval_scores = list(
                 tqdm(
@@ -193,26 +195,40 @@ class ConsistencyEvaluator(Evaluator):
                      output_file="consistency_metrics.png",
                      metrics_to_plot=None):
         """
-        Plot consistency metrics from CSV files as subplots in a single figure.
+        Plot consistency scores from CSV files using per-query statistics.
 
-        - For a single CSV file, each subplot displays a boxplot for the metric,
-          based on all pairwise similarity scores (across all queries).
-          It overlays query-level mean ± IQR, mean ± STD, and median.
-        - For multiple CSV files, grouped boxplots show distributions,
-          and dots indicate per-query aggregated statistics.
-        - A gray caption explains the plot content on each subplot.
+        For each query, a consistency score is computed as:
+            mean / (1 + std)
+        where mean and std are computed over the multiple generations for that query.
+
+        - For a single CSV file, each subplot displays a boxplot of these per-query consistency scores.
+          This highlights how consistent the model is across different queries for a given metric.
+          Horizontal lines indicate the overall mean (dashed red) and median (solid orange) of consistency scores.
+
+        - For multiple CSV files, each subplot displays grouped boxplots (one per file),
+          allowing comparison of per-query consistency distributions across systems.
+          Mean and median lines are drawn per group to show central tendency.
 
         Args:
             csv_files (list): List of CSV file paths.
             output_file (str): Path to save the output plot.
-            metrics_to_plot (list, optional): List of metric names to plot.
+            metrics_to_plot (list, optional): List of metric column names to include in the plot.
         """
 
+        score_name_to_display_name = {
+            "consistency_vital_nuggetizer_score": "Groundedness Score",
+            "consistency_citation_f1_score": "Citations Score",
+            "consistency_hallucination_scores": "Factuality Score",
+            "consistency_bert_score": "BERT Score",
+            "consistency_rouge_score": "ROUGE-L Score",
+            "consistency_mean_umbrela_score": "Retrieval Score (Mean UMBRELA)",
+        }
+        max_possible_scores ={
+            "consistency_mean_umbrela_score": 3.0,
+        }
+
         if metrics_to_plot is None:
-            metrics_to_plot = [
-                "consistency_" + metric
-                for metric in [BERT_SCORE, ROUGE_SCORE, HALLUCINATION_SCORES]
-            ]
+            metrics_to_plot = [f"{CONSISTENCY}_{metric}" for metric in [BERT_SCORE, ROUGE_SCORE, HALLUCINATION_SCORES]]
         num_metrics = len(metrics_to_plot)
         ncols = min(3, num_metrics)
         nrows = math.ceil(num_metrics / ncols)
@@ -238,25 +254,14 @@ class ConsistencyEvaluator(Evaluator):
                                 va="center",
                                 fontsize=12)
                     continue
+                per_query_consistency_scores = []
 
-                all_values = []
-                means, stds, iqrs, medians = [], [], [], []
-
-                for json_str in df[metric].dropna():
-                    try:
-                        metric_data = json.loads(json_str)
-                        values = metric_data["values"]
-                        stats = metric_data["stats"]
-
-                        all_values.extend(values)
-                        means.append(stats["mean"])
-                        stds.append(stats["std"])
-                        iqrs.append(stats["iqr"])
-                        medians.append(np.median(values))
-                    except Exception as e:
-                        logging.warning("Failed to parse %s entry: %s", metric,
-                                        e)
-                if not all_values:
+                for value in df[metric].dropna().values:
+                    consistency_score = float(value)
+                    if metric in max_possible_scores:
+                        consistency_score = consistency_score / max_possible_scores[metric]
+                    per_query_consistency_scores.append(consistency_score)
+                if not per_query_consistency_scores:
                     axs[i].text(0.5,
                                 0.5,
                                 f"No valid {metric.upper()} scores found",
@@ -264,48 +269,34 @@ class ConsistencyEvaluator(Evaluator):
                                 va="center",
                                 fontsize=12)
                     continue
-                axs[i].boxplot(all_values,
+
+                axs[i].boxplot(per_query_consistency_scores,
                                patch_artist=True,
                                boxprops=dict(facecolor="skyblue"))
-
-                mean_val = np.mean(all_values)
-                median_val = np.median(all_values)
+                mean_val = np.mean(per_query_consistency_scores)
+                median_val = np.median(per_query_consistency_scores)
                 axs[i].axhline(mean_val,
                                color="red",
                                linestyle="--",
-                               label=f"Mean (all): {mean_val:.3f}")
+                               label=f"Mean: {mean_val:.3f}")
                 axs[i].axhline(median_val,
-                               color="green",
+                               color="orange",
                                linestyle="-",
-                               label=f"Median (all): {median_val:.3f}")
+                               label=f"Median: {median_val:.3f}")
 
-                axs[i].errorbar([1.1], [np.mean(means)],
-                                yerr=[[0], [np.mean(iqrs)]],
-                                fmt="o",
-                                color="purple",
-                                label="Avg. IQR (25–75%)")
+                if metric in score_name_to_display_name:
+                    display_name = score_name_to_display_name[metric]
+                else:
+                    display_name = " ".join(
+                        w.capitalize() for w in metric.split("_"))
 
-                axs[i].errorbar([1.2], [np.mean(means)],
-                                yerr=[[0], [np.mean(stds)]],
-                                fmt="o",
-                                color="darkgreen",
-                                label="Avg. STD (±1σ)")
+                axs[i].set_title(display_name)
 
-                axs[i].scatter([1.3], [np.mean(medians)],
-                               marker="x",
-                               color="black",
-                               s=70,
-                               label="Avg. Median")
-
-                axs[i].set_title(" ".join(
-                    w.upper() if w in {"bert", "rouge"} else w.capitalize()
-                    for w in metric.split("_")))
-
-                axs[i].set_ylabel("Value")
-                ymin = min(
-                    0,
-                    np.min(all_values))  # ensures y-axis starts at 0 or lower
-                ymax = np.max(all_values) * 1.1  # adds 10% headroom
+                axs[i].set_ylabel("Consistency Score")
+                ymin = min(0, np.min(per_query_consistency_scores)
+                          )  # ensures y-axis starts at 0 or lower
+                ymax = np.max(
+                    per_query_consistency_scores) * 1.1  # adds 10% headroom
                 axs[i].set_ylim(ymin, ymax)
 
                 axs[i].legend()
@@ -313,8 +304,7 @@ class ConsistencyEvaluator(Evaluator):
 
         else:
             for i, metric in enumerate(metrics_to_plot):
-                data = []
-                means, stds, iqrs, medians = [], [], [], []
+                consistency_scores_across_csv = []
                 labels = []
 
                 for csv_file in csv_files:
@@ -322,36 +312,24 @@ class ConsistencyEvaluator(Evaluator):
                     label = os.path.basename(csv_file)
                     labels.append(label)
 
-                    all_vals = []
-                    local_means, local_stds, local_iqrs, local_medians = [], [], [], []
+                    consistency_scores = []
 
                     if metric in df.columns:
-                        for json_str in df[metric].dropna():
-                            try:
-                                metric_data = json.loads(json_str)
-                                values = metric_data["values"]
-                                stats = metric_data["stats"]
+                        for value in df[metric].dropna().values:
+                            consistency_score = float(value)
+                            if metric in max_possible_scores:
+                                consistency_score = consistency_score / max_possible_scores[metric]
+                            consistency_scores.append(consistency_score)
 
-                                all_vals.extend(values)
-                                local_means.append(stats["mean"])
-                                local_stds.append(stats["std"])
-                                local_iqrs.append(stats["iqr"])
-                                local_medians.append(np.median(values))
-                            except Exception as e:
-                                logging.warning(
-                                    "Error parsing %s data in %s: %s", metric,
-                                    csv_file, e)
-                    data.append(all_vals)
-                    means.append(np.mean(local_means))
-                    stds.append(np.mean(local_stds))
-                    iqrs.append(np.mean(local_iqrs))
-                    medians.append(np.mean(local_medians))
+                    consistency_scores_across_csv.append(consistency_scores)
 
                 positions = list(range(1, len(csv_files) + 1))
 
-                # Mean and median across all pairwise values across all CSVs
-                all_values_flat = [val for sublist in data for val in sublist]
-                if not all_values_flat:
+                consistency_scores_across_csv_flat = [
+                    val for sublist in consistency_scores_across_csv
+                    for val in sublist
+                ]
+                if not consistency_scores_across_csv_flat:
                     axs[i].text(0.5,
                                 0.5,
                                 f"No valid {metric.upper()} scores found",
@@ -359,67 +337,70 @@ class ConsistencyEvaluator(Evaluator):
                                 va="center",
                                 fontsize=12)
                     continue
-                axs[i].boxplot(data,
+
+                # Determine display name
+                if metric in score_name_to_display_name:
+                    display_name = score_name_to_display_name[metric]
+                else:
+                    display_name = " ".join(
+                        w.capitalize() for w in metric.split("_"))
+
+                # Boxplot
+                axs[i].boxplot(consistency_scores_across_csv,
                                patch_artist=True,
                                boxprops=dict(facecolor="skyblue"),
                                positions=positions)
+
+                # Axis labels
                 axs[i].set_xticks(positions)
                 axs[i].set_xticklabels(labels, rotation=45)
-                axs[i].set_title(" ".join(
-                    w.upper() if w in {"bert", "rouge"} else w.capitalize()
-                    for w in metric.split("_")))
-                axs[i].set_ylabel("Pairwise Similarity Score")
+                axs[i].set_title(display_name)
+                axs[i].set_ylabel("Consistency Score")
 
-                ymin = min(0, np.min(all_values_flat))
-                ymax = np.max(all_values_flat) * 1.1
-                axs[i].set_ylim(ymin, ymax)
+                # Limits
+                axs[i].set_ylim(min(0, np.min(consistency_scores_across_csv_flat)), np.max(consistency_scores_across_csv_flat) * 1.1)
 
-                mean_val = np.mean(all_values_flat)
-                median_val = np.median(all_values_flat)
-                axs[i].axhline(mean_val,
-                               color="red",
-                               linestyle="--",
-                               label=f"Mean (all): {mean_val:.3f}")
-                axs[i].axhline(median_val,
-                               color="green",
-                               linestyle="-",
-                               label=f"Median (all): {median_val:.3f}")
-
-                axs[i].errorbar(positions,
-                                means,
-                                yerr=iqrs,
-                                fmt="o",
-                                color="purple",
-                                label="Avg. IQR (25–75%)")
-                axs[i].errorbar([p + 0.1 for p in positions],
-                                means,
-                                yerr=stds,
-                                fmt="o",
-                                color="darkgreen",
-                                label="Avg. STD (±1σ)")
-                axs[i].scatter([p + 0.2 for p in positions],
-                               medians,
-                               marker="x",
-                               color="black",
-                               s=70,
-                               label="Avg. Median")
-
+                # Grid
                 axs[i].grid(True, linestyle="--", alpha=0.6)
+
+                box_width = 0.4  # width of each box on the x-axis
+                for pos, (label, values_group) in enumerate(zip(labels, consistency_scores_across_csv), start=1):
+                    group_mean = np.mean(values_group)
+                    group_median = np.median(values_group)
+
+                    axs[i].hlines(
+                        y=group_mean,
+                        xmin=pos - box_width / 4,
+                        xmax=pos + box_width / 4,
+                        color="red",
+                        linestyle="--",
+                        linewidth=2,
+                        label=f"{label} Mean: {group_mean:.3f}"
+                    )
+
+                    axs[i].hlines(
+                        y=group_median,
+                        xmin=pos - box_width / 4,
+                        xmax=pos + box_width / 4,
+                        color="orange",
+                        linestyle="-",
+                        linewidth=2,
+                        label=f"{label} Median: {group_median:.3f}"
+                    )
+
                 axs[i].legend()
 
         # One shared caption at the bottom center
         fig.text(
             0.5,
-            -0.03,
-            "Box: all pairwise scores • Dots: per-query stats (mean, median, IQR, STD)",
+            -0.07,
+            "Boxplots show the distribution of per-query consistency scores for each metric.\n"
+            "Each score is computed as: mean / (1 + std), where mean and std are calculated across multiple generations of a query.\n"
+            "Higher scores indicate both high-quality and stable outputs. Red dashed lines show the mean; orange solid lines show the median.\n"
+            "When comparing multiple systems, grouped boxplots illustrate the relative consistency across queries for each system.",
             ha="center",
-            fontsize=11,
-            color="black",
-            fontweight="semibold",
-            bbox=dict(facecolor="white",
-                      edgecolor="gray",
-                      boxstyle="round,pad=0.3",
-                      alpha=0.85))
+            fontsize=9,
+            bbox=dict(facecolor="white", edgecolor="gray", boxstyle="round,pad=0.4", alpha=0.9))
 
         plt.tight_layout()
         fig.savefig(output_file, dpi=300, bbox_inches="tight")
@@ -456,7 +437,8 @@ class ConsistencyEvaluator(Evaluator):
                     "values": metric_score.values,
                     "stats": metric_score.stats
                 }
-                row["consistency_" + metric_name] = json.dumps(metric_data)
+                row[f"{CONSISTENCY_STAT}_{metric_name}"] = json.dumps(metric_data)
+                row[f"{CONSISTENCY}_{metric_name}"]  = metric_score.stats["consistency"]
 
             # Add each individual RAG result (generated answers and retrieved passages)
             if consistency_result.multi_rag_result:
@@ -495,10 +477,17 @@ class ConsistencyEvaluator(Evaluator):
         columns = ["query_id", "query"]
         for metric in list(self.metric_names):
             columns.append(metric)
+            metric_name = metric.replace(CONSISTENCY_STAT + "_", "")
+            columns.append(f"{CONSISTENCY}_{metric_name}")
+
         return columns
 
     def get_metrics_to_plot(self):
         """
         Returns the list of metrics that this evaluator will plot.
         """
-        return list(self.metric_names)
+        metrics_to_plot = []
+        for metric in list(self.metric_names):
+            metric_name = metric.replace(CONSISTENCY_STAT + "_", "")
+            metrics_to_plot.append(f"{CONSISTENCY}_{metric_name}")
+        return metrics_to_plot
