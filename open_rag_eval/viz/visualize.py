@@ -2,6 +2,9 @@ import streamlit as st
 import pandas as pd
 import json
 from ast import literal_eval
+import re
+from collections import defaultdict
+from open_rag_eval.utils.constants import CONSISTENCY_STAT
 
 
 def load_data(file):
@@ -132,6 +135,21 @@ def format_aggregate_metrics(metrics_dict):
     return formatted
 
 
+def extract_runs(row):
+    """
+    Detect columns named like 'run_1_generated_answer', 'run_2_retrieved_passages', …
+    Returns dict  {run_id: {field_name: cell_value, …}, …}
+    """
+    RUN_COL_RE = re.compile(r"run_(\d+)_(.+)")
+    runs = defaultdict(dict)
+    for col, val in row.items():
+        m = RUN_COL_RE.match(col)
+        if m:
+            run_id, field = m.groups()
+            runs[run_id][field] = val
+    return runs
+
+
 def main():
     st.title("Open RAG Evaluation Viewer")
 
@@ -156,11 +174,12 @@ def main():
             st.text(selected_row["query"])
 
             # Retrieved Passages + UMBRELA
-            st.subheader("Retrieved Passages")
             passages = {}
             if "retrieved_passages" in selected_row:
                 passages = parse_retrieved_passages(
                     selected_row["retrieved_passages"])
+            if passages:
+                st.subheader("Retrieved Passages")
 
             umbrela_scores = {}
             if "retrieval_score_umbrela_scores" in selected_row:
@@ -204,6 +223,31 @@ def main():
                 no_answer_data = parse_json_column(
                     selected_row["generation_score_no_answer_score"])
                 st.text(format_no_answer_score(no_answer_data))
+
+            run_map = extract_runs(selected_row)
+
+            if run_map:  # ⇢ multi-run CSV detected
+                st.subheader("Choose a run to view details")
+                run_ids = sorted(run_map.keys(), key=int)  # ['1','2',…]
+                sel_run = st.selectbox(
+                    "Choose a run",
+                    run_ids,
+                    format_func=lambda r: f"Run {r}"
+                )
+                run_data = run_map[sel_run]
+
+                if "retrieved_passages" in run_data and pd.notna(run_data["retrieved_passages"]):
+                    passages = parse_retrieved_passages(run_data["retrieved_passages"])
+                    if passages:
+                        st.subheader("Retrieved Passages")
+                        for pid, text in passages.items():
+                            with st.expander(f"Passage {pid}"):
+                                st.text(text)
+
+                if "generated_answer" in run_data and pd.notna(run_data["generated_answer"]):
+                    st.subheader("Generated Answer")
+                    answer = parse_generated_answer(run_data["generated_answer"])
+                    st.text(answer)
 
             # Evaluation Metrics
             st.subheader("Evaluation Metrics")
@@ -271,11 +315,10 @@ def main():
                         st.text(f"{parsed_data:.2f}" if isinstance(
                             parsed_data, float) else parsed_data)
 
-            # Fancy Consistency Metrics Viewer
             consistency_fields = {
                 col: parse_json_column(selected_row[col])
                 for col in selected_row.index
-                if col.startswith("consistency_")
+                if col.startswith(CONSISTENCY_STAT)
             }
 
             if consistency_fields:
@@ -284,36 +327,10 @@ def main():
                         "Choose a consistency metric",
                         options=list(consistency_fields.keys()),
                         format_func=lambda x: x.replace(
-                            "consistency_", "").replace("_", " ").title())
+                            CONSISTENCY_STAT, "").replace("_", " ").title())
 
                     parsed = consistency_fields[selected_metric]
-                    if isinstance(parsed, list) and all(
-                            isinstance(x, (float, int)) for x in parsed):
-                        try:
-                            series = pd.Series(parsed)
-                            mean = series.mean()
-                            std = series.std()
-                            q1 = series.quantile(0.25)
-                            q3 = series.quantile(0.75)
-                            iqr = q3 - q1
-                            min_val = series.min()
-                            max_val = series.max()
-
-                            st.text(f"Mean: {mean:.3f}")
-                            st.text(f"Std Dev: {std:.3f}")
-                            st.text(f"Min: {min_val:.3f}")
-                            st.text(f"Max: {max_val:.3f}")
-                            st.text(f"IQR: {iqr:.3f}")
-                        except Exception as e:
-                            st.warning(
-                                f"Could not compute stats for {selected_metric}: {e}"
-                            )
-                            st.text(parsed)
-                    elif isinstance(parsed, dict):
-                        st.json(parsed)
-                    else:
-                        st.text(parsed)
-
+                    st.json(parsed)
 
 if __name__ == "__main__":
     main()
