@@ -22,8 +22,7 @@ evaluator:
   - type: "ConsistencyEvaluator"
     options:
       metrics:
-        - bert_score:
-            model_type: "xlm-roberta-large"
+        - bert_score: { }
         - rouge_score: { }
 
 connector:
