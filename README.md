@@ -83,7 +83,7 @@ How many moons does jupiter have?
 Edit the [eval_config_vectara.yaml](https://github.com/vectara/open-rag-eval/blob/main/config_examples/eval_config_vectara.yaml) file. This file controls the evaluation process, including connector options, evaluator choices, and metric settings. 
 
 * Ensure your queries file is listed under `input_queries`, and fill in the correct values for `generated_answers` and `eval_results_file`
-* Choose an output folder (where all artifacts will be stored) and put it unde `results_folder`
+* Choose an output folder (where all artifacts will be stored) and put it under `results_folder`
 * Update the `connector` section (under `options`/`query_config`) with your Vectara `corpus_key`.
 * Customize any Vectara query parameter to tailor this evaluation to a query configuration set.
 
@@ -137,7 +137,9 @@ We highly recommend using the Open Evaluation Viewer for an intuitive and powerf
 
 Visit https://openevaluation.ai
 
-Upload your `results.csv` file and enjoy:
+Upload your `results.json` file and enjoy:
+Upload your `results.json` file and enjoy:  
+> **Note:** The UI now uses JSON as the default results format (instead of CSV) for improved compatibility and richer data support.
 
 \* Dashboards of evaluation results.
 
@@ -212,7 +214,7 @@ The `open-rag-eval` framework follows these general steps during an evaluation:
 - **Evaluators:** Evaluators compute quality metrics for RAG systems. The framework currently supports two built-in evaluators:
   - **TRECEvaluator:** Evaluates each query independently using retrieval and generation metrics such as UMBRELA, HHEM Score, and others. Returns a `MultiScoredRAGResult`, which holds a list of `ScoredRAGResult` objects, each containing the original `RAGResult` along with the scores assigned by the evaluator and its metrics.
   - **ConsistencyEvaluator** evaluates the consistency of a model's responses across multiple generations for the same query. It currently uses two default metrics:
-    - **BERTScore**: This metric evaluates the semantic similarity between generations using the multilingual `xlm-roberta-large` model, which supports over 100 languages. In this evaluator, `BERTScore` is computed with baseline rescaling enabled (`rescale_with_baseline=True` by default), which normalizes the similarity scores by subtracting language-specific baselines. This adjustment helps produce more interpretable and comparable scores across languages, reducing the inherent bias that transformer models often exhibit toward unrelated sentence pairs. If a language-specific baseline is not available, the evaluator logs a warning and automatically falls back to raw `BERTScore` values, ensuring robustness.
+    - **BERTScore**: This metric evaluates the semantic similarity between generations using the multilingual xlm-roberta-large model (used by default), which supports over 100 languages. In this evaluator, `BERTScore` is computed with baseline rescaling enabled (`rescale_with_baseline=True` by default), which normalizes the similarity scores by subtracting language-specific baselines. This adjustment helps produce more interpretable and comparable scores across languages, reducing the inherent bias that transformer models often exhibit toward unrelated sentence pairs. If a language-specific baseline is not available, the evaluator logs a warning and automatically falls back to raw `BERTScore` values, ensuring robustness.
     - **ROUGE-L**: This metric measures the longest common subsequence (LCS) between two sequences of text, capturing fluency and in-sequence overlap without requiring exact n-gram matches. In this evaluator, `ROUGE-L` is computed without stemming or tokenization, making it most reliable for English-only evaluations. Its accuracy may degrade for other languages due to the lack of language-specific segmentation and preprocessing. As such, it complements `BERTScore` by providing a syntactic alignment signal in English-language scenarios.
   
   Evaluators can be chained. For example, ConsistencyEvaluator can operate on the output of TRECEvaluator. To enable this:

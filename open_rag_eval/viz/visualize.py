@@ -4,7 +4,7 @@ import json
 from ast import literal_eval
 import re
 from collections import defaultdict
-from open_rag_eval.utils.constants import CONSISTENCY_STAT
+from open_rag_eval.utils.constants import CONSISTENCY
 
 
 def load_data(file):
@@ -173,18 +173,27 @@ def main():
             st.subheader("Query")
             st.text(selected_row["query"])
 
+            run_map = extract_runs(selected_row)
+
+            st.subheader("Choose a run to view details")
+            run_ids = sorted(run_map.keys(), key=int)  # ['1','2',…]
+            sel_run = st.selectbox("Choose a run",
+                                   run_ids,
+                                   format_func=lambda r: f"Run {r}")
+            selected_run = run_map[sel_run]
+
             # Retrieved Passages + UMBRELA
             passages = {}
-            if "retrieved_passages" in selected_row:
+            if "retrieved_passages" in selected_run:
                 passages = parse_retrieved_passages(
-                    selected_row["retrieved_passages"])
+                    selected_run["retrieved_passages"])
             if passages:
                 st.subheader("Retrieved Passages")
 
             umbrela_scores = {}
-            if "retrieval_score_umbrela_scores" in selected_row:
+            if "retrieval_score_umbrela_scores" in selected_run:
                 umbrela_scores = parse_json_column(
-                    selected_row["retrieval_score_umbrela_scores"])
+                    selected_run["retrieval_score_umbrela_scores"])
 
             aggregate_metrics = {
                 k: v
@@ -211,62 +220,37 @@ def main():
                     st.text(passage_text)
 
             # Generated Answer
-            if "generated_answer" in selected_row:
+            if "generated_answer" in selected_run:
                 st.subheader("Generated Answer")
                 answer = parse_generated_answer(
-                    selected_row["generated_answer"])
+                    selected_run["generated_answer"])
                 st.text(answer)
 
             # No Answer Score
-            if "generation_score_no_answer_score" in selected_row:
+            if "generation_score_no_answer_score" in selected_run:
                 st.subheader("Query Answer Attempted")
                 no_answer_data = parse_json_column(
-                    selected_row["generation_score_no_answer_score"])
+                    selected_run["generation_score_no_answer_score"])
                 st.text(format_no_answer_score(no_answer_data))
 
-            run_map = extract_runs(selected_row)
-
-            if run_map:  # ⇢ multi-run CSV detected
-                st.subheader("Choose a run to view details")
-                run_ids = sorted(run_map.keys(), key=int)  # ['1','2',…]
-                sel_run = st.selectbox(
-                    "Choose a run",
-                    run_ids,
-                    format_func=lambda r: f"Run {r}"
-                )
-                run_data = run_map[sel_run]
-
-                if "retrieved_passages" in run_data and pd.notna(run_data["retrieved_passages"]):
-                    passages = parse_retrieved_passages(run_data["retrieved_passages"])
-                    if passages:
-                        st.subheader("Retrieved Passages")
-                        for pid, text in passages.items():
-                            with st.expander(f"Passage {pid}"):
-                                st.text(text)
-
-                if "generated_answer" in run_data and pd.notna(run_data["generated_answer"]):
-                    st.subheader("Generated Answer")
-                    answer = parse_generated_answer(run_data["generated_answer"])
-                    st.text(answer)
-
             # Evaluation Metrics
-            st.subheader("Evaluation Metrics")
+            st.subheader("Per Run Evaluation Metrics")
             base_metrics = [
                 "retrieval_score_mean_umbrela_score",
                 "retrieval_score_precision_metrics",
                 "generation_score_autonugget_scores",
                 "generation_score_mean_nugget_assignment_score",
-                "generation_score_hallucination_scores",
+                "generation_score_hallucination_score",
                 "generation_score_citation_scores",
                 "generation_score_citation_f1_score",
             ]
 
             metrics_columns = base_metrics
             for column in metrics_columns:
-                if column not in selected_row:
+                if column not in selected_run:
                     continue
 
-                parsed_data = parse_json_column(selected_row[column])
+                parsed_data = parse_json_column(selected_run[column])
                 with st.expander(f"{column}"):
                     if column == "retrieval_score_precision_recall_metrics" and isinstance(
                             parsed_data, dict):
@@ -318,19 +302,21 @@ def main():
             consistency_fields = {
                 col: parse_json_column(selected_row[col])
                 for col in selected_row.index
-                if col.startswith(CONSISTENCY_STAT)
+                if col.startswith(CONSISTENCY)
             }
 
             if consistency_fields:
+                st.subheader("Consistency Metrics")
                 with st.expander("Consistency Metrics"):
                     selected_metric = st.selectbox(
                         "Choose a consistency metric",
                         options=list(consistency_fields.keys()),
                         format_func=lambda x: x.replace(
-                            CONSISTENCY_STAT, "").replace("_", " ").title())
+                            CONSISTENCY, "").replace("_", " ").title())
 
                     parsed = consistency_fields[selected_metric]
                     st.json(parsed)
+
 
 if __name__ == "__main__":
     main()
