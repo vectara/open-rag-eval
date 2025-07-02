@@ -5,6 +5,9 @@ import logging
 import os
 import json
 
+import matplotlib
+
+matplotlib.use("Agg")  # Use a non-GUI backend
 import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
@@ -52,6 +55,7 @@ class TRECEvaluator(Evaluator):
             # if there is at least one metric to run consistency, set run_consistency to True
             if self.metrics_to_run_consistency:
                 self.run_consistency = True
+        self.to_repeat = 1
 
     def evaluate(self,
                  multi_rag_result: MultiRAGResult) -> MultiScoredRAGResult:
@@ -91,7 +95,7 @@ class TRECEvaluator(Evaluator):
                 assignment_scores = autonugget_scores["assignment_scores"]
                 mean_assignment_score = sum(assignment_scores) / len(
                     assignment_scores)
-                hallucination_scores = hallucination_scores["hhem_score"]
+                hallucination_score = hallucination_scores["hhem_score"]
 
                 rag_scores = RAGScores(
                     RetrievalScores(
@@ -111,8 +115,8 @@ class TRECEvaluator(Evaluator):
                                 mean_assignment_score,
                             "vital_nuggetizer_score":
                                 autonugget_scores["nuggetizer_scores"]["Vital"],
-                            "hallucination_scores":
-                                hallucination_scores,
+                            "hallucination_score":
+                                hallucination_score,
                             "citation_scores":
                                 citation_scores,
                             "citation_f1_score":
@@ -165,7 +169,7 @@ class TRECEvaluator(Evaluator):
             metrics_to_plot = [
                 "retrieval_score_mean_umbrela_score",
                 "generation_score_vital_nuggetizer_score",
-                "generation_score_hallucination_scores",
+                "generation_score_hallucination_score",
                 "generation_score_citation_f1_score",
                 "questions_answered",
             ]
@@ -174,7 +178,9 @@ class TRECEvaluator(Evaluator):
             answered_count = 0
             total_valid_rows = 0
             for idx, row in df.iterrows():
-                value = row.get("generation_score_no_answer_score", None)
+                value = row.get(
+                    "generation_score_no_answer_score", None) or row.get(
+                        "run_1_generation_score_no_answer_score", None)
                 if pd.isna(value):
                     continue
                 try:
@@ -260,8 +266,10 @@ class TRECEvaluator(Evaluator):
                             fontsize=12)
                     continue
 
-                if metric in df.columns:
-                    values = df[metric].dropna().values
+                if metric in df.columns or f"run_1_{metric}" in df.columns:
+                    values = df[metric].dropna(
+                    ).values if metric in df.columns else df[
+                        f"run_1_{metric}"].dropna().values
                     plot_boxplot(ax, [values], [os.path.basename(csv_files[0])],
                                  metric.replace("_", " ").title(),
                                  single=True)
@@ -304,8 +312,10 @@ class TRECEvaluator(Evaluator):
                 for csv_file in csv_files:
                     df = pd.read_csv(csv_file)
                     labels.append(os.path.basename(csv_file))
-                    if metric in df.columns:
-                        data_list.append(df[metric].dropna().values)
+                    if metric in df.columns or f"run_1_{metric}" in df.columns:
+                        data_list.append(df[metric].dropna().values if metric in
+                                         df.columns else df[f"run_1_{metric}"].
+                                         dropna().values)
                     else:
                         data_list.append(np.array([]))
 
@@ -343,35 +353,41 @@ class TRECEvaluator(Evaluator):
             if not multi_scored_result.scored_rag_results:
                 continue
 
-            # Only use the first scored result from each MultiScoredRAGResult
-            result = multi_scored_result.scored_rag_results[0]
-            result_dict = {}
-            result_dict["query_id"] = multi_scored_result.query_id
-            result_dict["query"] = multi_scored_result.query
-            # Get fields if they exist
-            if result.rag_result and result.rag_result.retrieval_result:
-                result_dict["retrieved_passages"] = json.dumps(
-                    result.rag_result.retrieval_result.retrieved_passages)
+            self.to_repeat = max(self.to_repeat,
+                                 len(multi_scored_result.scored_rag_results))
+            result_dict = {"query_id": multi_scored_result.query_id, "query": multi_scored_result.query}
+            for i, result in enumerate(multi_scored_result.scored_rag_results):
+                run_id = f"run_{i + 1}_"
+                # Get fields if they exist
+                if result.rag_result and result.rag_result.retrieval_result:
+                    result_dict[f"{run_id}retrieved_passages"] = json.dumps(
+                        result.rag_result.retrieval_result.retrieved_passages)
 
-            if result.rag_result and result.rag_result.generation_result:
-                generated_answer_dict = [
-                    {
-                        "text": part.text,
-                        "citations": part.citations
-                    } for part in
-                    result.rag_result.generation_result.generated_answer
-                ]
-                result_dict["generated_answer"] = json.dumps(
-                    generated_answer_dict)
+                if result.rag_result and result.rag_result.generation_result:
+                    generated_answer_dict = [
+                        {
+                            "text": part.text,
+                            "citations": part.citations
+                        } for part in
+                        result.rag_result.generation_result.generated_answer
+                    ]
+                    result_dict[f"{run_id}generated_answer"] = json.dumps(
+                        generated_answer_dict)
 
-            # Add scores if they exist
-            if result.scores and result.scores.retrieval_score:
-                for key, value in result.scores.retrieval_score.scores.items():
-                    result_dict[f"retrieval_score_{key}"] = json.dumps(value)
+                # Add scores if they exist
+                if result.scores and result.scores.retrieval_score:
+                    for key, value in result.scores.retrieval_score.scores.items(
+                    ):
+                        result_dict[
+                            f"{run_id}retrieval_score_{key}"] = json.dumps(
+                                value)
 
-            if result.scores and result.scores.generation_score:
-                for key, value in result.scores.generation_score.scores.items():
-                    result_dict[f"generation_score_{key}"] = json.dumps(value)
+                if result.scores and result.scores.generation_score:
+                    for key, value in result.scores.generation_score.scores.items(
+                    ):
+                        result_dict[
+                            f"{run_id}generation_score_{key}"] = json.dumps(
+                                value)
 
             results_dict.append(result_dict)
 
@@ -385,26 +401,31 @@ class TRECEvaluator(Evaluator):
         Returns a list of columns to add to the consolidated CSV file.
         This includes all retrieval and generation score columns.
         """
-        return [
-            "query_id", "query", "retrieved_passages", "generated_answer",
-            "retrieval_score_umbrela_scores",
-            "retrieval_score_precision_metrics",
-            "retrieval_score_mean_umbrela_score",
-            "generation_score_autonugget_scores",
-            "generation_score_mean_nugget_assignment_score",
-            "generation_score_vital_nuggetizer_score",
-            "generation_score_hallucination_scores",
-            "generation_score_citation_scores",
-            "generation_score_citation_f1_score",
-            "generation_score_no_answer_score"
-        ]
+        columns = ["query_id", "query"]
+        for i in range(self.to_repeat):
+
+            run_id = f"run_{i + 1}_"
+            columns.extend([
+                f"{run_id}retrieved_passages", f"{run_id}generated_answer",
+                f"{run_id}retrieval_score_umbrela_scores",
+                f"{run_id}retrieval_score_precision_metrics",
+                f"{run_id}retrieval_score_mean_umbrela_score",
+                f"{run_id}generation_score_autonugget_scores",
+                f"{run_id}generation_score_mean_nugget_assignment_score",
+                f"{run_id}generation_score_vital_nuggetizer_score",
+                f"{run_id}generation_score_hallucination_score",
+                f"{run_id}generation_score_citation_scores",
+                f"{run_id}generation_score_citation_f1_score",
+                f"{run_id}generation_score_no_answer_score"
+            ])
+        return columns
 
     def get_metrics_to_plot(self) -> List[str]:
         """ Returns a list of metrics to plot."""
         return [
             "retrieval_score_mean_umbrela_score",
             "generation_score_vital_nuggetizer_score",
-            "generation_score_hallucination_scores",
+            "generation_score_hallucination_score",
             "generation_score_citation_f1_score", "questions_answered"
         ]
 

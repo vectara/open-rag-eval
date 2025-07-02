@@ -11,7 +11,6 @@ from open_rag_eval.data_classes.rag_results import (
 )
 from open_rag_eval.data_classes.eval_scores import ConsistencyResult
 
-
 # Mock Metrics
 class MockBERTMetric:
     def __init__(self, model_type="xlm-roberta-large", lang="en", rescale_with_baseline=True):
@@ -223,7 +222,7 @@ class TestConsistencyEvaluator(unittest.TestCase):
         multi_result = create_mock_multi_rag_result(3)
         result = evaluator.evaluate(multi_result, precomputed_metric_scores={"bert_score": [0.5, 0.6, 0.7]})
 
-        self.assertIn("hallucination_scores", result.consistency_scores)
+        self.assertIn("hallucination_score", result.consistency_scores)
 
 
 if __name__ == "__main__":

@@ -6,9 +6,11 @@ import os
 import json
 import numpy as np
 import pandas as pd
+import matplotlib
+
+matplotlib.use("Agg")  # Use a non-GUI backend
 import matplotlib.pyplot as plt
 from tqdm import tqdm
-
 
 from open_rag_eval.data_classes.rag_results import MultiRAGResult
 from open_rag_eval.data_classes.eval_scores import (
@@ -16,9 +18,9 @@ from open_rag_eval.data_classes.eval_scores import (
 from .base_evaluator import Evaluator
 from open_rag_eval.metrics.bert_score_similarity_metric import BERTScoreSimilarityMetric
 from open_rag_eval.metrics.rouge_score_similarity_metric import ROUGEScoreSimilarityMetric
-from open_rag_eval.utils.constants import BERT_SCORE, ROUGE_SCORE, HALLUCINATION_SCORES
+from open_rag_eval.utils.constants import BERT_SCORE, ROUGE_SCORE, HALLUCINATION_SCORE
 from open_rag_eval.metrics import HallucinationMetric
-from open_rag_eval.utils.constants import CONSISTENCY_STAT, CONSISTENCY
+from open_rag_eval.utils.constants import CONSISTENCY
 
 
 class ConsistencyEvaluator(Evaluator):
@@ -38,8 +40,8 @@ class ConsistencyEvaluator(Evaluator):
         self.options = options or {}
         self.metric_calculators = []
         self.metric_names = set([
-            f"{CONSISTENCY_STAT}_{metric}"
-            for metric in [BERT_SCORE, ROUGE_SCORE, HALLUCINATION_SCORES]
+            f"{CONSISTENCY}_{metric}"
+            for metric in [BERT_SCORE, ROUGE_SCORE, HALLUCINATION_SCORE]
         ])
         # Default metric names and their default constructors
         default_metrics = {
@@ -136,7 +138,7 @@ class ConsistencyEvaluator(Evaluator):
                         consistency_result.add_score_from_values(
                             metric_name, scores)
 
-            if not precomputed_metric_scores or HALLUCINATION_SCORES not in precomputed_metric_scores:
+            if not precomputed_metric_scores or HALLUCINATION_SCORE not in precomputed_metric_scores:
                 # Compute hallucination scores if not precomputed
                 hallucination_scores = []
                 for rag_result in multi_rag_result.rag_results:
@@ -145,7 +147,7 @@ class ConsistencyEvaluator(Evaluator):
                         ["hhem_score"])
                 if len(hallucination_scores) >= 3:
                     consistency_result.add_score_from_values(
-                        "hallucination_scores", hallucination_scores)
+                        "hallucination_score", hallucination_scores)
 
             # Apply each metric calculator
             for calculator in self.metric_calculators:
@@ -173,7 +175,7 @@ class ConsistencyEvaluator(Evaluator):
         if precomputed_metric_scores_by_query:
             for metric in precomputed_metric_scores_by_query[list(
                     precomputed_metric_scores_by_query.keys())[0]].keys():
-                self.metric_names.add(f"{CONSISTENCY_STAT}_{metric}")
+                self.metric_names.add(f"{CONSISTENCY}_{metric}")
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
             eval_scores = list(
                 tqdm(
@@ -216,29 +218,38 @@ class ConsistencyEvaluator(Evaluator):
         """
 
         score_name_to_display_name = {
-            "consistency_vital_nuggetizer_score": "Groundedness Score",
-            "consistency_citation_f1_score": "Citations Score",
-            "consistency_hallucination_scores": "Factuality Score",
-            "consistency_bert_score": "BERT Score",
-            "consistency_rouge_score": "ROUGE-L Score",
-            "consistency_mean_umbrela_score": "Retrieval Score (Mean UMBRELA)",
+            "consistency_vital_nuggetizer_score":
+                "Groundedness Consistency Score",
+            "consistency_citation_f1_score":
+                "Citation Consistency Score",
+            "consistency_hallucination_score":
+                "Factuality Consistency Score",
+            "consistency_bert_score":
+                "BERT Consistency Score",
+            "consistency_rouge_score":
+                "ROUGE-L Consistency Score",
+            "consistency_mean_umbrela_score":
+                "Retrieval Consistency Score",
         }
-        max_possible_scores ={
+        max_possible_scores = {
             "consistency_mean_umbrela_score": 3.0,
         }
 
         if metrics_to_plot is None:
-            metrics_to_plot = [f"{CONSISTENCY}_{metric}" for metric in [BERT_SCORE, ROUGE_SCORE, HALLUCINATION_SCORES]]
+            metrics_to_plot = [
+                f"{CONSISTENCY}_{metric}"
+                for metric in [BERT_SCORE, ROUGE_SCORE, HALLUCINATION_SCORE]
+            ]
         num_metrics = len(metrics_to_plot)
         ncols = min(3, num_metrics)
         nrows = math.ceil(num_metrics / ncols)
 
         fig, axs = plt.subplots(nrows, ncols, figsize=(7 * ncols, 6 * nrows))
-
+        fig.suptitle("Per-Metric Consistency Score Distribution", fontsize=16)
         # Ensure axs is always a flat list
         axs = axs.flatten() if isinstance(axs, np.ndarray) else [axs]
 
-        # Optional: hide any extra subplot if total metrics < grid slots
+        # hide any extra subplot if total metrics < grid slots
         for ax in axs[num_metrics:]:
             ax.set_visible(False)
 
@@ -257,10 +268,20 @@ class ConsistencyEvaluator(Evaluator):
                 per_query_consistency_scores = []
 
                 for value in df[metric].dropna().values:
-                    consistency_score = float(value)
-                    if metric in max_possible_scores:
-                        consistency_score = consistency_score / max_possible_scores[metric]
-                    per_query_consistency_scores.append(consistency_score)
+                    try:
+                        metric_data = json.loads(value)
+                        consistency_score = float(
+                            metric_data["stats"]["consistency"])
+                        if metric in max_possible_scores:
+                            consistency_score = consistency_score / max_possible_scores[
+                                metric]
+                        per_query_consistency_scores.append(consistency_score)
+                    except (KeyError, ValueError, TypeError,
+                            json.JSONDecodeError) as e:
+                        logging.warning(
+                            f"Skipping invalid value in {csv_files[0]} for metric {metric}: {e}"
+                        )
+                        continue
                 if not per_query_consistency_scores:
                     axs[i].text(0.5,
                                 0.5,
@@ -316,10 +337,20 @@ class ConsistencyEvaluator(Evaluator):
 
                     if metric in df.columns:
                         for value in df[metric].dropna().values:
-                            consistency_score = float(value)
-                            if metric in max_possible_scores:
-                                consistency_score = consistency_score / max_possible_scores[metric]
-                            consistency_scores.append(consistency_score)
+                            try:
+                                metric_data = json.loads(value)
+                                consistency_score = float(
+                                    metric_data["stats"]["consistency"])
+                                if metric in max_possible_scores:
+                                    consistency_score = consistency_score / max_possible_scores[
+                                        metric]
+                                consistency_scores.append(consistency_score)
+                            except (KeyError, ValueError, TypeError,
+                                    json.JSONDecodeError) as e:
+                                logging.warning(
+                                    f"Skipping invalid value in {csv_file} for metric {metric}: {e}"
+                                )
+                                continue
 
                     consistency_scores_across_csv.append(consistency_scores)
 
@@ -358,35 +389,35 @@ class ConsistencyEvaluator(Evaluator):
                 axs[i].set_ylabel("Consistency Score")
 
                 # Limits
-                axs[i].set_ylim(min(0, np.min(consistency_scores_across_csv_flat)), np.max(consistency_scores_across_csv_flat) * 1.1)
+                axs[i].set_ylim(
+                    min(0, np.min(consistency_scores_across_csv_flat)),
+                    np.max(consistency_scores_across_csv_flat) * 1.1)
 
                 # Grid
                 axs[i].grid(True, linestyle="--", alpha=0.6)
 
                 box_width = 0.4  # width of each box on the x-axis
-                for pos, (label, values_group) in enumerate(zip(labels, consistency_scores_across_csv), start=1):
+                for pos, (label, values_group) in enumerate(zip(
+                        labels, consistency_scores_across_csv),
+                                                            start=1):
                     group_mean = np.mean(values_group)
                     group_median = np.median(values_group)
 
-                    axs[i].hlines(
-                        y=group_mean,
-                        xmin=pos - box_width / 4,
-                        xmax=pos + box_width / 4,
-                        color="red",
-                        linestyle="--",
-                        linewidth=2,
-                        label=f"{label} Mean: {group_mean:.3f}"
-                    )
+                    axs[i].hlines(y=group_mean,
+                                  xmin=pos - box_width / 4,
+                                  xmax=pos + box_width / 4,
+                                  color="red",
+                                  linestyle="--",
+                                  linewidth=2,
+                                  label=f"{label} Mean: {group_mean:.3f}")
 
-                    axs[i].hlines(
-                        y=group_median,
-                        xmin=pos - box_width / 4,
-                        xmax=pos + box_width / 4,
-                        color="orange",
-                        linestyle="-",
-                        linewidth=2,
-                        label=f"{label} Median: {group_median:.3f}"
-                    )
+                    axs[i].hlines(y=group_median,
+                                  xmin=pos - box_width / 4,
+                                  xmax=pos + box_width / 4,
+                                  color="orange",
+                                  linestyle="-",
+                                  linewidth=2,
+                                  label=f"{label} Median: {group_median:.3f}")
 
                 axs[i].legend()
 
@@ -400,7 +431,10 @@ class ConsistencyEvaluator(Evaluator):
             "When comparing multiple systems, grouped boxplots illustrate the relative consistency across queries for each system.",
             ha="center",
             fontsize=9,
-            bbox=dict(facecolor="white", edgecolor="gray", boxstyle="round,pad=0.4", alpha=0.9))
+            bbox=dict(facecolor="white",
+                      edgecolor="gray",
+                      boxstyle="round,pad=0.4",
+                      alpha=0.9))
 
         plt.tight_layout()
         fig.savefig(output_file, dpi=300, bbox_inches="tight")
@@ -437,8 +471,7 @@ class ConsistencyEvaluator(Evaluator):
                     "values": metric_score.values,
                     "stats": metric_score.stats
                 }
-                row[f"{CONSISTENCY_STAT}_{metric_name}"] = json.dumps(metric_data)
-                row[f"{CONSISTENCY}_{metric_name}"]  = metric_score.stats["consistency"]
+                row[f"{CONSISTENCY}_{metric_name}"] = json.dumps(metric_data)
 
             # Add each individual RAG result (generated answers and retrieved passages)
             if consistency_result.multi_rag_result:
@@ -475,19 +508,11 @@ class ConsistencyEvaluator(Evaluator):
         Returns the list of columns that this evaluator will add to a consolidated CSV file.
         """
         columns = ["query_id", "query"]
-        for metric in list(self.metric_names):
-            columns.append(metric)
-            metric_name = metric.replace(CONSISTENCY_STAT + "_", "")
-            columns.append(f"{CONSISTENCY}_{metric_name}")
-
+        columns.extend(list(self.metric_names))
         return columns
 
     def get_metrics_to_plot(self):
         """
         Returns the list of metrics that this evaluator will plot.
         """
-        metrics_to_plot = []
-        for metric in list(self.metric_names):
-            metric_name = metric.replace(CONSISTENCY_STAT + "_", "")
-            metrics_to_plot.append(f"{CONSISTENCY}_{metric_name}")
-        return metrics_to_plot
+        return list(self.metric_names)
