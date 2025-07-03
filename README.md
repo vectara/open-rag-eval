@@ -138,7 +138,6 @@ We highly recommend using the Open Evaluation Viewer for an intuitive and powerf
 Visit https://openevaluation.ai
 
 Upload your `results.json` file and enjoy:
-Upload your `results.json` file and enjoy:  
 > **Note:** The UI now uses JSON as the default results format (instead of CSV) for improved compatibility and richer data support.
 
 \* Dashboards of evaluation results.
