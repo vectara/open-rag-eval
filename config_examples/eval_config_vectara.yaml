@@ -8,14 +8,21 @@ eval_results_file: "results.csv"
 metrics_file: "metrics.png"
 
 evaluator:
-  type: "TRECEvaluator"  
-  model:
-    type: "OpenAIModel"
-    name: "gpt-4o-mini"
-    api_key: ${oc.env:OPENAI_API_KEY}  # Reads from environment variable.
-  options:
-    # The k values to evaluate metrics like precision@k at.
-    k_values: [1, 3, 5]    
+  - type: "TRECEvaluator"
+    model:
+      type: "OpenAIModel"
+      name: "gpt-4o-mini"
+      api_key: ${oc.env:OPENAI_API_KEY}  # Reads from environment variable.
+    options:
+      # The k values to evaluate metrics like precision@k at.
+      k_values: [1, 3, 5]
+      run_consistency: True
+      metrics_to_run_consistency: ["mean_umbrela_score","vital_nuggetizer_score", "citation_f1_score" ]
+  - type: "ConsistencyEvaluator"
+    options:
+      metrics:
+        - bert_score: { }
+        - rouge_score: { }
 
 connector:
   type: "VectaraConnector"
@@ -23,6 +30,7 @@ connector:
     api_key: ${oc.env:VECTARA_API_KEY}
     corpus_key: "fiqa"
     max_workers: -1  # -1 to use all available CPU cores for parallel processing.
+    repeat_query: 5 # set this more than one to repeat the query multiple times for consistency evaluation
     query_config:
       search:
         lexical_interpolation: 0.005

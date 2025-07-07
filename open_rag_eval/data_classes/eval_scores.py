@@ -1,15 +1,17 @@
-from typing import Any, List
-import json
-from dataclasses import dataclass
-import pandas as pd
+from typing import Any, List, Dict, Optional
+from dataclasses import dataclass, field
 
-from .rag_results import RAGResult
+import numpy as np
+
+from .rag_results import RAGResult, MultiRAGResult
+
 
 @dataclass
 class RetrievalScores():
     """Holds the scores obtained from a retrieval evaluation metric."""
     # Maps the metric name to the actual scores defined by the metric.
     scores: dict[str, Any]
+
 
 @dataclass
 class AugmentedGenerationScores():
@@ -24,39 +26,58 @@ class RAGScores():
     retrieval_score: RetrievalScores
     generation_score: AugmentedGenerationScores
 
+
 @dataclass
 class ScoredRAGResult():
     """Holds the RAG output and scores for it obtained from a RAG evaluation metric."""
     rag_result: RAGResult
     scores: RAGScores
 
-def to_csv(scored_results: List[ScoredRAGResult], file_path: str) -> None:
-    """Saves the scored results to a CSV file."""
-    results_dict = []
-    for result in scored_results:
-        result_dict = {}
 
-        # Get fields if they exist
-        if result.rag_result and result.rag_result.retrieval_result:
-            result_dict["query"] = result.rag_result.retrieval_result.query
-            result_dict["retrieved_passages"] = json.dumps(result.rag_result.retrieval_result.retrieved_passages)
+@dataclass
+class ConsistencyScore:
+    """Holds statistical measures for consistency evaluation."""
+    values: List[float]
+    stats: Dict[str, float] = None
 
-        if result.rag_result and result.rag_result.generation_result:
-            result_dict["query"] = result.rag_result.generation_result.query
-            generated_answer_dict = [{"text": part.text,
-                                     "citations": part.citations} for part in result.rag_result.generation_result.generated_answer]
-            result_dict["generated_answer"] = json.dumps(generated_answer_dict)
+    def __post_init__(self):
+        if not self.values:
+            raise ValueError("values list cannot be empty.")
 
-        # Add scores if they exist
-        if result.scores and result.scores.retrieval_score:
-            for key, value in result.scores.retrieval_score.scores.items():
-                result_dict[f"retrieval_score_{key}"] = json.dumps(value)
+        min_val = float(np.min(self.values))
+        max_val = float(np.max(self.values))
+        q1 = float(np.percentile(self.values, 25))
+        q3 = float(np.percentile(self.values, 75))
+        mean_val = float(np.mean(self.values))
+        std_val = float(np.std(self.values))
 
-        if result.scores and result.scores.generation_score:
-            for key, value in result.scores.generation_score.scores.items():
-                result_dict[f"generation_score_{key}"] = json.dumps(value)
+        self.stats = {
+            "mean": mean_val,
+            "median": float(np.median(self.values)),
+            "std": std_val,
+            "max_min": max_val - min_val,  # range
+            "iqr": q3 - q1,
+            "consistency": mean_val / (1 + std_val)
+        }
 
-        results_dict.append(result_dict)
 
-    df = pd.DataFrame(results_dict)
-    df.to_csv(file_path, index=False)
+@dataclass
+class ConsistencyResult:
+    """Holds consistency scores and multi-RAG results across multiple runs."""
+    query: str
+    query_id: str
+    multi_rag_result: "MultiRAGResult"
+    consistency_scores: Dict[str,
+                             "ConsistencyScore"] = field(default_factory=dict)
+
+    def add_score_from_values(self, name: str, values: List[float]):
+        """Compute and add a consistency score from raw values."""
+        self.consistency_scores[name] = ConsistencyScore(values=values)
+
+
+@dataclass
+class MultiScoredRAGResult:
+    """Container for multiple scored results"""
+    query: str
+    query_id: str
+    scored_rag_results: List["ScoredRAGResult"] = field(default_factory=list)

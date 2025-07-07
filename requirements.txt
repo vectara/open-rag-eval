@@ -22,3 +22,5 @@ tqdm==4.67.1
 transformers==4.50.0
 unstructured>=0.17.2
 unstructured[pdf]>=0.17.2
+rouge>=1.0.0
+bert-score>=0.3.13

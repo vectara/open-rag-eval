@@ -120,8 +120,10 @@ class CitationMetric(AugmentedGenerationMetric):
                     )
                     if not response.support:
                         logging.error(
-                            "While calculating citation metrics: "
-                            f"Failed to parse response: {response.refusal}"
+                            "While calculating citation metrics: ",
+                            f"Failed to parse response: {response.refusal}",
+                            getattr(response, "refusal",
+                                    "No error details available")
                         )
                         continue
 

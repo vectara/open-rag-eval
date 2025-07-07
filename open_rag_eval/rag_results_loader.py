@@ -10,6 +10,7 @@ from open_rag_eval.data_classes.rag_results import (
     RetrievalResult,
     GeneratedAnswerPart,
     AugmentedGenerationResult,
+    MultiRAGResult
 )
 
 logger = logging.getLogger(__name__)
@@ -20,8 +21,8 @@ class RAGResultsLoader:
     def __init__(self, csv_path: str):
         self.csv_path = csv_path
 
-    def load(self) -> List[RAGResult]:
-        """Read the CSV file and convert to RAGResult objects."""
+    def load(self) -> List[MultiRAGResult]:
+        """Read the CSV file and organize RAGResult objects by query, including all runs."""
         # Read CSV file
         df = pd.read_csv(self.csv_path)
 
@@ -29,11 +30,21 @@ class RAGResultsLoader:
         if "query_id" not in df.columns:
             df["query_id"] = [str(uuid.uuid4()) for _ in range(len(df))]
 
-        results = []
-        # Group by query_id to process each query's results
-        for _, group in df.groupby("query_id"):
+        # Add query_run if it doesn't exist
+        if "query_run" not in df.columns:
+            df["query_run"] = 1
+
+        # Create a dictionary to store RAGResults objects by query_id
+        query_results_dict = {}
+
+        # Process each query_id and query_run combination
+        for (query_id, run_id), group in df.groupby(["query_id", "query_run"]):
             # Get the query (same for all rows in group)
             query = group["query"].iloc[0]
+
+            # Create or get RAGResults object for this query
+            if query_id not in query_results_dict:
+                query_results_dict[query_id] = MultiRAGResult(query, query_id)
 
             # Create retrieved passages dictionary
             retrieved_passages = {
@@ -47,28 +58,36 @@ class RAGResultsLoader:
 
             # Get the generated answer and parse passage attributions
             # Take first non-empty generated answer
-            generated_answer_raw = group["generated_answer"].dropna().iloc[0]
-            if not generated_answer_raw or generated_answer_raw == NO_ANSWER or generated_answer_raw == API_ERROR:
+            generated_answers = group["generated_answer"].dropna()
+
+            if generated_answers.empty or generated_answers.iloc[0] == NO_ANSWER or generated_answers.iloc[
+                0] == API_ERROR:
                 logger.warning(
-                    "Skipping query %s with no generated answer/API error.", query
+                    "Skipping query %s (run %s) with no generated answer/API error.",
+                    query, run_id
                 )
                 continue
 
             # Parse generated answer to map passages to text segments
-            generated_answer = self._parse_generated_answer(
-                generated_answer_raw)
+            generated_answer_raw = generated_answers.iloc[0]
+            generated_answer = self._parse_generated_answer(generated_answer_raw)
 
             # Create generation result
             generation_result = AugmentedGenerationResult(
                 query=query, generated_answer=generated_answer)
 
             # Create final RAG result
-            rag_result = RAGResult(retrieval_result=retrieval_result,
-                                   generation_result=generation_result)
+            rag_result = RAGResult(
+                retrieval_result=retrieval_result,
+                generation_result=generation_result
+            )
 
-            results.append(rag_result)
+            # Add to the appropriate RAGResults object
+            query_results_dict[query_id].add_result(rag_result)
 
-        return results
+        # Return list of RAGResults objects that have at least one valid result
+        return [qr for qr in query_results_dict.values() if qr.rag_results]
+
 
     def _parse_generated_answer(self, text: str) -> List[GeneratedAnswerPart]:
         """Extracts text associated with numbered reference markers from a given string."""
