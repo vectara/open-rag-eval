@@ -140,7 +140,6 @@ class TestConsistencyEvaluator(unittest.TestCase):
         self.assertEqual(metric.lang, "de")
         self.assertFalse(metric.rescale_with_baseline)
 
-
     def test_evaluate_calls_compute_once_per_metric(self):
         mock_bert = MagicMock()
         mock_bert.name = "bert_score"

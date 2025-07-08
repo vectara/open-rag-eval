@@ -1,11 +1,11 @@
 from typing import List
+import logging
+from itertools import combinations
 
 from bert_score import score as bert_score
 from open_rag_eval.data_classes.rag_results import MultiRAGResult
 from open_rag_eval.metrics.base_metrics import PairwiseAnswerSimilarityMetric
 from open_rag_eval.utils.constants import BERT_SCORE
-import logging
-from itertools import combinations
 
 
 class BERTScoreSimilarityMetric(PairwiseAnswerSimilarityMetric):

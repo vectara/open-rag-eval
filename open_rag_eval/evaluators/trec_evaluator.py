@@ -1,38 +1,29 @@
-import math
-from typing import Optional, List
-
-import logging
-import os
 import json
+import logging
+import math
+import os
+import threading
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from typing import List, Optional
 
 import matplotlib
-
-matplotlib.use("Agg")  # Use a non-GUI backend
 import matplotlib.pyplot as plt
-import pandas as pd
 import numpy as np
+import pandas as pd
 
-from concurrent.futures import ThreadPoolExecutor, as_completed
-import threading
-
+from open_rag_eval.data_classes.eval_scores import (AugmentedGenerationScores,
+                                                    MultiScoredRAGResult,
+                                                    RAGScores, RetrievalScores,
+                                                    ScoredRAGResult)
 from open_rag_eval.data_classes.rag_results import MultiRAGResult
-from open_rag_eval.data_classes.eval_scores import (
-    AugmentedGenerationScores,
-    RetrievalScores,
-    RAGScores,
-    ScoredRAGResult,
-    MultiScoredRAGResult,
-)
+from open_rag_eval.metrics import (AutoNuggetMetric, CitationMetric,
+                                   HallucinationMetric, NoAnswerMetric,
+                                   UMBRELAMetric)
 from open_rag_eval.models.llm_judges import LLMJudgeModel
-from open_rag_eval.metrics import (
-    AutoNuggetMetric,
-    CitationMetric,
-    HallucinationMetric,
-    NoAnswerMetric,
-    UMBRELAMetric,
-)
+
 from .base_evaluator import Evaluator
 
+matplotlib.use("Agg")
 
 class TRECEvaluator(Evaluator):
 

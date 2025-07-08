@@ -1,18 +1,18 @@
 """
 This script evaluates the performance of a retrieval-augmented generation (RAG) system.
 """
-import shutil
-from pandas.errors import EmptyDataError
-from typing import Any, Dict
+
 import argparse
-from datetime import datetime, timezone
 import json
-
-import os
 import logging
-import pandas as pd
-
+import os
+import shutil
+from datetime import datetime, timezone
 from pathlib import Path
+from typing import Any, Dict
+
+import pandas as pd
+from pandas.errors import EmptyDataError
 from omegaconf import OmegaConf, ListConfig, DictConfig
 
 from open_rag_eval import connectors, models
@@ -42,8 +42,9 @@ def get_evaluator(evaluator_config: Dict[str, Any]) -> evaluators.Evaluator:
             raise TypeError(f"{evaluator_type} is not a subclass of Evaluator")
 
         # Get options if they exist
-        options = evaluator_config.options if hasattr(evaluator_config,
-                                                      "options") else None
+        options = (
+            evaluator_config.options if hasattr(evaluator_config, "options") else None
+        )
         if isinstance(options, DictConfig):
             options = OmegaConf.to_container(options, resolve=True)
 
@@ -58,20 +59,20 @@ def get_evaluator(evaluator_config: Dict[str, Any]) -> evaluators.Evaluator:
             # Verify it's a subclass of LLMJudgeModel
             if not issubclass(model_class, models.LLMJudgeModel):
                 raise TypeError(
-                    f"{model_config.type} is not a subclass of LLMJudgeModel")
+                    f"{model_config.type} is not a subclass of LLMJudgeModel"
+                )
 
             # Instantiate the model with config parameters
             model = model_class(model_options=model_config)
 
             # Instantiate the evaluator with the model
             return evaluator_class(model=model, options=options)
-        else:
-            # Instantiate without the model parameter
-            return evaluator_class(options=options)
+
+        # Instantiate without the model parameter
+        return evaluator_class(options=options)
 
     except (ImportError, AttributeError) as e:
-        raise ImportError(
-            f"Could not load evaluator {evaluator_type}: {str(e)}") from e
+        raise ImportError(f"Could not load evaluator {evaluator_type}: {str(e)}") from e
 
 
 def get_connector(config: Dict[str, Any]) -> connectors.Connector:
@@ -92,8 +93,7 @@ def get_connector(config: Dict[str, Any]) -> connectors.Connector:
         return connector_class(config, **config.connector.options)
 
     except (ImportError, AttributeError) as e:
-        raise ImportError(
-            f"Could not load connector {connector_type}: {str(e)}") from e
+        raise ImportError(f"Could not load connector {connector_type}: {str(e)}") from e
 
 
 def merge_eval_results(results_folder, config, per_evaluator_columns=None):
@@ -119,10 +119,12 @@ def merge_eval_results(results_folder, config, per_evaluator_columns=None):
 
     for evaluator_type, columns in per_evaluator_columns.items():
         evaluator_file = os.path.join(
-            results_folder, f"{evaluator_type}-{config.eval_results_file}")
+            results_folder, f"{evaluator_type}-{config.eval_results_file}"
+        )
         if not os.path.exists(evaluator_file):
             logging.warning(
-                f"{evaluator_type} file not found: {evaluator_file}. Skipping.")
+                f"{evaluator_type} file not found: {evaluator_file}. Skipping."
+            )
             continue
 
         try:
@@ -134,7 +136,8 @@ def merge_eval_results(results_folder, config, per_evaluator_columns=None):
                     merge_key = "query_id"
                 else:
                     logging.warning(
-                        f"'query_id' not found in {evaluator_type}. Skipping.")
+                        f"'query_id' not found in {evaluator_type}. Skipping."
+                    )
                     continue
 
             # Enforce that user-provided columns include the merge key
@@ -152,16 +155,19 @@ def merge_eval_results(results_folder, config, per_evaluator_columns=None):
                 continue
 
             available_columns = set(evaluator_df.columns)
-            existing_columns = set(
-                merged_df.columns) if merged_df is not None else set()
+            existing_columns = (
+                set(merged_df.columns) if merged_df is not None else set()
+            )
 
             # Keep only desired & available columns, skip those already in merged_df (except merge_key)
-            columns_to_merge = list((desired_columns & available_columns) -
-                                    (existing_columns - {merge_key}))
+            columns_to_merge = list(
+                (desired_columns & available_columns) - (existing_columns - {merge_key})
+            )
 
             if not columns_to_merge:
                 logging.info(
-                    f"No new columns to merge from {evaluator_type}. Skipping.")
+                    f"No new columns to merge from {evaluator_type}. Skipping."
+                )
                 continue
 
             evaluator_subset = evaluator_df[columns_to_merge]
@@ -169,19 +175,16 @@ def merge_eval_results(results_folder, config, per_evaluator_columns=None):
             if merged_df is None:
                 merged_df = evaluator_subset
             else:
-                merged_df = pd.merge(merged_df,
-                                     evaluator_subset,
-                                     on=merge_key,
-                                     how='left')
+                merged_df = pd.merge(
+                    merged_df, evaluator_subset, on=merge_key, how="left"
+                )
 
         except Exception as e:
             logging.error(f"Error processing {evaluator_type}: {str(e)}")
 
     if merged_df is not None:
         # Reorder 'query' and 'query_id' to appear first if available
-        priority = [
-            col for col in ['query', 'query_id'] if col in merged_df.columns
-        ]
+        priority = [col for col in ["query", "query_id"] if col in merged_df.columns]
         remaining = [col for col in merged_df.columns if col not in priority]
         merged_df = merged_df[priority + remaining]
 
@@ -200,16 +203,10 @@ def create_openeval_report(results_folder, eval_results_file):
     df = pd.read_csv(csv_file)
 
     # Identify run-based prefixes
-    run_prefixes = set([
-        "_".join(col.split("_")[:2])
-        for col in df.columns
-        if col.startswith("run_")
-    ])
+    run_prefixes = {"_".join(col.split("_")[:2]) for col in df.columns if col.startswith("run_")}
 
     # Identify consistency metric columns
-    consistency_cols = [
-        col for col in df.columns if col.startswith(CONSISTENCY)
-    ]
+    consistency_cols = [col for col in df.columns if col.startswith(CONSISTENCY)]
 
     # Build structured JSON output
     structured_output = []
@@ -227,7 +224,7 @@ def create_openeval_report(results_folder, eval_results_file):
             run_data = {}
             for col in df.columns:
                 if col.startswith(prefix):
-                    field = col[len(prefix) + 1:] if col != prefix else col
+                    field = col[len(prefix) + 1 :] if col != prefix else col
                     try:
                         run_data[field] = json.loads(row[col])
                     except (json.JSONDecodeError, TypeError):
@@ -245,15 +242,12 @@ def create_openeval_report(results_folder, eval_results_file):
 
     # Wrap in outer object for versioning
     json_output = {
-        "version":
-            __version__,
-        "generated_at":
-            datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
-        "evaluation":
-            structured_output
+        "version": __version__,
+        "generated_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+        "evaluation": structured_output,
     }
 
-    with open(json_path, "w") as f:
+    with open(json_path, "w", encoding="utf-8") as f:
         json.dump(json_output, f, indent=2)
     print(f"Open Evaluation json report saved to {json_path}")
 
@@ -293,8 +287,11 @@ def run_eval(config_path: str):
     precomputed_metric_scores_by_query = {}
 
     # Normalize to list
-    evaluator_configs = config.evaluator if isinstance(
-        config.evaluator, ListConfig) else [config.evaluator]
+    evaluator_configs = (
+        config.evaluator
+        if isinstance(config.evaluator, ListConfig)
+        else [config.evaluator]
+    )
 
     # Separate consistency evaluator if present
     evaluator_configs_filtered = []
@@ -318,18 +315,21 @@ def run_eval(config_path: str):
         if evaluator_type == CONSISTENCYEVALUATOR:
             results = evaluator.evaluate_batch(
                 rag_results,
-                precomputed_metric_scores_by_query=
-                precomputed_metric_scores_by_query)
+                precomputed_metric_scores_by_query=precomputed_metric_scores_by_query,
+            )
         else:
             results = evaluator.evaluate_batch(rag_results)
-            if getattr(eval_config, "options", {}).get("run_consistency",
-                                                       False):
-                precomputed_metric_scores_by_query = evaluator.collect_scores_for_consistency(
-                    results, precomputed_metric_scores_by_query)
+            if getattr(eval_config, "options", {}).get("run_consistency", False):
+                precomputed_metric_scores_by_query = (
+                    evaluator.collect_scores_for_consistency(
+                        results, precomputed_metric_scores_by_query
+                    )
+                )
 
         # Save results
         eval_results_path = os.path.join(
-            results_folder, f"{evaluator_type}-{config.eval_results_file}")
+            results_folder, f"{evaluator_type}-{config.eval_results_file}"
+        )
         evaluator.to_csv(results, eval_results_path)
 
         # Plot results
@@ -339,28 +339,28 @@ def run_eval(config_path: str):
                 logging.warning(f"Skipping plot: {eval_results_path} is empty.")
                 continue
 
-            per_evaluator_columns[
-                evaluator_type] = evaluator.get_consolidated_columns()
+            per_evaluator_columns[evaluator_type] = evaluator.get_consolidated_columns()
             evaluator.plot_metrics(
                 csv_files=[eval_results_path],
                 output_file=os.path.join(
-                    results_folder, f"{evaluator_type}-{config.metrics_file}"),
-                metrics_to_plot=evaluator.get_metrics_to_plot())
+                    results_folder, f"{evaluator_type}-{config.metrics_file}"
+                ),
+                metrics_to_plot=evaluator.get_metrics_to_plot(),
+            )
             print(
                 f"Graph saved to {os.path.join(results_folder, f'{evaluator_type}-{config.metrics_file}')}"
             )
         except (FileNotFoundError, EmptyDataError):
-            logging.warning(
-                f"Skipping plot: {eval_results_path} not found or empty.")
+            logging.warning(f"Skipping plot: {eval_results_path} not found or empty.")
         except Exception as e:
             logging.exception(
                 f"Failed to read or plot metrics from {eval_results_path}: {str(e)}"
             )
 
     # Merge results from all evaluators into a single CSV file
-    merge_eval_results(results_folder,
-                       config,
-                       per_evaluator_columns=per_evaluator_columns)
+    merge_eval_results(
+        results_folder, config, per_evaluator_columns=per_evaluator_columns
+    )
 
     create_openeval_report(results_folder, config.eval_results_file)
 

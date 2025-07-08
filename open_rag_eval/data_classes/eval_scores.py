@@ -1,4 +1,4 @@
-from typing import Any, List, Dict, Optional
+from typing import Any, List, Dict
 from dataclasses import dataclass, field
 
 import numpy as np
@@ -57,7 +57,7 @@ class ConsistencyScore:
             "std": std_val,
             "max_min": max_val - min_val,  # range
             "iqr": q3 - q1,
-            "consistency": mean_val / (1 + std_val)
+            "consistency_adjusted_index": mean_val / (1 + std_val)
         }
 
 
