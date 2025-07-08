@@ -74,5 +74,6 @@ def main():
     # Plot the metrics using the appropriate evaluator
     plot_metrics(args.evaluator, args.csv_files, args.output, args.metrics_to_plot)
 
+
 if __name__ == '__main__':
     main()

@@ -60,8 +60,8 @@ class RAGResultsLoader:
             # Take first non-empty generated answer
             generated_answers = group["generated_answer"].dropna()
 
-            if generated_answers.empty or generated_answers.iloc[0] == NO_ANSWER or generated_answers.iloc[
-                0] == API_ERROR:
+            if (generated_answers.empty or generated_answers.iloc[0] == NO_ANSWER or
+                    generated_answers.iloc[0] == API_ERROR):
                 logger.warning(
                     "Skipping query %s (run %s) with no generated answer/API error.",
                     query, run_id
@@ -87,7 +87,6 @@ class RAGResultsLoader:
 
         # Return list of RAGResults objects that have at least one valid result
         return [qr for qr in query_results_dict.values() if qr.rag_results]
-
 
     def _parse_generated_answer(self, text: str) -> List[GeneratedAnswerPart]:
         """Extracts text associated with numbered reference markers from a given string."""

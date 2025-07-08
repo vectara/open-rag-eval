@@ -172,11 +172,9 @@ class VectaraConnector(Connector):
 
         endpoint_url = f"https://api.vectara.io/v2/corpora/{self._corpus_key}/query"
 
-        return self.execute_vectara_query(query, endpoint_url, headers,
-                                   self.query_config, run_idx)
+        return self.execute_vectara_query(query, endpoint_url, headers, self.query_config, run_idx)
 
-    def execute_vectara_query(self, query, endpoint_url, headers, query_config,
-                       run_idx):
+    def execute_vectara_query(self, query, endpoint_url, headers, query_config, run_idx):
         """
         Process a single query by sending it to the Vectara API and handling the response.
         Args:

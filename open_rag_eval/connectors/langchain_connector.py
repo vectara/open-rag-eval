@@ -66,17 +66,17 @@ class LangChainConnector(Connector):
             "question": RunnablePassthrough()
         } | prompt | llm | StrOutputParser())
 
-    def process_query(self, query_data, run_idx=1):
+    def process_query(self, query, run_idx=1):
         """ Process a single query using the LangChain RAG chain.
         Args:
-            query_data (dict): A dictionary containing the query and its ID.
+            query (dict): A dictionary containing the query and its ID.
             run_idx (int): The index of the query run (1-based).
         Returns:
             list: A list of dictionaries containing the query ID, query text,
                   passage ID, passage text, and generated answer.
         """
-        query_id = query_data["queryId"]
-        actual_query = query_data["query"]
+        query_id = query["queryId"]
+        actual_query = query["query"]
         try:
             generated_answer = self.rag_chain.invoke(actual_query)
             source_documents = self.retriever.invoke(actual_query)
