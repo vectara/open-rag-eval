@@ -177,6 +177,15 @@ class AnthropicModel(LLMJudgeModel):
         self.model_name = model_options["name"]
         self.client = anthropic.Anthropic(api_key=model_options["api_key"])
 
+    def _remove_invalid_kwargs(self, model_kwargs) -> dict:
+        model_kwargs = model_kwargs.copy()
+        if 'presence_penalty' in model_kwargs:
+            del model_kwargs['presence_penalty']
+        if 'frequency_penalty' in model_kwargs:
+            del model_kwargs['frequency_penalty']
+
+        return model_kwargs
+
     @retry(
         retry=retry_if_exception_type(
             (
@@ -211,6 +220,7 @@ class AnthropicModel(LLMJudgeModel):
             raise ValueError("Prompt cannot be empty")
 
         model_kwargs = model_kwargs or {}
+        model_kwargs = self._remove_invalid_kwargs(model_kwargs)
 
         try:
             max_tokens = None
@@ -248,6 +258,7 @@ class AnthropicModel(LLMJudgeModel):
             str: The parsed response matching the provided schema
         """
         model_kwargs = model_kwargs or {}
+        model_kwargs = self._remove_invalid_kwargs(model_kwargs)
         schema = response_format.model_json_schema()
         
         structured_prompt = f"""{prompt}

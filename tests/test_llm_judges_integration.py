@@ -223,12 +223,7 @@ class TestLLMJudgesIntegration(unittest.TestCase):
             statement=statement, citation=citation
         )
 
-        # Anthropic API does not suport presence_penalty or frequency_penalty as arguments
-        kwargs = self.model_kwargs.copy()
-        del kwargs['presence_penalty']
-        del kwargs['frequency_penalty']
-        
-        response = self.anthropic_model.parse(prompt, CitationSupport, kwargs)
+        response = self.anthropic_model.parse(prompt, CitationSupport, self.model_kwargs)
 
         self.assertIsInstance(response, CitationSupport)
         self.assertIsInstance(response.support, CitationSupportValues)
