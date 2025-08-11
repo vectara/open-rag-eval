@@ -179,10 +179,11 @@ class AnthropicModel(LLMJudgeModel):
 
     def _remove_invalid_kwargs(self, model_kwargs) -> dict:
         model_kwargs = model_kwargs.copy()
-        if 'presence_penalty' in model_kwargs:
-            del model_kwargs['presence_penalty']
-        if 'frequency_penalty' in model_kwargs:
-            del model_kwargs['frequency_penalty']
+        invalid_kwargs = ['presence_penalty', 'frequency_penalty', 'seed']
+
+        for kwarg in invalid_kwargs:
+            if kwarg in model_kwargs:
+                del model_kwargs[kwarg]
 
         return model_kwargs
 
@@ -357,18 +358,111 @@ class TogetherModel(LLMJudgeModel):
             The parsed response matching the provided schema
         """
         model_kwargs = model_kwargs or {}
+        
+        # Get the raw schema and flatten it to remove $ref constructs (caused by AutoNuggetizer)
+        schema = response_format.model_json_schema()
+        flattened_schema = self._flatten_schema(schema)
+        
         config = {
             "type": "json_schema",
-            "schema": response_format.model_json_schema(),
+            "schema": flattened_schema,
         }
+
+        try:
+            response = self.client.chat.completions.create(
+                model=self.model_name,
+                messages=[{"role": "user", "content": prompt}],
+                response_format=config,
+                **model_kwargs
+            )
+
+            response_json = json.loads(response.choices[0].message.content)
+            parsed_response = TypeAdapter(response_format).validate_python(response_json)
+            return parsed_response
+        except Exception as e:
+            # If grammar validation fails, fall back to prompt-based approach like AnthropicModel
+            if "grammar" in str(e).lower():
+                return self._fallback_parse(prompt, response_format, model_kwargs)
+            else:
+                raise e
+    
+    def _fallback_parse(self, prompt: str, response_format: BaseModel, model_kwargs=None):
+        """
+        Fallback parsing method that uses prompt-based JSON generation instead of grammar validation.
+        """
+        model_kwargs = model_kwargs or {}
+        schema = response_format.model_json_schema()
+        
+        structured_prompt = f"""{prompt}
+
+Please respond with a JSON object that matches this exact schema:
+{json.dumps(schema, indent=2)}
+
+Return only the JSON object, no other text."""
 
         response = self.client.chat.completions.create(
             model=self.model_name,
-            messages=[{"role": "user", "content": prompt}],
-            response_format=config,
+            messages=[{"role": "user", "content": structured_prompt}],
             **model_kwargs
         )
 
-        response_json = json.loads(response.choices[0].message.content)
-        parsed_response = TypeAdapter(response_format).validate_python(response_json)
-        return parsed_response
+        response_text = response.choices[0].message.content.strip()
+        
+        # Extract JSON from response text (in case there's extra text)
+        try:
+            # Try to find JSON object in the response
+            start_idx = response_text.find('{')
+            end_idx = response_text.rfind('}') + 1
+            if start_idx != -1 and end_idx > start_idx:
+                json_str = response_text[start_idx:end_idx]
+                response_json = json.loads(json_str)
+            else:
+                # Fallback: try to parse the entire response as JSON
+                response_json = json.loads(response_text)
+        except json.JSONDecodeError as e:
+            raise ValueError(f"Failed to parse JSON from Together response: {response_text}") from e
+        
+        try:
+            parsed_response = TypeAdapter(response_format).validate_python(response_json)
+            return parsed_response
+        except Exception as e:
+            raise ValueError(f"Failed to validate response against schema: {response_json}") from e
+    
+    def _flatten_schema(self, schema):
+        """
+        Flatten JSON schema by resolving $ref constructs that Together's grammar validator doesn't support.
+        """
+        if not isinstance(schema, dict):
+            return schema
+
+        # Copy the schema to avoid mutating the original
+        flattened = schema.copy()
+
+        # If there are $defs, resolve them inline
+        if "$defs" in schema:
+            defs = schema["$defs"]
+            flattened = self._resolve_refs(flattened, defs)
+            # Remove $defs from the final schema since all refs are resolved
+            flattened.pop("$defs", None)
+
+        return flattened
+    
+    def _resolve_refs(self, obj, defs):
+        """
+        Recursively resolve $ref constructs by replacing them with their definitions.
+        """
+        if isinstance(obj, dict):
+            if "$ref" in obj:
+                # Extract the reference path (e.g., "#/$defs/NuggetImportanceValues")
+                ref_path = obj["$ref"]
+                if ref_path.startswith("#/$defs/"):
+                    def_name = ref_path.split("/")[-1]
+                    if def_name in defs:
+                        return self._resolve_refs(defs[def_name], defs)
+                return obj
+            else:
+                return {k: self._resolve_refs(v, defs) for k, v in obj.items()}
+        elif isinstance(obj, list):
+            return [self._resolve_refs(item, defs) for item in obj]
+        else:
+            return obj
