@@ -120,7 +120,7 @@ class TestLLMJudgesIntegration(unittest.TestCase):
                 "name": "deepseek-ai/DeepSeek-V3",
                 "api_key": self.together_key
             }
-            self.together_model = TogetherModel(together_options)        
+            self.together_model = TogetherModel(together_options)
 
     def test_openai_integration(self):
         """Test OpenAI model with actual API calls"""
@@ -176,7 +176,7 @@ class TestLLMJudgesIntegration(unittest.TestCase):
         self.assertIsInstance(response, str)
         self.assertTrue(len(response.strip()) > 0)
         # The response should contain 4 somewhere
-        self.assertIn("4", response)        
+        self.assertIn("4", response)
 
     def test_openai_parse_integration(self):
         """Test OpenAI model parse method with actual API calls"""

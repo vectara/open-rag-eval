@@ -109,12 +109,13 @@ class GeminiModel(LLMJudgeModel):
         self.client = genai.Client(api_key=model_options["api_key"])
 
     def _remove_invalid_kwargs(self, model_kwargs) -> dict:
-        model_kwargs = model_kwargs.copy()
-        invalid_kwargs = ['presence_penalty']
+        if bool(re.match(r'^gemini-2\.5.*', self.model_name, re.IGNORECASE)):
+            model_kwargs = model_kwargs.copy()
+            invalid_kwargs = ['presence_penalty']
 
-        for kwarg in invalid_kwargs:
-            if kwarg in model_kwargs:
-                del model_kwargs[kwarg]
+            for kwarg in invalid_kwargs:
+                if kwarg in model_kwargs:
+                    del model_kwargs[kwarg]
 
         return model_kwargs
 
@@ -142,8 +143,7 @@ class GeminiModel(LLMJudgeModel):
             raise ValueError("Prompt cannot be empty")
 
         model_kwargs = model_kwargs or {}
-        if bool(re.match(r'^gemini-2\.5.*', self.model_name, re.IGNORECASE)):
-            model_kwargs = self._remove_invalid_kwargs(model_kwargs)
+        model_kwargs = self._remove_invalid_kwargs(model_kwargs)
 
         try:
             response = self.client.models.generate_content(
@@ -168,8 +168,7 @@ class GeminiModel(LLMJudgeModel):
             The parsed response matching the provided schema
         """
         model_kwargs = model_kwargs or {}
-        if bool(re.match(r'^gemini-2\.5.*', self.model_name, re.IGNORECASE)):
-            model_kwargs = self._remove_invalid_kwargs(model_kwargs)
+        model_kwargs = self._remove_invalid_kwargs(model_kwargs)
         config = {
             "response_mime_type": "application/json",
             "response_schema": response_format,
@@ -231,7 +230,7 @@ class AnthropicModel(LLMJudgeModel):
             ValueError: If the prompt is empty or model_kwargs is invalid
             anthropic.InternalServerError: If there's a server-side issue
             anthropic.APITimeoutError: If the request timeout limit is exceeded
-            anthropic.APIConnectionError: If there's a newtwork error
+            anthropic.APIConnectionError: If there's a network error
             Exception: For API or other unexpected errors
         """
         if not prompt.strip():
@@ -337,7 +336,7 @@ class TogetherModel(LLMJudgeModel):
         Raises:
             ValueError: If the prompt is empty or model_kwargs is invalid
             together.error.Timeout: If the request timeout limit is exceeded
-            together.error.APIConnectionError: If there's a newtwork error
+            together.error.APIConnectionError: If there's a network error
             together.error.RateLimitError: If rate limit is exceeded
             Exception: For API or other unexpected errors
         """
