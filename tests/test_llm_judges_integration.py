@@ -105,7 +105,7 @@ class TestLLMJudgesIntegration(unittest.TestCase):
             self.openai_model = OpenAIModel(openai_options)
         if "gemini" in self.available_models:
             gemini_options = {
-                "name": "gemini-2.0-flash",
+                "name": "gemini-2.5-flash",
                 "api_key": self.gemini_key,
             }
             self.gemini_model = GeminiModel(gemini_options)

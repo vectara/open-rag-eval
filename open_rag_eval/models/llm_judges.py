@@ -1,5 +1,6 @@
 from abc import ABC
 import json
+import re
 
 import openai
 from google import genai
@@ -107,6 +108,16 @@ class GeminiModel(LLMJudgeModel):
         self.model_name = model_options["name"]
         self.client = genai.Client(api_key=model_options["api_key"])
 
+    def _remove_invalid_kwargs(self, model_kwargs) -> dict:
+        model_kwargs = model_kwargs.copy()
+        invalid_kwargs = ['presence_penalty']
+
+        for kwarg in invalid_kwargs:
+            if kwarg in model_kwargs:
+                del model_kwargs[kwarg]
+
+        return model_kwargs
+
     @retry(
         retry=retry_if_exception_type((APIError, ValueError)),
         stop=stop_after_attempt(3),
@@ -131,10 +142,14 @@ class GeminiModel(LLMJudgeModel):
             raise ValueError("Prompt cannot be empty")
 
         model_kwargs = model_kwargs or {}
+        if bool(re.match(r'^gemini-2\.5.*', self.model_name, re.IGNORECASE)):
+            model_kwargs = self._remove_invalid_kwargs(model_kwargs)
 
         try:
             response = self.client.models.generate_content(
-                model=self.model_name, contents=prompt, **model_kwargs
+                model=self.model_name,
+                contents=prompt,
+                config=model_kwargs
             )
             return response.text
         except Exception as e:
@@ -153,6 +168,8 @@ class GeminiModel(LLMJudgeModel):
             The parsed response matching the provided schema
         """
         model_kwargs = model_kwargs or {}
+        if bool(re.match(r'^gemini-2\.5.*', self.model_name, re.IGNORECASE)):
+            model_kwargs = self._remove_invalid_kwargs(model_kwargs)
         config = {
             "response_mime_type": "application/json",
             "response_schema": response_format,
