@@ -111,8 +111,8 @@ class UMBRELAMetric(RetrievalMetric):
             try:
                 query = retrieval_result.query
                 if (
-                    "gpt-oss" in self.model.model_name
-                    or "Qwen" in self.model.model_name
+                    "gpt-oss" in self.model.model_name.lower()
+                    or "qwen" in self.model.model_name.lower()
                 ):
                     prompt = self._UMBRELA_NEW_PROMPT.format(
                         query=query, passage=passage
