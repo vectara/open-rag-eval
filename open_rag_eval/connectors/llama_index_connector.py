@@ -1,9 +1,11 @@
 import logging
 import os
 
-from llama_index.core import VectorStoreIndex, SimpleDirectoryReader
+from llama_index.core import VectorStoreIndex, SimpleDirectoryReader, Settings
 from llama_index.core.base.base_query_engine import BaseQueryEngine
 from llama_index.core.query_engine.citation_query_engine import CitationQueryEngine
+from llama_index.embeddings.openai import OpenAIEmbedding
+from llama_index.llms.openai import OpenAI
 
 from open_rag_eval.connectors.connector import Connector
 from open_rag_eval.utils.constants import NO_ANSWER, API_ERROR
@@ -11,6 +13,9 @@ from open_rag_eval.utils.constants import NO_ANSWER, API_ERROR
 # Configure logging for tenacity
 logger = logging.getLogger(__name__)
 
+# Set embeddings and chat model for query engine
+Settings.embed_model = OpenAIEmbedding(model="text-embedding-3-small")
+Settings.llm = OpenAI(model="gpt-4.1-mini", temperature=0.0)
 
 class LlamaIndexConnector(Connector):
 

@@ -24,34 +24,62 @@ class UMBRELAMetric(RetrievalMetric):
     Bing RELevance Assessor paper: https://arxiv.org/pdf/2406.06519
     """
 
-    _UMBRELA_PROMPT = """Given a query and a passage, you must provide a score on an
-                        integer scale of 0 to 3 with the following meanings:
-                        0 = represent that the passage has nothing to do with the query,
-                        1 = represents that the passage seems related to the query but
-                        does not answer it,
-                        2 = represents that the passage has some answer for the query,
-                        but the answer may be a bit unclear, or hidden amongst extraneous
-                        information and
-                        3 = represents that the passage is dedicated to the query and
-                        contains the exact answer.
-                        Important Instruction: Assign category 1 if the passage is
-                        somewhat related to the topic but not completely, category 2 if
-                        passage presents something very important related to the entire
-                        topic but also has some extra information and category 3 if the
-                        passage only and entirely refers to the topic. If none of the
-                        above satisfies give it category 0.
-                        Query: {query}
-                        Passage: {passage}
-                        Split this problem into steps:
-                        Consider the underlying intent of the search.
-                        Measure how well the content matches a likely intent of the query
-                        (M).
-                        Measure how trustworthy the passage is (T).
-                        Consider the aspects above and the relative importance of each,
-                        and decide on a final score (O). Final score must be an integer
-                        value only.
-                        Do not provide any code in result. Provide each score in the
-                        format of: a single integer without any reasoning."""
+    _UMBRELA_PROMPT = """
+        Given a query and a passage, you must provide a score on an
+        integer scale of 0 to 3 with the following meanings:
+        0 = represent that the passage has nothing to do with the query,
+        1 = represents that the passage seems related to the query but
+        does not answer it,
+        2 = represents that the passage has some answer for the query,
+        but the answer may be a bit unclear, or hidden amongst extraneous
+        information and
+        3 = represents that the passage is dedicated to the query and
+        contains the exact answer.
+        Important Instruction: Assign category 1 if the passage is
+        somewhat related to the topic but not completely, category 2 if
+        passage presents something very important related to the entire
+        topic but also has some extra information and category 3 if the
+        passage only and entirely refers to the topic. If none of the
+        above satisfies give it category 0.
+        Query: {query}
+        Passage: {passage}
+        Split this problem into steps:
+        Consider the underlying intent of the search.
+        Measure how well the content matches a likely intent of the query
+        (M).
+        Measure how trustworthy the passage is (T).
+        Consider the aspects above and the relative importance of each,
+        and decide on a final score (O). Final score must be an integer
+        value only.
+        Do not provide any code in result. Provide each score in the
+        format of: a single integer without any reasoning.
+    """
+
+    _UMBRELA_NEW_PROMPT = """
+        Given a query and a passage, you must provide a score on an integer scale of 0 to 3 with the following meanings:
+        0 = represent that the passage has nothing to do with the query,
+        1 = represents that the passage seems related to the query but does not answer it,
+        2 = represents that the passage has some answer for the query,
+        but the answer may be a bit unclear, or hidden amongst extraneous information and
+        3 = represents that the passage is dedicated to the query and contains the exact answer.
+        Important Instructions about score assignment:
+        - score=1 if the passage is somewhat related to the topic but not completely.
+        - score=2 if the passage presents something very important related to the entire topic but also has some extra information.
+        - score=3 if the passage only and entirely refers to the topic.
+        - score=0 if none of the above is satisfied.
+        Split this problem into steps:
+        1. Consider the underlying intent of the search.
+        2. Measure how well the content matches a likely intent of the query (M).
+        3. Measure how trustworthy the passage is (T).
+        4. Consider the aspects above and the relative importance of each, and decide on a final score (O).
+        Your response must be the final score value (0, 1, 2 or 3) only, without any additional text.
+        <query>
+        {query}
+        </query>
+        <passage>
+        {passage}
+        </passage>
+    """
 
     def __init__(self, model: LLMJudgeModel):
         """Initialize the UMBRELA metric.
@@ -68,11 +96,8 @@ class UMBRELAMetric(RetrievalMetric):
             "top_p": 1.0,
             "presence_penalty": 0.5,
             "frequency_penalty": 0.0,
-            "seed": 42
+            "seed": 42,
         }
-        self.prompt = self._UMBRELA_PROMPT
-        # Any UMBRELA score above this threshold is considered relevant for
-        # calculation of traditional retrieval metrics like MAP, Precison@k, etc.
         self._umbrela_relevant_threshold = 2
 
     def compute(
@@ -85,7 +110,15 @@ class UMBRELAMetric(RetrievalMetric):
         for key, passage in retrieval_result.retrieved_passages.items():
             try:
                 query = retrieval_result.query
-                prompt = self.prompt.format(query=query, passage=passage)
+                if (
+                    "gpt-oss" in self.model.model_name
+                    or "Qwen" in self.model.model_name
+                ):
+                    prompt = self._UMBRELA_NEW_PROMPT.format(
+                        query=query, passage=passage
+                    )
+                else:
+                    prompt = self._UMBRELA_PROMPT.format(query=query, passage=passage)
                 response = self.model.parse(prompt, UMBRELAScore, self.model_kwargs)
 
                 if not response.score:
@@ -129,9 +162,7 @@ class UMBRELAMetric(RetrievalMetric):
             relevant_at_k = sum(binary_relevance[:k])
 
             # Calculate precision@K
-            retrieval_scores["precision@"][f"{k}"] = (
-                relevant_at_k / k if k > 0 else 0.0
-            )
+            retrieval_scores["precision@"][f"{k}"] = relevant_at_k / k if k > 0 else 0.0
 
             # Calculate Average Precision (AP@K)
             retrieval_scores["AP@"][f"{k}"] = self._calculate_average_precision(
