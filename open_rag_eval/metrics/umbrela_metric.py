@@ -85,9 +85,7 @@ class UMBRELAMetric(RetrievalMetric):
         """Initialize the UMBRELA metric.
 
         Args:
-            model (str): The model to use for the metric assesment.
-            prompt_override (str): An optional prompt to override the default UMBRELA prompt.
-                Must hvae placeholders for {query} and {passage}.
+            model (LLMJudgeModel): The model to use for the metric assesment.
         """
         self.model = model
         # kwargs to match the UMBRELA paper.
