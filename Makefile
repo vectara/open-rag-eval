@@ -7,6 +7,6 @@ mypy:
 	mypy open_rag_eval || true
 
 test:
-	python -m unittest discover -s tests -b
+	TRANSFORMERS_VERBOSITY=error python -m unittest discover -s tests -b
 
 .PHONY: all lint mypy test

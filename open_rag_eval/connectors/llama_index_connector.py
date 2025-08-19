@@ -1,16 +1,17 @@
 import logging
 import os
 
-from llama_index.core import VectorStoreIndex, SimpleDirectoryReader
+from llama_index.core import VectorStoreIndex, SimpleDirectoryReader, Settings
 from llama_index.core.base.base_query_engine import BaseQueryEngine
 from llama_index.core.query_engine.citation_query_engine import CitationQueryEngine
+from llama_index.embeddings.openai import OpenAIEmbedding
+from llama_index.llms.openai import OpenAI
 
 from open_rag_eval.connectors.connector import Connector
 from open_rag_eval.utils.constants import NO_ANSWER, API_ERROR
 
 # Configure logging for tenacity
 logger = logging.getLogger(__name__)
-
 
 class LlamaIndexConnector(Connector):
 
@@ -19,9 +20,14 @@ class LlamaIndexConnector(Connector):
             config: dict,
             folder: str,
             top_k: int = 10,
+            openai_embedding_model: str = "text-embedding-3-small",
+            openai_llm_model: str = "gpt-4.1-mini",
             max_workers: int = -1,
             repeat_query: int = 1,  # Add repeat_query parameter
     ) -> BaseQueryEngine:
+        Settings.embed_model = OpenAIEmbedding(model=openai_embedding_model)
+        Settings.llm = OpenAI(model=openai_llm_model, temperature=0.0)
+
         documents = SimpleDirectoryReader(folder).load_data()
         index = VectorStoreIndex.from_documents(documents)
         retriever = index.as_retriever(similarity_top_k=top_k)

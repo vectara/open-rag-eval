@@ -7,6 +7,7 @@ from open_rag_eval.data_classes.rag_results import RetrievalResult
 class TestUMBRELAMetric(unittest.TestCase):
     def setUp(self):
         self.model = Mock()
+        self.model.model_name = "test-model"
         self.metric = UMBRELAMetric(model=self.model)
         self.k_values = [1, 3, 5]
 
@@ -62,7 +63,7 @@ class TestUMBRELAMetric(unittest.TestCase):
             self.metric.compute(retrieval_result, self.k_values)
 
         self.assertTrue(
-            "Failed to parse response: Refused to score" in str(context.exception)
+            "Error computing UMBRELA score: Failed to parse response: Refused to score" in str(context.exception)
         )
 
     def test_add_retrieval_metrics_empty_scores(self):
