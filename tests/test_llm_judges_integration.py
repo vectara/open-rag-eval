@@ -246,5 +246,6 @@ class TestLLMJudgesIntegration(unittest.TestCase):
         self.assertIsInstance(response.support, CitationSupportValues)
         self.assertIn(response.support, CitationSupportValues)
 
+
 if __name__ == "__main__":
     unittest.main()
