@@ -4,8 +4,6 @@ Command-line interface for Open RAG Eval.
 
 import argparse
 import sys
-from pathlib import Path
-from typing import List, Optional
 
 from open_rag_eval.run_eval import run_eval
 from open_rag_eval.plot_results import plot_metrics
