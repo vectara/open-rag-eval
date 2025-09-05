@@ -47,21 +47,23 @@ This guide walks you through an end-to-end evaluation using the toolkit. We'll u
 
 ## Installation
 
-In order to build the library from source, which is the recommended method to follow the sample instructions below you can do:
+Install directly from pip:
 
-```
-$ git clone https://github.com/vectara/open-rag-eval.git
-$ cd open-rag-eval
-$ pip install -e .
-```
-
-If you want to install directly from pip, which is the common method if you want to use the library in your own pipeline instead of running the samples, you can run:
-
-```
+```bash
 pip install open-rag-eval
 ```
 
-After installing the library you can follow instructions below to run a sample evaluation and test out the library end to end.
+This will install the `open-rag-eval` command-line tool, which you can use to run evaluations and plot results without needing to clone the repository.
+
+Alternatively, to build from source (useful for development or accessing example configs):
+
+```bash
+git clone https://github.com/vectara/open-rag-eval.git
+cd open-rag-eval
+pip install -e .
+```
+
+After installation, you can use the CLI or follow the instructions below to run a sample evaluation.
 
 ## Using Open RAG Eval with the Vectara connector
 
@@ -94,7 +96,13 @@ In addition, make sure you have `VECTARA_API_KEY` and `OPENAI_API_KEY` available
 
 ### Step 3. Run evaluation!
 
-With everything configured, now is the time to run evaluation! Run the following command from the root folder of open-rag-eval:
+With everything configured, now is the time to run evaluation! If you installed via pip, use the CLI command:
+
+```bash
+open-rag-eval eval --config eval_config_vectara.yaml
+```
+
+Or if you're running from source:
 
 ```bash
 python open_rag_eval/run_eval.py --config config_examples/eval_config_vectara.yaml
@@ -118,7 +126,13 @@ Copy `vectara_eval_config.yaml` to `xxx_eval_config.yaml` (where `xxx` is the na
 
 ### Step 2. Run evaluation!
 
-With everything configured, now is the time to run evaluation! Run the following command:
+With everything configured, now is the time to run evaluation! If you installed via pip, use the CLI command:
+
+```bash
+open-rag-eval eval --config xxx_eval_config.yaml
+```
+
+Or if you're running from source:
 
 ```bash
 python open_rag_eval/run_eval.py --config xxx_eval_config.yaml
@@ -155,20 +169,26 @@ This is the easiest and most user-friendly way to explore detailed RAG evaluatio
   <img width="90%" alt="visualization 2" src="img/OpenEvaluation2.png"/>
 </p>
 
-### Option 2: CLI Plotting with plot_results.py
+### Option 2: CLI Plotting
 
-For those who prefer local or scriptable visualization, you can use the CLI plotting utility. Multiple different runs can be plotted on the same plot allowing for easy comparison of different configurations or RAG providers:
+For those who prefer local or scriptable visualization, you can use the CLI plotting utility. Multiple different runs can be plotted on the same plot allowing for easy comparison of different configurations or RAG providers.
 
-To plot a single result:
+If you installed via pip, use the CLI command:
 
 ```bash
-python open_rag_eval/plot_results.py --evaluator trec results.csv
+open-rag-eval plot results.csv --evaluator trec
 ```
 
 Or to plot multiple results:
 
 ```bash
-python open_rag_eval/plot_results.py --evaluator trec results_1.csv results_2.csv results_3.csv
+open-rag-eval plot results_1.csv results_2.csv results_3.csv --evaluator trec
+```
+
+If you're running from source:
+
+```bash
+python open_rag_eval/plot_results.py --evaluator trec results.csv
 ```
 ⚠️ Required: The `--evaluator` argument must be specified to indicate which evaluator (trec or consistency) the plots should be generated for.
 
@@ -284,3 +304,5 @@ Give a ⭐️ if this project helped you!
 
 Copyright © 2025 [Vectara](https://github.com/vectara).<br />
 This project is [Apache 2.0](https://github.com/vectara/open-rag-eval/blob/master/LICENSE) licensed.
+
+<img referrerpolicy="no-referrer-when-downgrade" src="https://static.scarf.sh/a.png?x-pxid=266ad267-7ab0-43c9-b558-6004a3c551bf" />
