@@ -24,6 +24,11 @@ setup(
     url="https://github.com/vectara/open-rag-eval",
     packages=find_packages(),
     install_requires=read_requirements(),
+    entry_points={
+        'console_scripts': [
+            'open-rag-eval=open_rag_eval.cli:main',
+        ],
+    },
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: Apache Software License",
