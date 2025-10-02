@@ -248,9 +248,16 @@ def create_openeval_report(results_folder, eval_results_file):
     }
 
     with open(json_path, "w", encoding="utf-8") as f:
-        json.dump(json_output, f, indent=2)
+        json.dump(_omit_empty_consistency(json_output), f, indent=2)
     print(f"Open Evaluation json report saved to {json_path}")
 
+def _omit_empty_consistency(report: dict) -> dict:
+    """Remove the 'consistency' key when its value is empty ({} / None / [] / '').
+    This keeps results.json clean for consumers that treat presence as 'has data'.
+    """
+    if not report.get("consistency"):
+        report.pop("consistency", None)
+    return report
 
 def run_eval(config_path: str):
     """
