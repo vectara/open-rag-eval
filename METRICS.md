@@ -254,7 +254,7 @@ The consistency metrics require:
 For numeric metrics from the primary evaluator (TREC), consistency analysis includes:
 - **Mean**: Average score across runs
 - **Variance**: Measure of score dispersion
-- **Coefficient of Variation**: Normalized measure of consistency that combines both mean and variance (higher = better)
+- **Coefficient of Variation**: Normalized measure of consistency that combines both mean and variance (lower = better)
 
 ### Configuration
 
