@@ -33,6 +33,13 @@ Open RAG Eval implements state-of-the-art metrics from the TREC 2024 RAG Track, 
 - **Purpose**: Automate relevance assessment for retrieved passages using LLMs, replacing expensive human judgments
 - **LLM Required**: Configurable via LLMJudgeModel (default: OpenAI GPT-4o)
 
+#### Inputs
+
+This metric evaluates the relevance of retrieved passages and requires:
+- **Query**: The user's search question or information need
+- **Retrieved Passages**: A collection of text passages returned by the retrieval system (typically a dictionary mapping passage IDs to passage text)
+- **K Values**: List of integers for calculating Precision@K metrics (e.g., [1, 3, 5])
+
 #### Scoring System
 
 UMBRELA assigns scores on a 0-3 scale:
@@ -71,6 +78,12 @@ model_kwargs = {
 
 Based on UMBRELA scores (with relevance threshold ≥ 2), the system also calculates:
 
+#### Inputs
+
+These metrics are derived metrics that require:
+- **UMBRELA Scores**: The relevance scores (0-3) assigned to each retrieved passage
+- **Relevance Threshold**: Score threshold to determine binary relevance (default: ≥ 2 is considered relevant)
+
 #### Precision@K
 Measures the fraction of relevant documents in the top K results:
 ```
@@ -103,24 +116,36 @@ MRR = 1 / (rank of first relevant document)
 - **Origin**: Based on the nugget evaluation methodology from TREC Question Answering Track (2003)
 - **LLM Required**: Configurable via LLMJudgeModel (default: OpenAI GPT-4o)
 
+#### Inputs
+
+This metric evaluates answer quality and requires:
+- **Query**: The original user question
+- **Retrieved Passages**: The text passages retrieved by the system
+- **UMBRELA Scores**: Relevance scores from the UMBRELA metric (used to filter passages - only those with score ≥ 1 are used for nugget creation)
+- **Generated Answer**: The complete answer produced by the generation system
+
 #### Process
 
 1. **Nugget Creation**:
+   - **Inputs**: Query + Retrieved passages (filtered by UMBRELA scores ≥ 1)
    - Iteratively extracts atomic information units (1-12 words) from retrieved passages
-   - Uses only passages with UMBRELA score ≥ 1
    - Maximum 30 nuggets created per query
    - Runs up to 5 iterations to refine nugget list (default)
    - Returns top 20 nuggets after importance scoring
 
 2. **Nugget Importance Scoring**:
-   - **Vital**: Must be present in a good answer
-   - **Okay**: Worthwhile but not essential information
+   - **Inputs**: Query + List of created nuggets
+   - Each Nugget is classified into one of these two categories:
+     - **Vital**: Must be present in a good answer
+     - **Okay**: Worthwhile but not essential information
    - Nuggets are processed in batches of 10 for LLM scoring
 
 3. **Nugget Assignment**:
-   - **Support**: Nugget fully captured in generated answer (1.0 score)
-   - **Partial Support**: Nugget partially captured (0.5 score)
-   - **Not Support**: Nugget not captured (0.0 score)
+   - **Inputs**: Query + Generated answer + Scored nuggets
+   - Each Nugget is assigned into one of these three categories:
+     - **Support**: Nugget fully captured in generated answer (1.0 score)
+     - **Partial Support**: Nugget partially captured (0.5 score)
+     - **Not Support**: Nugget not captured (0.0 score)
    - Assignments are also processed in batches of 10
 
 #### Scoring Formulas
@@ -137,6 +162,12 @@ Multiple scores are calculated:
 Evaluates whether generated statements are properly supported by their cited passages.
 
 **LLM Required**: Configurable via LLMJudgeModel (default: OpenAI GPT-4o)
+
+#### Inputs
+
+This metric validates citation accuracy and requires:
+- **Generated Answer with Citations**: The answer text split into parts, each part with its associated citation references (passage IDs)
+- **Retrieved Passages**: The actual text content of the cited passages that the generated answer references
 
 #### Scoring Levels
 
@@ -155,19 +186,31 @@ Default scores for each support level:
 
 Uses the Vectara Hallucination Evaluation Model (HHEM) to detect hallucinations.
 
+#### Inputs
+
+This metric checks factual consistency and requires:
+- **Generated Answer**: The complete text produced by the generation system
+- **Retrieved Passages**: All source passages that were retrieved (used as the factual basis to check the answer against)
+
 #### Implementation
 
 - **Model**: `vectara/hallucination_evaluation_model` (HuggingFace Transformers)
-- **Input**: Concatenated source passages and generated answer
+- **Processing**: Concatenates source passages and generated answer
 - **Output**: HHEM score between 0 and 1 (higher = more factually consistent, less hallucination)
 - **Max Input**: 8192 characters (truncated if longer)
-- **CPU Usage**: Limited to 2 threads to avoid heavy CPU usage
+- **CPU Usage**: Limited to 2 threads
 
 ### No-Answer Detection
 
 Determines if the system attempted to answer the query or returned a "no answer" response.
 
 **LLM Required**: Configurable via LLMJudgeModel (default: OpenAI GPT-4o)
+
+#### Inputs
+
+This metric evaluates answer attempts and requires:
+- **Query**: The original user question
+- **Generated Answer**: The complete answer text produced by the system
 
 #### Classification
 
@@ -178,7 +221,13 @@ This metric is crucial for calculating the "Questions Answered" percentage in ev
 
 ## Consistency Metrics
 
-When `run_consistency` is enabled, the system evaluates multiple runs of the same query to measure consistency across answers. The consistency evaluator uses specialized similarity metrics:
+When `run_consistency` is enabled, the system evaluates multiple runs of the same query to measure consistency across answers. The consistency evaluator uses specialized similarity metrics.
+
+### Inputs
+
+The consistency metrics require:
+- **Multiple Generated Answers**: Several answer outputs from running the same query multiple times through the RAG system
+- **Original Metrics**: The numeric scores from the primary evaluator (e.g., TREC metrics) for each run, used for statistical analysis
 
 ### BERTScore Similarity
 
@@ -324,7 +373,7 @@ open-rag-eval plot consistency_results.csv --evaluator consistency
 
 1. Ronak Pradeep et al. "Initial Nugget Evaluation Results for the TREC 2024 RAG Track with the AutoNuggetizer Framework." arXiv:2411.09607, 2024.
 
-2. Shivani Upadhyay et al. "UMBRELA: UMbrela is the (Open-Source Reproduction of the) Bing RELevance Assessor." arXiv:2406.06519, 2024.
+2. Shivani Upadhyay et al. "UMBRELA: UMBRELA is the (Open-Source Reproduction of the) Bing RELevance Assessor." arXiv:2406.06519, 2024.
 
 3. TREC 2024 RAG Track: https://trec-rag.github.io/
 
