@@ -26,7 +26,7 @@ Out-of-the-box, the toolkit includes:
 
 # Key Features
 
-- **Standard Metrics:** Provides TREC-RAG evaluation metrics ready to use.
+- **Standard Metrics:** Provides TREC-RAG evaluation metrics ready to use. See [METRICS.md](METRICS.md) for detailed documentation.
 - **Modular Architecture:** Easily add custom evaluation metrics or integrate with any RAG pipeline.
 - **Detailed Reporting:** Generates per-query scores and intermediate outputs for debugging and analysis.
 - **Visualization:** Compare results across different configurations or runs with plotting utilities.
