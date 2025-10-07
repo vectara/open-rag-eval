@@ -254,10 +254,10 @@ def create_openeval_report(results_folder, eval_results_file):
 
 
 def _omit_empty_consistency(report: dict) -> dict:
-    """Return a copy of the ```report``` without an empty 'consistency' field.
+    """Return a copy of `report` with the 'consistency' key removed if its value is falsy.
 
-    If 'consistency' is not present but falsy (e.g., None, empty dict), it is removed.
-    The input dict is not modified.
+    The returned dictionary excludes 'consistency' when present but empty or None.
+    All other keys and values are preserved.
     """
     return {k: v for k, v in report.items() if k != "consistency" or v}
 
