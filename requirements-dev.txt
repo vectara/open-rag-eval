@@ -1,0 +1,13 @@
+# --- Testing ---
+pytest>=8.0.0
+pytest-cov>=5.0.0
+
+# --- Linting & Formatting ---
+ruff>=0.6.0
+black>=24.4.0
+isort>=5.13.0
+
+# --- Developer Utilities ---
+ipython>=8.26.0
+pre-commit>=4.0.0
+
