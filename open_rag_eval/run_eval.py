@@ -12,14 +12,13 @@ from pathlib import Path
 from typing import Any, Dict
 
 import pandas as pd
+from omegaconf import DictConfig, ListConfig, OmegaConf
 from pandas.errors import EmptyDataError
-from omegaconf import OmegaConf, ListConfig, DictConfig
 
-from open_rag_eval import connectors, models
-from open_rag_eval import evaluators
-from open_rag_eval.rag_results_loader import RAGResultsLoader
-from open_rag_eval.utils.constants import CONSISTENCYEVALUATOR, CONSISTENCY
+from open_rag_eval import connectors, evaluators, models
 from open_rag_eval._version import __version__
+from open_rag_eval.rag_results_loader import RAGResultsLoader
+from open_rag_eval.utils.constants import CONSISTENCY, CONSISTENCYEVALUATOR
 
 
 def get_evaluator(evaluator_config: Dict[str, Any]) -> evaluators.Evaluator:
@@ -203,7 +202,9 @@ def create_openeval_report(results_folder, eval_results_file):
     df = pd.read_csv(csv_file)
 
     # Identify run-based prefixes
-    run_prefixes = {"_".join(col.split("_")[:2]) for col in df.columns if col.startswith("run_")}
+    run_prefixes = {
+        "_".join(col.split("_")[:2]) for col in df.columns if col.startswith("run_")
+    }
 
     # Identify consistency metric columns
     consistency_cols = [col for col in df.columns if col.startswith(CONSISTENCY)]
@@ -251,13 +252,15 @@ def create_openeval_report(results_folder, eval_results_file):
         json.dump(_omit_empty_consistency(json_output), f, indent=2)
     print(f"Open Evaluation json report saved to {json_path}")
 
+
 def _omit_empty_consistency(report: dict) -> dict:
-    """Remove the 'consistency' key when its value is empty ({} / None / [] / '').
-    This keeps results.json clean for consumers that treat presence as 'has data'.
+    """Return a copy of the ```report``` without an empty 'consistency' field.
+
+    If 'consistency' is not present but falsy (e.g., None, empty dict), it is removed.
+    The input dict is not modified.
     """
-    if not report.get("consistency"):
-        report.pop("consistency", None)
-    return report
+    return {k: v for k, v in report.items() if k != "consistency" or v}
+
 
 def run_eval(config_path: str):
     """

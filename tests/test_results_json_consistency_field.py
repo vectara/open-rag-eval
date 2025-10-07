@@ -20,7 +20,7 @@ def test_omit_empty_consistency_removes_key(tmp_path: Path):
 def test_keep_nonempty_consistency(tmp_path: Path):
     report = {
         "metadata": {"evaluator": "consistency"},
-        "consistency": {"pairwise_agreement": 0.77},
+        "consistency": {"example_metric": 0.77},  # any non-empty dict is fine
     }
     cleaned = _omit_empty_consistency(report.copy())
     assert "consistency" in cleaned
