@@ -1,9 +1,9 @@
 .git
 .gitignore
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
+**/__pycache__/
+**/*.py[cod]
+**/*$py.class
+**/*.so
 .Python
 env/
 build/
