@@ -4,6 +4,7 @@ import logging
 import sys
 from pathlib import Path
 from typing import Dict, List, Optional
+import argparse
 
 from omegaconf import OmegaConf
 
@@ -92,21 +93,23 @@ def get_document_source(source_config: Dict):
             api_key=options.get("api_key"),
             corpus_key=options.get("corpus_key"),
         )
-    elif source_type == "LocalFileSource":
+
+    if source_type == "LocalFileSource":
         return LocalFileSource(
             path=options.get("path"),
             file_extensions=options.get("file_extensions"),
         )
-    elif source_type == "CSVSource":
+
+    if source_type == "CSVSource":
         return CSVSource(
             csv_path=options.get("csv_path"),
             text_column=options.get("text_column", "text"),
         )
-    else:
-        raise ValueError(
-            f"Invalid document source type: {source_type}. "
-            "Must be one of: VectaraCorpusSource, LocalFileSource, CSVSource"
-        )
+
+    raise ValueError(
+        f"Invalid document source type: {source_type}. "
+        "Must be one of: VectaraCorpusSource, LocalFileSource, CSVSource"
+    )
 
 
 def generate_query_variant(
@@ -285,8 +288,6 @@ def run_query_generation(
 
 def main():
     """CLI entry point for standalone execution."""
-    import argparse
-
     parser = argparse.ArgumentParser(
         description="Generate synthetic queries for RAG evaluation"
     )

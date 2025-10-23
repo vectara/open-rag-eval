@@ -1,7 +1,7 @@
 """Tests for LLM-based query generator."""
 
 import unittest
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 
 from open_rag_eval.query_generation.llm_generator import LLMQueryGenerator
 
