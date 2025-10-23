@@ -5,6 +5,8 @@ import random
 import re
 from typing import List
 
+from tqdm import tqdm
+
 from .base_generator import QueryGenerator
 from ..models.llm_judges import LLMJudgeModel
 
@@ -92,9 +94,8 @@ class LLMQueryGenerator(QueryGenerator):
         all_questions = []
         questions_per_doc = min(n_questions // len(documents) + 5, self.questions_per_doc)
 
-        for idx, doc in enumerate(documents):
-            logger.debug("Processing document %d/%d", idx + 1, len(documents))
-
+        # Use tqdm for progress tracking
+        for doc in tqdm(documents, desc="Generating queries from documents", unit="doc"):
             try:
                 questions = self._generate_questions_for_doc(
                     doc,
@@ -105,8 +106,7 @@ class LLMQueryGenerator(QueryGenerator):
                 all_questions.extend(questions)
             except Exception as e:
                 logger.warning(
-                    "Failed to generate questions for document %d: %s",
-                    idx + 1,
+                    "Failed to generate questions for document: %s",
                     str(e)
                 )
                 continue

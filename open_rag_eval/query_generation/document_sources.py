@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import List, Optional
 
 import requests
+from tqdm import tqdm
 
 logger = logging.getLogger(__name__)
 
@@ -172,7 +173,7 @@ class VectaraCorpusSource(DocumentSource):
             logger.info("Randomly sampled %d documents", num_docs)
 
         documents = []
-        for doc_id in doc_ids:
+        for doc_id in tqdm(doc_ids, desc="Loading documents from Vectara", unit="doc"):
             try:
                 doc_text = self.get_doc_text(doc_id)
                 if len(doc_text) >= min_doc_size:
@@ -250,7 +251,7 @@ class LocalFileSource(DocumentSource):
             file_paths = random.sample(file_paths, num_docs)
             logger.info("Randomly sampled %d files", num_docs)
 
-        for file_path in file_paths:
+        for file_path in tqdm(file_paths, desc="Loading documents from local files", unit="file"):
             try:
                 with open(file_path, 'r', encoding='utf-8') as f:
                     content = f.read()
