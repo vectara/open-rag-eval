@@ -1,0 +1,42 @@
+# Query Generation Configuration for Local Files
+# This example shows how to generate queries from local text files
+
+# Document source configuration
+document_source:
+  type: "LocalFileSource"
+  options:
+    path: "/path/to/documents"      # Replace with your documents directory
+    file_extensions: [".txt", ".md"]
+    min_doc_size: 500               # Minimum document size in characters
+    num_docs: null                  # null = use all documents
+
+# LLM model for query generation
+model:
+  type: "OpenAIModel"
+  name: "gpt-4o-mini"
+  api_key: ${oc.env:OPENAI_API_KEY}
+
+# Alternative: Use Anthropic Claude
+# model:
+#   type: "AnthropicModel"
+#   name: "claude-3-5-sonnet-20241022"
+#   api_key: ${oc.env:ANTHROPIC_API_KEY}
+
+# Alternative: Use Google Gemini
+# model:
+#   type: "GeminiModel"
+#   name: "gemini-2.0-flash-exp"
+#   api_key: ${oc.env:GEMINI_API_KEY}
+
+# Query generation parameters
+generation:
+  n_questions: 100                 # Total queries to generate
+  min_words: 5                     # Minimum words per query (generates diverse lengths)
+  max_words: 25                    # Maximum words per query
+  questions_per_doc: 10            # Max queries per document
+
+# Output configuration
+output:
+  format: "csv"                    # or "jsonl"
+  base_filename: "queries"         # Generates queries.csv
+  include_metadata: false

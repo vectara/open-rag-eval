@@ -65,6 +65,59 @@ pip install -e .
 
 After installation, you can use the CLI or follow the instructions below to run a sample evaluation.
 
+## (Optional) Generating Synthetic Queries
+
+If you don't have existing queries, Open RAG Eval can automatically generate evaluation queries from your corpus documents using LLMs. This is useful when you want to expand test coverage without manually writing queries.
+
+### Supported Document Sources
+
+- **Vectara Corpus**: Load documents directly from your Vectara corpus via API
+- **Local Files**: Load from local text/markdown files
+- **CSV Files**: Load from CSV with a text column
+
+### Quick Example
+
+```bash
+# 1. Create a config file (query_gen_config.yaml)
+# See config_examples/query_gen_*.yaml for templates
+
+# 2. Generate queries
+open-rag-eval generate-queries --config query_gen_config.yaml
+
+# 3. Use generated queries in evaluation (as shown below)
+```
+
+### Query Generation Configuration Example
+
+```yaml
+document_source:
+  type: "VectaraCorpusSource"  # or LocalFileSource, CSVSource
+  options:
+    api_key: ${oc.env:VECTARA_API_KEY}
+    corpus_key: "your-corpus-key"
+    min_doc_size: 2000        # Filter small documents
+    num_docs: 50              # Limit for cost control
+    seed: 42                  # Random seed for reproducible sampling (optional)
+
+model:
+  type: "OpenAIModel"         # or AnthropicModel, GeminiModel, TogetherModel
+  name: "gpt-4o-mini"
+  api_key: ${oc.env:OPENAI_API_KEY}
+
+generation:
+  n_questions: 100            # Total queries to generate
+  min_words: 5                # Minimum words per query
+  max_words: 25               # Maximum words per query
+  questions_per_doc: 10       # Max queries per document
+  language: "English"         # Language for generated questions (optional, default: "English")
+
+output:
+  format: "csv"               # or "jsonl"
+  base_filename: "queries"
+```
+
+This generates `queries.csv` with a diverse set of queries at various lengths. See `config_examples/query_gen_*.yaml` for complete examples.
+
 ## Using Open RAG Eval with the Vectara connector
 
 ### Step 1. Define Queries for Evaluation
