@@ -39,6 +39,9 @@ This guide walks you through an end-to-end evaluation using the toolkit. We'll u
 
 - **Python:** Version 3.9 or higher.
 - **OpenAI API Key:** Required for the default LLM judge model used in some metrics. Set this as an environment variable: `export OPENAI_API_KEY='your-api-key'`
+- **Hugging Face Token:** Required for accessing the HHEM (Hallucination Evaluation Model) used in fatual consistency metrics. Set this as an environment variable: `export HF_TOKEN='your-huggingface-token'`
+  - You can obtain a token from your [Hugging Face account settings](https://huggingface.co/settings/tokens).
+  - You'll also need to request access to the [vectara/hallucination_evaluation_model](https://huggingface.co/vectara/hallucination_evaluation_model) model on Hugging Face.
 - **Vectara Account:** To enable the Vectara connector, you need:
   - A [Vectara account](https://console.vectara.com/signup).
   - A corpus containing your indexed data.
@@ -142,10 +145,11 @@ Edit the [eval_config_vectara.yaml](https://github.com/vectara/open-rag-eval/blo
 * Update the `connector` section (under `options`/`query_config`) with your Vectara `corpus_key`.
 * Customize any Vectara query parameter to tailor this evaluation to a query configuration set.
 
-In addition, make sure you have `VECTARA_API_KEY` and `OPENAI_API_KEY` available in your environment. For example:
+In addition, make sure you have the required API keys and tokens available in your environment. For example:
 
 - export VECTARA_API_KEY='your-vectara-api-key'
 - export OPENAI_API_KEY='your-openai-api-key'
+- export HF_TOKEN='your-huggingface-token'
 
 ### Step 3. Run evaluation!
 

@@ -1,3 +1,4 @@
+import os
 from typing import Dict
 import torch
 
@@ -19,7 +20,12 @@ class HallucinationMetric(AugmentedGenerationMetric):
             detection_threshold (float): The threshold fordetecting hallucinations.
             max_chars (int): The maximum number of characters to process. Inputs longer than this will be truncated.
         """
-        self.model = AutoModelForSequenceClassification.from_pretrained(model_name, trust_remote_code=True)
+        hf_token = os.environ.get('HF_TOKEN')
+        self.model = AutoModelForSequenceClassification.from_pretrained(
+            model_name,
+            trust_remote_code=True,
+            token=hf_token
+        )
         self.detection_threshold = detection_threshold
         self.max_chars = max_chars
 
