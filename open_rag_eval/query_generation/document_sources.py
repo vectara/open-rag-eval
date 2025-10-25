@@ -17,18 +17,18 @@ class DocumentSource(ABC):
     """Abstract base class for document sources."""
 
     @abstractmethod
-    def load_documents(
+    def fetch_random_documents(
         self,
         min_doc_size: int = 0,
-        num_docs: Optional[int] = None,
+        max_num_docs: Optional[int] = None,
         seed: Optional[int] = None
     ) -> List[str]:
         """
-        Load documents from the source.
+        Fetch random documents from the source.
 
         Args:
             min_doc_size: Minimum document size in characters
-            num_docs: Maximum number of documents to load (None for all)
+            max_num_docs: Maximum number of documents to load (None for all)
             seed: Random seed for reproducible sampling (None for random)
 
         Returns:
@@ -142,18 +142,18 @@ class VectaraCorpusSource(DocumentSource):
         res = response.json()
         return '\n'.join((p['text'] for p in res.get('parts', [])))
 
-    def load_documents(
+    def fetch_random_documents(
         self,
         min_doc_size: int = 0,
-        num_docs: Optional[int] = None,
+        max_num_docs: Optional[int] = None,
         seed: Optional[int] = None
     ) -> List[str]:
         """
-        Load documents from Vectara corpus.
+        Fetch random documents from Vectara corpus.
 
         Args:
             min_doc_size: Minimum document size in characters
-            num_docs: Maximum number of documents to load (None for all)
+            max_num_docs: Maximum number of documents to load (None for all)
             seed: Random seed for reproducible sampling (None for random)
 
         Returns:
@@ -166,11 +166,19 @@ class VectaraCorpusSource(DocumentSource):
         doc_ids = self.list_docs()
         logger.info("Found %d documents in corpus", len(doc_ids))
 
-        if num_docs and num_docs < len(doc_ids):
+        max_docs_default = 5000
+        if not max_num_docs and len(doc_ids) > max_docs_default:
+            logger.warning(
+                f"Corpus contains {len(doc_ids)} documents. Limiting to {max_docs_default} documents by default to avoid long load times."
+                " Consider setting max_num_docs to load a smaller subset."
+            )
+            max_num_docs = max_docs_default
+
+        if max_num_docs and max_num_docs < len(doc_ids):
             if seed is not None:
                 random.seed(seed)
-            doc_ids = random.sample(doc_ids, num_docs)
-            logger.info("Randomly sampled %d documents", num_docs)
+            doc_ids = random.sample(doc_ids, max_num_docs)
+            logger.info("Randomly sampled %d documents", max_num_docs)
 
         documents = []
         for doc_id in tqdm(doc_ids, desc="Loading documents from Vectara", unit="doc"):
@@ -216,18 +224,18 @@ class LocalFileSource(DocumentSource):
 
         self.file_extensions = file_extensions or ['.txt', '.md']
 
-    def load_documents(
+    def fetch_random_documents(
         self,
         min_doc_size: int = 0,
-        num_docs: Optional[int] = None,
+        max_num_docs: Optional[int] = None,
         seed: Optional[int] = None
     ) -> List[str]:
         """
-        Load documents from local files.
+        Fetch random documents from local files.
 
         Args:
             min_doc_size: Minimum document size in characters
-            num_docs: Maximum number of documents to load (None for all)
+            max_num_docs: Maximum number of documents to load (None for all)
             seed: Random seed for reproducible sampling (None for random)
 
         Returns:
@@ -245,11 +253,11 @@ class LocalFileSource(DocumentSource):
 
         logger.info("Found %d files with extensions %s", len(file_paths), self.file_extensions)
 
-        if num_docs and num_docs < len(file_paths):
+        if max_num_docs and max_num_docs < len(file_paths):
             if seed is not None:
                 random.seed(seed)
-            file_paths = random.sample(file_paths, num_docs)
-            logger.info("Randomly sampled %d files", num_docs)
+            file_paths = random.sample(file_paths, max_num_docs)
+            logger.info("Randomly sampled %d files", max_num_docs)
 
         for file_path in tqdm(file_paths, desc="Loading documents from local files", unit="file"):
             try:
@@ -292,18 +300,18 @@ class CSVSource(DocumentSource):
 
         self.text_column = text_column
 
-    def load_documents(
+    def fetch_random_documents(
         self,
         min_doc_size: int = 0,
-        num_docs: Optional[int] = None,
+        max_num_docs: Optional[int] = None,
         seed: Optional[int] = None
     ) -> List[str]:
         """
-        Load documents from CSV file.
+        Fetch random documents from CSV file.
 
         Args:
             min_doc_size: Minimum document size in characters
-            num_docs: Maximum number of documents to load (None for all)
+            max_num_docs: Maximum number of documents to load (None for all)
             seed: Random seed for reproducible sampling (None for random)
 
         Returns:
@@ -335,10 +343,10 @@ class CSVSource(DocumentSource):
 
         logger.info("Loaded %d documents from CSV", len(documents))
 
-        if num_docs and num_docs < len(documents):
+        if max_num_docs and max_num_docs < len(documents):
             if seed is not None:
                 random.seed(seed)
-            documents = random.sample(documents, num_docs)
-            logger.info("Randomly sampled %d documents", num_docs)
+            documents = random.sample(documents, max_num_docs)
+            logger.info("Randomly sampled %d documents", max_num_docs)
 
         return documents

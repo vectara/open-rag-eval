@@ -3,6 +3,7 @@ Command-line interface for Open RAG Eval.
 """
 
 import argparse
+import logging
 import sys
 
 from open_rag_eval.run_eval import run_eval
@@ -81,6 +82,12 @@ def main():
         action="store_true",
         help="Show configuration and document count without generating",
     )
+    gen_parser.add_argument(
+        "--verbose",
+        "-v",
+        action="store_true",
+        help="Enable verbose logging",
+    )
 
     args = parser.parse_args()
 
@@ -94,6 +101,16 @@ def main():
             metrics_to_plot=args.metrics_to_plot,
         )
     elif args.command == "generate-queries":
+        # Configure logging based on verbose flag
+        if args.verbose:
+            log_level = logging.DEBUG
+        else:
+            log_level = logging.INFO
+        logging.basicConfig(
+            level=log_level,
+            format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+        )
+
         run_query_generation(
             config_path=args.config,
             output_file=args.output,

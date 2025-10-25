@@ -145,7 +145,7 @@ class TestLocalFileSource(unittest.TestCase):
             test_file2.write_text("This is document 2")
 
             source = LocalFileSource(path=tmpdir)
-            documents = source.load_documents()
+            documents = source.fetch_random_documents()
 
             self.assertEqual(len(documents), 2)
             self.assertIn("This is document 1", documents)
@@ -160,7 +160,7 @@ class TestLocalFileSource(unittest.TestCase):
             (Path(tmpdir) / "test.pdf").write_text("PDF file")
 
             source = LocalFileSource(path=tmpdir, file_extensions=['.txt'])
-            documents = source.load_documents()
+            documents = source.fetch_random_documents()
 
             self.assertEqual(len(documents), 1)
             self.assertEqual(documents[0], "Text file")
@@ -173,7 +173,7 @@ class TestLocalFileSource(unittest.TestCase):
             (Path(tmpdir) / "large.txt").write_text("A" * 1000)
 
             source = LocalFileSource(path=tmpdir)
-            documents = source.load_documents(min_doc_size=100)
+            documents = source.fetch_random_documents(min_doc_size=100)
 
             self.assertEqual(len(documents), 1)
             self.assertEqual(len(documents[0]), 1000)
@@ -186,7 +186,7 @@ class TestLocalFileSource(unittest.TestCase):
                 (Path(tmpdir) / f"test{i}.txt").write_text(f"Document {i}")
 
             source = LocalFileSource(path=tmpdir)
-            documents = source.load_documents(num_docs=5)
+            documents = source.fetch_random_documents(max_num_docs=5)
 
             self.assertEqual(len(documents), 5)
 
@@ -215,7 +215,7 @@ class TestCSVSource(unittest.TestCase):
 
         try:
             source = CSVSource(csv_path=tmp_path)
-            documents = source.load_documents()
+            documents = source.fetch_random_documents()
 
             self.assertEqual(len(documents), 2)
             self.assertIn('Document 1', documents)
@@ -233,7 +233,7 @@ class TestCSVSource(unittest.TestCase):
 
         try:
             source = CSVSource(csv_path=tmp_path, text_column='content')
-            documents = source.load_documents()
+            documents = source.fetch_random_documents()
 
             self.assertEqual(len(documents), 1)
             self.assertEqual(documents[0], 'Document 1')
@@ -251,7 +251,7 @@ class TestCSVSource(unittest.TestCase):
         try:
             source = CSVSource(csv_path=tmp_path, text_column='text')
             with self.assertRaises(ValueError):
-                source.load_documents()
+                source.fetch_random_documents()
         finally:
             Path(tmp_path).unlink()
 
@@ -267,7 +267,7 @@ class TestCSVSource(unittest.TestCase):
 
         try:
             source = CSVSource(csv_path=tmp_path)
-            documents = source.load_documents()
+            documents = source.fetch_random_documents()
 
             self.assertEqual(len(documents), 2)
         finally:
@@ -286,12 +286,12 @@ class TestCSVSource(unittest.TestCase):
             source = CSVSource(csv_path=tmp_path)
 
             # Same seed should produce same results
-            docs1 = source.load_documents(num_docs=3, seed=42)
-            docs2 = source.load_documents(num_docs=3, seed=42)
+            docs1 = source.fetch_random_documents(max_num_docs=3, seed=42)
+            docs2 = source.fetch_random_documents(max_num_docs=3, seed=42)
             self.assertEqual(docs1, docs2)
 
             # Different seed should produce different results
-            docs3 = source.load_documents(num_docs=3, seed=123)
+            docs3 = source.fetch_random_documents(max_num_docs=3, seed=123)
             self.assertNotEqual(docs1, docs3)
         finally:
             Path(tmp_path).unlink()

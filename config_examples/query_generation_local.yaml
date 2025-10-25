@@ -8,7 +8,7 @@ document_source:
     path: "/path/to/documents"      # Replace with your documents directory
     file_extensions: [".txt", ".md"]
     min_doc_size: 500               # Minimum document size in characters
-    num_docs: null                  # null = use all documents
+    max_num_docs: null              # null = use all documents
 
 # LLM model for query generation
 model:

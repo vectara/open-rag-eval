@@ -8,7 +8,7 @@ document_source:
     csv_path: "documents.csv"      # Path to CSV file with documents
     text_column: "content"         # Column name containing document text
     min_doc_size: 1000             # Minimum document size in characters
-    num_docs: 100                  # Limit number of documents (null = all)
+    max_num_docs: 100              # Limit number of documents (null = all)
 
 # LLM model for query generation
 model:

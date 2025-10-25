@@ -8,7 +8,7 @@ document_source:
     api_key: ${oc.env:VECTARA_API_KEY}
     corpus_key: "your-corpus-key"  # Replace with your corpus key
     min_doc_size: 2000              # Minimum document size in characters
-    num_docs: 50                    # Limit number of documents (null = all)
+    max_num_docs: 50                # Limit number of documents (null = all)
 
 # LLM model for query generation
 model:

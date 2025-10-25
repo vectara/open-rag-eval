@@ -4,7 +4,6 @@ import logging
 import sys
 from pathlib import Path
 from typing import Dict, List, Optional
-import argparse
 
 from omegaconf import OmegaConf
 
@@ -200,13 +199,13 @@ def run_query_generation(
     # Load documents
     source_options = config.document_source.get("options", {})
     min_doc_size = source_options.get("min_doc_size", 0)
-    num_docs = source_options.get("num_docs", None)
+    max_num_docs = source_options.get("max_num_docs", None)
     seed = source_options.get("seed", None)
 
-    logger.info("Loading documents (min_doc_size=%d, num_docs=%s)", min_doc_size, num_docs)
-    documents = document_source.load_documents(
+    logger.info("Loading documents (min_doc_size=%d, max_num_docs=%s)", min_doc_size, max_num_docs)
+    documents = document_source.fetch_random_documents(
         min_doc_size=min_doc_size,
-        num_docs=num_docs,
+        max_num_docs=max_num_docs,
         seed=seed
     )
 
@@ -287,57 +286,15 @@ def run_query_generation(
 
 
 def main():
-    """CLI entry point for standalone execution."""
-    parser = argparse.ArgumentParser(
-        description="Generate synthetic queries for RAG evaluation"
-    )
-    parser.add_argument(
-        "--config",
-        type=str,
-        required=True,
-        help="Path to query generation configuration file"
-    )
-    parser.add_argument(
-        "--output",
-        type=str,
-        help="Output file path (overrides config)"
-    )
-    parser.add_argument(
-        "--num-queries",
-        type=int,
-        help="Number of queries to generate (overrides config)"
-    )
-    parser.add_argument(
-        "--dry-run",
-        action="store_true",
-        help="Show configuration and document count without generating"
-    )
-    parser.add_argument(
-        "--verbose",
-        "-v",
-        action="store_true",
-        help="Enable verbose logging"
-    )
+    """CLI entry point for standalone execution.
 
-    args = parser.parse_args()
-
-    # Configure logging
-    log_level = logging.DEBUG if args.verbose else logging.INFO
-    logging.basicConfig(
-        level=log_level,
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-    )
-
-    try:
-        run_query_generation(
-            config_path=args.config,
-            output_file=args.output,
-            num_queries=args.num_queries,
-            dry_run=args.dry_run
-        )
-    except Exception as e:
-        logger.error("Query generation failed: %s", str(e))
-        sys.exit(1)
+    This function maintains backwards compatibility by redirecting to the main CLI.
+    It prepends 'generate-queries' to sys.argv to invoke the correct subcommand.
+    """
+    # Redirect to the main CLI with the generate-queries subcommand
+    sys.argv.insert(1, 'generate-queries')
+    from open_rag_eval.cli import main as cli_main  # pylint: disable=import-outside-toplevel,cyclic-import
+    cli_main()
 
 
 if __name__ == "__main__":
