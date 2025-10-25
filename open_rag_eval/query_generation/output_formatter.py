@@ -167,7 +167,7 @@ class OutputFormatter:
                 include_metadata,
                 metadata
             )
-        elif output_format == 'jsonl':
+        elif output_format == 'jsonl' or output_format == 'json':
             OutputFormatter.save_to_jsonl(
                 queries,
                 output_path,
