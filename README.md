@@ -39,7 +39,7 @@ This guide walks you through an end-to-end evaluation using the toolkit. We'll u
 
 - **Python:** Version 3.9 or higher.
 - **OpenAI API Key:** Required for the default LLM judge model used in some metrics. Set this as an environment variable: `export OPENAI_API_KEY='your-api-key'`
-- **Hugging Face Token:** Required for accessing the HHEM (Hallucination Evaluation Model) used in fatual consistency metrics. Set this as an environment variable: `export HF_TOKEN='your-huggingface-token'`
+- **Hugging Face Token:** Required for accessing the HHEM (Hallucination Evaluation Model) used in factual consistency metrics. Set this as an environment variable: `export HF_TOKEN='your-huggingface-token'`
   - You can obtain a token from your [Hugging Face account settings](https://huggingface.co/settings/tokens).
   - You'll also need to request access to the [vectara/hallucination_evaluation_model](https://huggingface.co/vectara/hallucination_evaluation_model) model on Hugging Face.
 - **Vectara Account:** To enable the Vectara connector, you need:

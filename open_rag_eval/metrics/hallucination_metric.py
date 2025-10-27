@@ -17,7 +17,7 @@ class HallucinationMetric(AugmentedGenerationMetric):
 
         Args:
             model_name (str): The name of the model to use for hallucination detection.
-            detection_threshold (float): The threshold fordetecting hallucinations.
+            detection_threshold (float): The threshold for detecting hallucinations.
             max_chars (int): The maximum number of characters to process. Inputs longer than this will be truncated.
         """
         hf_token = os.environ.get('HF_TOKEN')
