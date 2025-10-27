@@ -26,3 +26,10 @@ unstructured>=0.17.2
 unstructured[pdf]>=0.17.2
 rouge>=1.0.0
 bert-score>=0.3.13
+
+# Pin opentelemetry versions to fix chromadb dependency issue
+opentelemetry-api==1.37.0
+opentelemetry-sdk==1.37.0
+opentelemetry-exporter-otlp==1.37.0
+opentelemetry-exporter-otlp-proto-grpc==1.37.0
+opentelemetry-exporter-otlp-proto-http==1.37.0

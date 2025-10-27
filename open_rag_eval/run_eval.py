@@ -2,7 +2,6 @@
 This script evaluates the performance of a retrieval-augmented generation (RAG) system.
 """
 
-import argparse
 import json
 import logging
 import os
@@ -12,14 +11,13 @@ from pathlib import Path
 from typing import Any, Dict
 
 import pandas as pd
+from omegaconf import DictConfig, ListConfig, OmegaConf
 from pandas.errors import EmptyDataError
-from omegaconf import OmegaConf, ListConfig, DictConfig
 
-from open_rag_eval import connectors, models
-from open_rag_eval import evaluators
-from open_rag_eval.rag_results_loader import RAGResultsLoader
-from open_rag_eval.utils.constants import CONSISTENCYEVALUATOR, CONSISTENCY
+from open_rag_eval import connectors, evaluators, models
 from open_rag_eval._version import __version__
+from open_rag_eval.rag_results_loader import RAGResultsLoader
+from open_rag_eval.utils.constants import CONSISTENCY, CONSISTENCYEVALUATOR
 
 
 def get_evaluator(evaluator_config: Dict[str, Any]) -> evaluators.Evaluator:
@@ -203,7 +201,9 @@ def create_openeval_report(results_folder, eval_results_file):
     df = pd.read_csv(csv_file)
 
     # Identify run-based prefixes
-    run_prefixes = {"_".join(col.split("_")[:2]) for col in df.columns if col.startswith("run_")}
+    run_prefixes = {
+        "_".join(col.split("_")[:2]) for col in df.columns if col.startswith("run_")
+    }
 
     # Identify consistency metric columns
     consistency_cols = [col for col in df.columns if col.startswith(CONSISTENCY)]
@@ -248,8 +248,17 @@ def create_openeval_report(results_folder, eval_results_file):
     }
 
     with open(json_path, "w", encoding="utf-8") as f:
-        json.dump(json_output, f, indent=2)
+        json.dump(_omit_empty_consistency(json_output), f, indent=2)
     print(f"Open Evaluation json report saved to {json_path}")
+
+
+def _omit_empty_consistency(report: dict) -> dict:
+    """Return a copy of `report` with the 'consistency' key removed if its value is falsy.
+
+    The returned dictionary excludes 'consistency' when present but empty or None.
+    All other keys and values are preserved.
+    """
+    return {k: v for k, v in report.items() if k != "consistency" or v}
 
 
 def run_eval(config_path: str):
@@ -365,14 +374,18 @@ def run_eval(config_path: str):
     create_openeval_report(results_folder, config.eval_results_file)
 
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Run RAG evaluation")
-    parser.add_argument(
-        "--config",
-        type=str,
-        default="eval_config.yaml",
-        help="Path to configuration file",
-    )
-    args = parser.parse_args()
+def main():
+    """CLI entry point for standalone execution.
 
-    run_eval(args.config)
+    This function maintains backwards compatibility by redirecting to the main CLI.
+    It prepends 'eval' to sys.argv to invoke the correct subcommand.
+    """
+    import sys  # pylint: disable=import-outside-toplevel,reimported
+    # Redirect to the main CLI with the eval subcommand
+    sys.argv.insert(1, 'eval')
+    from open_rag_eval.cli import main as cli_main  # pylint: disable=import-outside-toplevel,cyclic-import
+    cli_main()
+
+
+if __name__ == "__main__":
+    main()

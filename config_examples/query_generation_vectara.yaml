@@ -1,0 +1,30 @@
+# Query Generation Configuration for Vectara Corpus
+# This example shows how to generate queries from a Vectara corpus
+
+# Document source configuration
+document_source:
+  type: "VectaraCorpusSource"
+  options:
+    api_key: ${oc.env:VECTARA_API_KEY}
+    corpus_key: "your-corpus-key"  # Replace with your corpus key
+    min_doc_size: 2000              # Minimum document size in characters
+    max_num_docs: 50                # Limit number of documents (null = all)
+
+# LLM model for query generation
+model:
+  type: "OpenAIModel"
+  name: "gpt-4o-mini"
+  api_key: ${oc.env:OPENAI_API_KEY}
+
+# Query generation parameters
+generation:
+  n_questions: 100                 # Total queries to generate
+  min_words: 5                     # Minimum words per query (generates diverse lengths)
+  max_words: 25                    # Maximum words per query
+  questions_per_doc: 10            # Max queries per document
+
+# Output configuration
+output:
+  format: "csv"                    # or "jsonl"
+  base_filename: "queries"         # Generates queries.csv
+  include_metadata: false          # Add metadata columns (source_doc, word_count, etc.)

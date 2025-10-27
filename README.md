@@ -26,7 +26,7 @@ Out-of-the-box, the toolkit includes:
 
 # Key Features
 
-- **Standard Metrics:** Provides TREC-RAG evaluation metrics ready to use.
+- **Standard Metrics:** Provides TREC-RAG evaluation metrics ready to use. See [METRICS.md](METRICS.md) for detailed documentation.
 - **Modular Architecture:** Easily add custom evaluation metrics or integrate with any RAG pipeline.
 - **Detailed Reporting:** Generates per-query scores and intermediate outputs for debugging and analysis.
 - **Visualization:** Compare results across different configurations or runs with plotting utilities.
@@ -39,6 +39,9 @@ This guide walks you through an end-to-end evaluation using the toolkit. We'll u
 
 - **Python:** Version 3.9 or higher.
 - **OpenAI API Key:** Required for the default LLM judge model used in some metrics. Set this as an environment variable: `export OPENAI_API_KEY='your-api-key'`
+- **Hugging Face Token:** Required for accessing the HHEM (Hallucination Evaluation Model) used in factual consistency metrics. Set this as an environment variable: `export HF_TOKEN='your-huggingface-token'`
+  - You can obtain a token from your [Hugging Face account settings](https://huggingface.co/settings/tokens).
+  - You'll also need to request access to the [vectara/hallucination_evaluation_model](https://huggingface.co/vectara/hallucination_evaluation_model) model on Hugging Face.
 - **Vectara Account:** To enable the Vectara connector, you need:
   - A [Vectara account](https://console.vectara.com/signup).
   - A corpus containing your indexed data.
@@ -71,6 +74,8 @@ After installation, you can use the CLI or follow the instructions below to run 
 
 Create a CSV file that contains the queries (for example `queries.csv`), which contains a single column named `query`, with each row representing a query you want to test against your RAG system.
 
+Note that you can also use Open-RAG-Eval to automatically generate queries (see [Generating Synthetic Queries](#-generating-synthetic-queries))
+
 Example queries file:
 
 ```csv
@@ -89,10 +94,11 @@ Edit the [eval_config_vectara.yaml](https://github.com/vectara/open-rag-eval/blo
 * Update the `connector` section (under `options`/`query_config`) with your Vectara `corpus_key`.
 * Customize any Vectara query parameter to tailor this evaluation to a query configuration set.
 
-In addition, make sure you have `VECTARA_API_KEY` and `OPENAI_API_KEY` available in your environment. For example:
+In addition, make sure you have the required API keys and tokens available in your environment. For example:
 
 - export VECTARA_API_KEY='your-vectara-api-key'
 - export OPENAI_API_KEY='your-openai-api-key'
+- export HF_TOKEN='your-huggingface-token'
 
 ### Step 3. Run evaluation!
 
@@ -105,8 +111,10 @@ open-rag-eval eval --config eval_config_vectara.yaml
 Or if you're running from source:
 
 ```bash
-python open_rag_eval/run_eval.py --config config_examples/eval_config_vectara.yaml
+python -m open_rag_eval.cli eval --config config_examples/eval_config_vectara.yaml
 ```
+
+> **Note:** For backwards compatibility, you can still run `python open_rag_eval/run_eval.py --config ...` which redirects to the unified CLI.
 
 You should see the evaluation progress on your command line. Once it's done, detailed results will be saved to a local CSV file (in the file listed under `eval_results_file`) where you can see the score assigned to each sample along with intermediate output useful for debugging and explainability.
 
@@ -135,11 +143,10 @@ open-rag-eval eval --config xxx_eval_config.yaml
 Or if you're running from source:
 
 ```bash
-python open_rag_eval/run_eval.py --config xxx_eval_config.yaml
+python -m open_rag_eval.cli eval --config xxx_eval_config.yaml
 ```
 
-and you should see the evaluation progress on your command line. Once it's done, detailed results will be saved to a local CSV file where you can see the score assigned to each sample along with intermediate output useful for debugging and explainability.
-
+And you should see the evaluation progress on your command line. Once it's done, detailed results will be saved to a local CSV file where you can see the score assigned to each sample along with intermediate output useful for debugging and explainability.
 
 ## Visualize the Results 
 
@@ -188,8 +195,9 @@ open-rag-eval plot results_1.csv results_2.csv results_3.csv --evaluator trec
 If you're running from source:
 
 ```bash
-python open_rag_eval/plot_results.py --evaluator trec results.csv
+python -m open_rag_eval.cli plot results.csv --evaluator trec
 ```
+
 ⚠️ Required: The `--evaluator` argument must be specified to indicate which evaluator (trec or consistency) the plots should be generated for.
 
 ✅ Optional: `--metrics-to-plot` - A comma-separated list of metrics to include in the plot (e.g., bert_score,rouge_score).
@@ -211,6 +219,59 @@ Note that you will need to have streamlit installed in your environment (which s
   <img width="45%" alt="visualization 1" src="img/viz_1.png"/>
   <img width="45%" alt="visualization 2" src="img/viz_2.png"/>
 </p>
+
+## Generating Synthetic Queries
+
+If you don't have existing queries, Open RAG Eval can automatically generate evaluation queries from your corpus documents using LLMs. This is useful when you want to expand test coverage without manually writing queries.
+
+### Supported Document Sources
+
+- **Vectara Corpus**: Load documents directly from your Vectara corpus via API
+- **Local Files**: Load from local text/markdown files
+- **CSV Files**: Load from CSV with a text column
+
+### Quick Example
+
+```bash
+# 1. Create a config file (query_gen_config.yaml)
+# See config_examples/query_gen_*.yaml for templates
+
+# 2. Generate queries
+open-rag-eval generate-queries --config query_gen_config.yaml
+
+# 3. Use generated queries in evaluation (as shown below)
+```
+
+### Query Generation Configuration Example
+
+```yaml
+document_source:
+  type: "VectaraCorpusSource"  # or LocalFileSource, CSVSource
+  options:
+    api_key: ${oc.env:VECTARA_API_KEY}
+    corpus_key: "your-corpus-key"
+    min_doc_size: 2000        # Filter small documents
+    max_num_docs: 50          # Limit for cost control
+    seed: 42                  # Random seed for reproducible sampling (optional)
+
+model:
+  type: "OpenAIModel"         # or AnthropicModel, GeminiModel, TogetherModel
+  name: "gpt-4o-mini"
+  api_key: ${oc.env:OPENAI_API_KEY}
+
+generation:
+  n_questions: 100            # Total queries to generate
+  min_words: 5                # Minimum words per query
+  max_words: 25               # Maximum words per query
+  questions_per_doc: 10       # Max queries per document
+  language: "English"         # Language for generated questions (optional, default: "English")
+
+output:
+  format: "csv"               # or "jsonl"
+  base_filename: "queries"
+```
+
+This generates `queries.csv` with a diverse set of queries at various lengths. See `config_examples/query_gen_*.yaml` for complete examples.
 
 # How does open-rag-eval work?
 
