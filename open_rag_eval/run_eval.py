@@ -2,7 +2,6 @@
 This script evaluates the performance of a retrieval-augmented generation (RAG) system.
 """
 
-import argparse
 import json
 import logging
 import os
@@ -375,14 +374,18 @@ def run_eval(config_path: str):
     create_openeval_report(results_folder, config.eval_results_file)
 
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Run RAG evaluation")
-    parser.add_argument(
-        "--config",
-        type=str,
-        default="eval_config.yaml",
-        help="Path to configuration file",
-    )
-    args = parser.parse_args()
+def main():
+    """CLI entry point for standalone execution.
 
-    run_eval(args.config)
+    This function maintains backwards compatibility by redirecting to the main CLI.
+    It prepends 'eval' to sys.argv to invoke the correct subcommand.
+    """
+    import sys  # pylint: disable=import-outside-toplevel,reimported
+    # Redirect to the main CLI with the eval subcommand
+    sys.argv.insert(1, 'eval')
+    from open_rag_eval.cli import main as cli_main  # pylint: disable=import-outside-toplevel,cyclic-import
+    cli_main()
+
+
+if __name__ == "__main__":
+    main()

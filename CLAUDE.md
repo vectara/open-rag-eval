@@ -5,8 +5,12 @@
 - Run all tests: `python -m unittest discover`
 - Run single test: `python -m unittest path/to/test_file.py`
 - Run specific test case: `python -m unittest path/to/test_file.py TestClassName.test_method_name`
-- Run evaluation: `python run_eval.py`
+- Run evaluation: `python -m open_rag_eval.cli eval --config <config_file>`
+- Run query generation: `python -m open_rag_eval.cli generate-queries --config <config_file>`
+- Plot results: `python -m open_rag_eval.cli plot <csv_files> --evaluator <trec|consistency>`
 - Run server: `python run_server.py`
+
+> **Note:** For backwards compatibility, the old script invocations (e.g., `python open_rag_eval/run_eval.py`) still work but redirect to the unified CLI.
 
 ## Code Style Guidelines
 
