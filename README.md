@@ -266,12 +266,39 @@ generation:
   questions_per_doc: 10       # Max queries per document
   language: "English"         # Language for generated questions (optional, default: "English")
 
+  # Control question type distribution (optional)
+  # Weights are auto-normalized - set to 0 to disable a type
+  question_types:
+    directly_answerable: 25        # Questions answerable directly from text
+    reasoning_required: 25         # Questions requiring reasoning/inference
+    unanswerable: 25               # Questions not answerable from text
+    partially_answerable: 25       # Questions partially answerable from text
+
+  # Example: Disable unanswerable questions
+  # question_types:
+  #   directly_answerable: 50
+  #   reasoning_required: 30
+  #   unanswerable: 0
+  #   partially_answerable: 20
+
 output:
   format: "csv"               # or "jsonl"
   base_filename: "queries"
 ```
 
-This generates `queries.csv` with a diverse set of queries at various lengths. See `config_examples/query_gen_*.yaml` for complete examples.
+This generates `queries.csv` with a diverse set of queries at various lengths.
+
+**Customizing Question Types:**
+
+By default, the generator creates equal proportions of four question types:
+- **Directly answerable**: Can be answered from the text alone
+- **Reasoning required**: Need inference or reasoning beyond the text
+- **Unanswerable**: Cannot be answered from the given text
+- **Partially answerable**: Only partially covered by the text
+
+You can customize the distribution using the `question_types` weights. The weights are automatically normalized, so you can use any values (e.g., `[50, 30, 20, 0]` or `[5, 3, 2, 0]` produce the same distribution). Set any weight to 0 to disable that question type entirely.
+
+See `config_examples/query_gen_*.yaml` for complete examples.
 
 # How does open-rag-eval work?
 

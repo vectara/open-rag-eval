@@ -1,9 +1,10 @@
 """LLM-based query generator implementation."""
 
 import logging
+import math
 import random
 import re
-from typing import List
+from typing import Dict, List, Optional
 
 from tqdm import tqdm
 
@@ -26,7 +27,8 @@ class LLMQueryGenerator(QueryGenerator):
         self,
         model: LLMJudgeModel,
         questions_per_doc: int = 10,
-        language: str = "English"
+        language: str = "English",
+        question_type_weights: Optional[Dict[str, float]] = None
     ):
         """
         Initialize LLMQueryGenerator.
@@ -35,6 +37,11 @@ class LLMQueryGenerator(QueryGenerator):
             model: LLM model to use for query generation
             questions_per_doc: Number of questions to generate per document
             language: Language for generated questions (e.g., "English", "Spanish", "French")
+            question_type_weights: Dictionary of question type weights for distribution control.
+                Keys: 'directly_answerable', 'reasoning_required', 'unanswerable',
+                      'partially_answerable'
+                Values: Non-negative numbers (will be auto-normalized). Set to 0 to disable.
+                Default: Equal weights for all types (25 each)
 
         Raises:
             ValueError: If parameters are invalid
@@ -46,9 +53,119 @@ class LLMQueryGenerator(QueryGenerator):
         if not language:
             raise ValueError("Language cannot be empty")
 
+        # Set default weights if not provided
+        if question_type_weights is None:
+            question_type_weights = {
+                'directly_answerable': 25,
+                'reasoning_required': 25,
+                'unanswerable': 25,
+                'partially_answerable': 25
+            }
+
+        # Validate weights
+        self._validate_weights(question_type_weights)
+
+        # Normalize weights to percentages
+        self.question_type_percentages = self._normalize_weights(question_type_weights)
+
         self.model = model
         self.questions_per_doc = questions_per_doc
         self.language = language
+
+    def _validate_weights(self, weights: Dict[str, float]) -> None:
+        """
+        Validate question type weights.
+
+        Args:
+            weights: Dictionary of question type weights
+
+        Raises:
+            ValueError: If weights are invalid
+        """
+        valid_keys = {'directly_answerable', 'reasoning_required',
+                      'unanswerable', 'partially_answerable'}
+
+        # Check for invalid keys
+        invalid_keys = set(weights.keys()) - valid_keys
+        if invalid_keys:
+            raise ValueError(
+                f"Invalid question type keys: {invalid_keys}. "
+                f"Valid keys are: {valid_keys}"
+            )
+
+        # Check that all weights are non-negative
+        for key, value in weights.items():
+            if value < 0:
+                raise ValueError(
+                    f"Question type weight '{key}' must be non-negative, got {value}"
+                )
+
+        # Check that at least one weight is positive
+        if all(v == 0 for v in weights.values()):
+            raise ValueError(
+                "At least one question type weight must be greater than 0"
+            )
+
+    def _normalize_weights(self, weights: Dict[str, float]) -> Dict[str, float]:
+        """
+        Normalize weights to percentages that sum to 100.
+
+        Args:
+            weights: Dictionary of question type weights
+
+        Returns:
+            Dictionary of normalized percentages
+        """
+        total = sum(weights.values())
+        if total == 0:
+            raise ValueError("Cannot normalize weights: all weights are zero")
+
+        return {key: (value / total) * 100 for key, value in weights.items()}
+
+    def _build_question_type_instructions(self) -> str:
+        """
+        Build question type instructions based on configured percentages.
+
+        Returns:
+            Formatted string with question type instructions
+        """
+        instructions = []
+
+        percentages = self.question_type_percentages
+
+        if percentages.get('directly_answerable', 0) > 0:
+            pct = percentages['directly_answerable']
+            instructions.append(
+                f"- Approximately {pct:.0f}% of questions should be "
+                "answerable directly from the text."
+            )
+
+        if percentages.get('reasoning_required', 0) > 0:
+            pct = percentages['reasoning_required']
+            instructions.append(
+                f"- Approximately {pct:.0f}% of questions should require "
+                "reasoning, thinking or inference to answer."
+            )
+
+        if percentages.get('unanswerable', 0) > 0:
+            pct = percentages['unanswerable']
+            instructions.append(
+                f"- Approximately {pct:.0f}% of questions should not be "
+                "answerable from the text."
+            )
+
+        if percentages.get('partially_answerable', 0) > 0:
+            pct = percentages['partially_answerable']
+            instructions.append(
+                f"- Approximately {pct:.0f}% of questions should be "
+                "only partially answerable from the text."
+            )
+
+        if not instructions:
+            # Fallback - should never happen due to validation
+            instructions.append("- Generate diverse questions based on the text.")
+
+        return "Vary the question types to include:\n" + "\n".join(instructions)
 
     def generate(
         self,
@@ -92,7 +209,8 @@ class LLMQueryGenerator(QueryGenerator):
         )
 
         all_questions = []
-        questions_per_doc = min(n_questions // len(documents) + 5, self.questions_per_doc)
+        # Calculate adaptive questions per doc with 1.5x buffer for deduplication/filtering
+        questions_per_doc = math.ceil((n_questions / len(documents)) * 1.5)
 
         # Use tqdm for progress tracking
         for doc in tqdm(documents, desc="Generating queries from documents", unit="doc"):
@@ -144,14 +262,13 @@ class LLMQueryGenerator(QueryGenerator):
         Raises:
             Exception: If LLM call fails
         """
+        # Build question type instructions based on configured percentages
+        question_type_instructions = self._build_question_type_instructions()
+
         prompt = f"""Given the following document text, generate {num_questions} diverse questions.
 Each question should have at least {min_words} words, and no more than {max_words} words.
 Generate questions at varying lengths within this range (some shorter, some longer).
-Vary the question types to include:
-- Questions that can be answered directly from the text.
-- Questions that require reasoning, thinking or inference.
-- Questions that cannot be answered from the text.
-- Questions that can be partially answered from the text.
+{question_type_instructions}
 A question should not mention or refer to the text it is based on.
 Each question should end with a question mark.
 Your response must be a list of questions, one per line.
