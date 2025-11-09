@@ -94,11 +94,19 @@ Edit the [eval_config_vectara.yaml](https://github.com/vectara/open-rag-eval/blo
 * Update the `connector` section (under `options`/`query_config`) with your Vectara `corpus_key`.
 * Customize any Vectara query parameter to tailor this evaluation to a query configuration set.
 
-In addition, make sure you have the required API keys and tokens available in your environment. For example:
+In addition, make sure you have the required API keys and tokens available in your environment. You can either export them as environment variables:
 
 - export VECTARA_API_KEY='your-vectara-api-key'
 - export OPENAI_API_KEY='your-openai-api-key'
 - export HF_TOKEN='your-huggingface-token'
+
+Or create a `.env` file in your working directory with these variables (the CLI will automatically load it):
+
+```bash
+VECTARA_API_KEY=your-vectara-api-key
+OPENAI_API_KEY=your-openai-api-key
+HF_TOKEN=your-huggingface-token
+```
 
 ### Step 3. Run evaluation!
 
