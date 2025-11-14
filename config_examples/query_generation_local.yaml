@@ -35,6 +35,21 @@ generation:
   max_words: 25                    # Maximum words per query
   questions_per_doc: 10            # Max queries per document
 
+  # Question type distribution (weights are auto-normalized)
+  # Set any weight to 0 to disable that question type
+  question_types:
+    directly_answerable: 25        # Questions answerable directly from text
+    reasoning_required: 25         # Questions requiring reasoning/inference
+    unanswerable: 25               # Questions not answerable from text
+    partially_answerable: 25       # Questions partially answerable from text
+
+  # Example: Disable unanswerable questions
+  # question_types:
+  #   directly_answerable: 50
+  #   reasoning_required: 30
+  #   unanswerable: 0
+  #   partially_answerable: 20
+
 # Output configuration
 output:
   format: "csv"                    # or "jsonl"
