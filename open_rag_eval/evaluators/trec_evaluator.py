@@ -32,7 +32,13 @@ class TRECEvaluator(Evaluator):
         self.retrieval_metric = UMBRELAMetric(model)
         self.generation_metric = AutoNuggetMetric(model)
         self.citation_metric = CitationMetric(model)
-        self.hallucination_metric = HallucinationMetric()
+
+        # Initialize hallucination metric with optional config from options
+        hallucination_config = {}
+        if options and "hallucination_metric" in options:
+            hallucination_config = options["hallucination_metric"]
+        self.hallucination_metric = HallucinationMetric(**hallucination_config)
+
         self.no_answer_metric = NoAnswerMetric(model)
 
         if not options:

@@ -1,50 +1,94 @@
-import os
 from typing import Dict
-import torch
 
-from transformers import AutoModelForSequenceClassification
 from open_rag_eval.metrics.base_metrics import AugmentedGenerationMetric
 from open_rag_eval.data_classes.rag_results import RAGResult
+from open_rag_eval.metrics.factuality_backends import (
+    FactualityBackend,
+    HHEMBackend,
+    VectaraAPIBackend
+)
 
-# Set number of cores to 2 to avoid heavy CPU usage
-torch.set_num_threads(2)
 
 class HallucinationMetric(AugmentedGenerationMetric):
-    """ This metric uses the Vectara Hallucination Evaluation Model to detect hallucinations in RAG output. """
+    """
+    Metric for detecting hallucinations in RAG output using configurable backends.
 
-    def __init__(self, model_name: str = 'vectara/hallucination_evaluation_model', detection_threshold: float = 0.5, max_chars: int = 8192):
-        """Initialize the Hallucination metric.
+    Supports multiple backends:
+    - HHEM (default): Open-source Vectara Hallucination Evaluation Model
+    - Vectara API: Commercial Vectara Factual Consistency API
+    """
+
+    def __init__(self, backend_type: str = "hhem", **backend_config):
+        """
+        Initialize the Hallucination metric with a specific backend.
 
         Args:
-            model_name (str): The name of the model to use for hallucination detection.
-            detection_threshold (float): The threshold for detecting hallucinations.
-            max_chars (int): The maximum number of characters to process. Inputs longer than this will be truncated.
-        """
-        hf_token = os.environ.get('HF_TOKEN')
-        self.model = AutoModelForSequenceClassification.from_pretrained(
-            model_name,
-            trust_remote_code=True,
-            token=hf_token
-        )
-        self.detection_threshold = detection_threshold
-        self.max_chars = max_chars
+            backend_type: Type of backend to use ("hhem" or "vectara_api")
+            **backend_config: Configuration passed to the backend
+                For HHEM backend:
+                    - model_name (str): Hugging Face model name (default: 'vectara/hallucination_evaluation_model')
+                    - detection_threshold (float): Threshold for hallucination detection (default: 0.5)
+                    - max_chars (int): Max characters to process (default: 8192)
+                For Vectara API backend:
+                    - api_key (str): Vectara API key (required)
+                    - base_url (str): API base URL (default: 'https://api.vectara.io')
 
-    def compute(self, rag_result: RAGResult) -> Dict[str, int]:
-        # Create source and summary pair.
+        Raises:
+            ValueError: If backend_type is not supported or required config is missing
+        """
+        self.backend = self._create_backend(backend_type, backend_config)
+
+    def _create_backend(self, backend_type: str, config: Dict) -> FactualityBackend:
+        """
+        Factory method to create the appropriate backend.
+
+        Args:
+            backend_type: Type of backend ("hhem" or "vectara_api")
+            config: Configuration dictionary for the backend
+
+        Returns:
+            Initialized FactualityBackend instance
+
+        Raises:
+            ValueError: If backend_type is not supported
+        """
+        if backend_type == "hhem":
+            return HHEMBackend(**config)
+        if backend_type == "vectara_api":
+            return VectaraAPIBackend(**config)
+
+        raise ValueError(
+            f"Unsupported backend_type: {backend_type}. "
+            f"Supported types: 'hhem', 'vectara_api'"
+        )
+
+    def compute(self, rag_result: RAGResult) -> Dict[str, float]:
+        """
+        Compute hallucination score for a RAG result.
+
+        Args:
+            rag_result: RAG result containing retrieval and generation results
+
+        Returns:
+            Dictionary with 'hhem_score' key containing the factual consistency score
+        """
+        # Extract source passages
         passage_text_collection = []
         retrieval_results = rag_result.retrieval_result
         for _, passage in retrieval_results.retrieved_passages.items():
             passage_text_collection.append(passage)
 
-        summary_text_collection = [generated_answer_part.text for generated_answer_part in rag_result.generation_result.generated_answer]
+        # Extract generated answer
+        summary_text_collection = [
+            generated_answer_part.text
+            for generated_answer_part in rag_result.generation_result.generated_answer
+        ]
 
         sources = " ".join(passage_text_collection)
         summary = " ".join(summary_text_collection)
 
-        if len(sources) > self.max_chars:
-            sources = sources[:self.max_chars]
+        # Delegate to backend for evaluation
+        score = self.backend.evaluate(sources, summary)
 
-        # Call the hallucination detection model.
-        score = self.model.predict([(sources, summary)]).item()
-
+        # Keep 'hhem_score' key for backward compatibility
         return {"hhem_score": score}

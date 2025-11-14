@@ -94,7 +94,11 @@ class ConsistencyEvaluator(Evaluator):
                 print(f"Adding missing default metric: {metric_name}")
                 self.metric_calculators.append(constructor)
 
-        self.hallucination_metric = HallucinationMetric()
+        # Initialize hallucination metric with optional config from options
+        hallucination_config = {}
+        if self.options and "hallucination_metric" in self.options:
+            hallucination_config = self.options["hallucination_metric"]
+        self.hallucination_metric = HallucinationMetric(**hallucination_config)
 
     def evaluate(
         self,
