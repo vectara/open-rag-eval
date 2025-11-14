@@ -116,12 +116,13 @@ class LLMQueryGenerator(QueryGenerator):
         Returns:
             Dictionary of normalized percentages
         """
-        total = sum(weights.values())
+        valid_keys = ['directly_answerable', 'reasoning_required', 'unanswerable', 'partially_answerable']
+        # Fill in missing keys with 0
+        full_weights = {key: weights.get(key, 0) for key in valid_keys}
+        total = sum(full_weights.values())
         if total == 0:
             raise ValueError("Cannot normalize weights: all weights are zero")
-
-        return {key: (value / total) * 100 for key, value in weights.items()}
-
+        return {key: (value / total) * 100 for key, value in full_weights.items()}
     def _build_question_type_instructions(self) -> str:
         """
         Build question type instructions based on configured percentages.
