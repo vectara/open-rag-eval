@@ -123,6 +123,7 @@ class LLMQueryGenerator(QueryGenerator):
         if total == 0:
             raise ValueError("Cannot normalize weights: all weights are zero")
         return {key: (value / total) * 100 for key, value in full_weights.items()}
+
     def _build_question_type_instructions(self) -> str:
         """
         Build question type instructions based on configured percentages.
