@@ -83,9 +83,19 @@ class TRECEvaluator(Evaluator):
                 # Create aggregate scores
                 mean_umbrela_score = sum(
                     umbrela_scores.values()) / len(umbrela_scores)
-                assignment_scores = autonugget_scores["assignment_scores"]
-                mean_assignment_score = sum(assignment_scores) / len(
-                    assignment_scores)
+
+                # Handle case where AutoNugget computation failed and returned {}
+                if "assignment_scores" in autonugget_scores:
+                    assignment_scores = autonugget_scores["assignment_scores"]
+                    mean_assignment_score = sum(assignment_scores) / len(
+                        assignment_scores)
+                else:
+                    # AutoNugget failed - use neutral score of 0.5
+                    logging.warning(
+                        "AutoNugget computation failed for query, using neutral score 0.5")
+                    assignment_scores = [0.5]
+                    mean_assignment_score = 0.5
+
                 hallucination_score = hallucination_scores["hhem_score"]
 
                 rag_scores = RAGScores(
@@ -105,7 +115,7 @@ class TRECEvaluator(Evaluator):
                             "mean_nugget_assignment_score":
                                 mean_assignment_score,
                             "vital_nuggetizer_score":
-                                autonugget_scores["nuggetizer_scores"]["Vital"],
+                                autonugget_scores.get("nuggetizer_scores", {}).get("Vital", 0.5),
                             "hallucination_score":
                                 hallucination_score,
                             "citation_scores":
