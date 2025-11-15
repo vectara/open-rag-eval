@@ -111,7 +111,7 @@ class TestLLMJudgesIntegration(unittest.TestCase):
             self.gemini_model = GeminiModel(gemini_options)
         if "anthropic" in self.available_models:
             anthropic_options = {
-                "name": "claude-sonnet-4-20250514",
+                "name": "claude-sonnet-4-5",
                 "api_key": self.anthropic_key
             }
             self.anthropic_model = AnthropicModel(anthropic_options)

@@ -19,13 +19,13 @@ model:
 # Alternative: Use Anthropic Claude
 # model:
 #   type: "AnthropicModel"
-#   name: "claude-3-5-sonnet-20241022"
+#   name: "claude-sonnet-4-5"
 #   api_key: ${oc.env:ANTHROPIC_API_KEY}
 
 # Alternative: Use Google Gemini
 # model:
 #   type: "GeminiModel"
-#   name: "gemini-2.0-flash-exp"
+#   name: "gemini-2.5-flash"
 #   api_key: ${oc.env:GEMINI_API_KEY}
 
 # Query generation parameters
