@@ -189,7 +189,7 @@ class VectaraAPIBackend(FactualityBackend):
                     "the language in your text."
                 )
             else:
-                error_msg = f"HHEM API request failed: {ex}"
+                error_msg = f"Vectara API request failed: {ex}"
 
             logger.error(error_msg)
             raise RuntimeError(error_msg) from ex
@@ -200,7 +200,7 @@ class VectaraAPIBackend(FactualityBackend):
             raise RuntimeError(error_msg) from ex
 
         except requests.exceptions.RequestException as ex:
-            error_msg = f"HHEM API request failed: {ex}"
+            error_msg = f"Vectara API request failed: {ex}"
             logger.error(error_msg)
             raise RuntimeError(error_msg) from ex
 

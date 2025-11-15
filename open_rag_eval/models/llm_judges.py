@@ -193,12 +193,35 @@ class AnthropicModel(LLMJudgeModel):
         self.client = anthropic.Anthropic(api_key=model_options["api_key"])
 
     def _remove_invalid_kwargs(self, model_kwargs) -> dict:
-        model_kwargs = model_kwargs.copy()
-        invalid_kwargs = ["presence_penalty", "frequency_penalty", "seed"]
+        """
+        Remove kwargs that are not supported by Anthropic's API.
 
+        Anthropic does not support:
+        - presence_penalty, frequency_penalty, seed (OpenAI-specific)
+        - Both temperature AND top_p simultaneously (must choose one)
+
+        When both temperature and top_p are present, we keep temperature
+        and remove top_p, as temperature is more commonly used for
+        deterministic outputs (temperature=0).
+
+        Args:
+            model_kwargs: Dictionary of model parameters
+
+        Returns:
+            Dictionary with invalid parameters removed
+        """
+        model_kwargs = model_kwargs.copy()
+
+        # Remove OpenAI-specific parameters
+        invalid_kwargs = ["presence_penalty", "frequency_penalty", "seed"]
         for kwarg in invalid_kwargs:
             if kwarg in model_kwargs:
                 del model_kwargs[kwarg]
+
+        # Handle temperature/top_p conflict
+        # Anthropic doesn't allow both - keep temperature, remove top_p
+        if "temperature" in model_kwargs and "top_p" in model_kwargs:
+            del model_kwargs["top_p"]
 
         return model_kwargs
 
