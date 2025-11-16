@@ -1,6 +1,7 @@
 from typing import List
 import logging
 from itertools import combinations
+import torch
 
 from bert_score import score as bert_score
 from open_rag_eval.data_classes.rag_results import MultiRAGResult
@@ -14,10 +15,16 @@ class BERTScoreSimilarityMetric(PairwiseAnswerSimilarityMetric):
     def __init__(self,
                  model_type: str = "xlm-roberta-large",
                  lang: str = "en",
-                 rescale_with_baseline: bool = True):
+                 rescale_with_baseline: bool = True,
+                 device: str = None):
         self.model_type = model_type
         self.lang = lang
         self.rescale_with_baseline = rescale_with_baseline
+        # Explicitly set device to avoid meta device issues with PyTorch 2.7+
+        if device is None:
+            self.device = "cuda" if torch.cuda.is_available() else "cpu"
+        else:
+            self.device = device
 
     @property
     def name(self) -> str:
@@ -66,6 +73,7 @@ class BERTScoreSimilarityMetric(PairwiseAnswerSimilarityMetric):
                                   model_type=self.model_type,
                                   lang=self.lang,
                                   rescale_with_baseline=use_baseline,
+                                  device=self.device,
                                   verbose=False)
             return float(f1[0])
         except Exception as e:
