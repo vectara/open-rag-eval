@@ -4,6 +4,10 @@ from open_rag_eval.metrics.umbrela_metric import UMBRELAMetric
 from open_rag_eval.data_classes.rag_results import RetrievalResult
 
 
+# pylint: disable=protected-access
+# Accessing _calculate_average_precision is intentional for unit testing
+
+
 class TestUMBRELAMetric(unittest.TestCase):
     def setUp(self):
         self.model = Mock()
@@ -94,6 +98,38 @@ class TestUMBRELAMetric(unittest.TestCase):
         self.assertEqual(scores["retrieval_scores"]["precision@"]["3"], 0.0)
         self.assertEqual(scores["retrieval_scores"]["AP@"]["3"], 0.0)
         self.assertEqual(scores["retrieval_scores"]["MRR"], 0.0)
+
+    def test_calculate_average_precision_empty_precision_list(self):
+        """Test that _calculate_average_precision handles edge case of empty precision_at_k list."""
+        # This is a defensive test - in normal operation, if total_relevant > 0,
+        # there should be at least one relevant item. However, this ensures
+        # the method is robust to unexpected inputs.
+        binary_relevance = [0, 0, 0]  # All non-relevant
+        total_relevant = 0  # Correctly indicates no relevant items
+
+        # Should return 0.0 for no relevant items
+        result = self.metric._calculate_average_precision(binary_relevance, total_relevant)
+        self.assertEqual(result, 0.0)
+
+    def test_calculate_average_precision_all_relevant(self):
+        """Test _calculate_average_precision with all relevant documents."""
+        binary_relevance = [1, 1, 1]
+        total_relevant = 3
+
+        # AP should be perfect 1.0
+        result = self.metric._calculate_average_precision(binary_relevance, total_relevant)
+        self.assertAlmostEqual(result, 1.0)
+
+    def test_calculate_average_precision_mixed_relevance(self):
+        """Test _calculate_average_precision with mixed relevant/non-relevant documents."""
+        binary_relevance = [1, 0, 1, 0, 1]  # Relevant at positions 1, 3, 5
+        total_relevant = 3
+
+        # Precision at relevant positions: 1/1, 2/3, 3/5
+        # AP = (1.0 + 0.667 + 0.6) / 3 = 0.755...
+        result = self.metric._calculate_average_precision(binary_relevance, total_relevant)
+        expected = (1.0 + 2/3 + 3/5) / 3
+        self.assertAlmostEqual(result, expected, places=4)
 
 
 if __name__ == "__main__":

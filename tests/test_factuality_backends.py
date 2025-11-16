@@ -231,7 +231,7 @@ class TestVectaraAPIBackend(unittest.TestCase):
             backend.evaluate("sources", "summary")
 
         # Verify the error message contains information about the failure
-        self.assertIn("HHEM API request failed", str(context.exception))
+        self.assertIn("Vectara API request failed", str(context.exception))
 
     @patch('open_rag_eval.metrics.factuality_backends.requests.post')
     def test_vectara_backend_timeout(self, mock_post):

@@ -205,7 +205,7 @@ class VectaraAPIBackend(FactualityBackend):
             raise RuntimeError(error_msg) from ex
 
         except ValueError as ex:  # json.JSONDecodeError is a subclass of ValueError
-            error_msg = f"Failed to parse HHEM response: {ex}"
+            error_msg = f"Failed to parse Vectara API response: {ex}"
             logger.error(error_msg)
             raise RuntimeError(error_msg) from ex
 
