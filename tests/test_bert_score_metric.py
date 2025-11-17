@@ -168,7 +168,7 @@ class TestBERTScoreSimilarityMetric(unittest.TestCase):
 
         # Verify truncated text is shorter
         self.assertLess(len(truncated), len(long_text),
-                       "Truncated text should be shorter than original")
+                        "Truncated text should be shorter than original")
 
         # Verify we can compute BERTScore without errors
         score = metric._get_bert_score(long_text, long_text)  # pylint: disable=protected-access

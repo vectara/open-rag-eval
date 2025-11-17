@@ -13,11 +13,12 @@ from open_rag_eval.data_classes.eval_scores import ConsistencyResult
 
 # Mock Metrics
 class MockBERTMetric:
-    def __init__(self, model_type="xlm-roberta-large", lang="en", rescale_with_baseline=True):
+    def __init__(self, model_type="xlm-roberta-large", lang="en", rescale_with_baseline=True, max_length=512):
         self.name = "bert_score"
         self.model_type = model_type
         self.lang = lang
         self.rescale_with_baseline = rescale_with_baseline
+        self.max_length = max_length
 
     def compute(self, multi_rag_result):
         return [0.85, 0.76, 0.91]
