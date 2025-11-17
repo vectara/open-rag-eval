@@ -45,8 +45,10 @@ class ConsistencyEvaluator(Evaluator):
         # Default metric names and their default constructors
         default_metrics = {
             ROUGE_SCORE: ROUGEScoreSimilarityMetric(),
-            BERT_SCORE: BERTScoreSimilarityMetric(model_type="xlm-roberta-large"
-                                                 ),
+            BERT_SCORE: BERTScoreSimilarityMetric(
+                model_type="xlm-roberta-large",
+                max_length=512
+            ),
         }
 
         # Keep track of which metrics were already configured
@@ -68,11 +70,13 @@ class ConsistencyEvaluator(Evaluator):
                             lang = metric_params.get("lang", "en")
                             rescale_with_baseline = metric_params.get(
                                 "rescale_with_baseline", True)
+                            max_length = metric_params.get("max_length", 512)
                             self.metric_calculators.append(
                                 BERTScoreSimilarityMetric(
                                     model_type=model_type,
                                     lang=lang,
-                                    rescale_with_baseline=rescale_with_baseline)
+                                    rescale_with_baseline=rescale_with_baseline,
+                                    max_length=max_length)
                             )
                         elif metric_name == ROUGE_SCORE:
                             self.metric_calculators.append(

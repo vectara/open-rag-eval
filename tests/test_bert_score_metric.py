@@ -151,6 +151,43 @@ class TestBERTScoreSimilarityMetric(unittest.TestCase):
         scores = self.metric.compute(multi_rag_result)
         self.assertEqual(len(scores), 0, "Should return empty list with only 2 answers")
 
+    def test_truncate_long_text(self):
+        """Test that long text is properly truncated to max_length."""
+        # Create a metric with small max_length for testing
+        metric = BERTScoreSimilarityMetric(
+            model_type="distilbert-base-uncased",
+            max_length=50,
+            device="cpu"
+        )
+
+        # Create a very long text (more than 50 tokens)
+        long_text = " ".join(["word"] * 200)  # 200 words will definitely exceed 50 tokens
+
+        # Truncate the text
+        truncated = metric._truncate_text(long_text)  # pylint: disable=protected-access
+
+        # Verify truncated text is shorter
+        self.assertLess(len(truncated), len(long_text),
+                       "Truncated text should be shorter than original")
+
+        # Verify we can compute BERTScore without errors
+        score = metric._get_bert_score(long_text, long_text)  # pylint: disable=protected-access
+        self.assertIsNotNone(score, "BERTScore should not fail with long text")
+        self.assertGreater(score, 0.95, "Identical long texts should have high score")
+
+    def test_bert_score_with_very_long_texts(self):
+        """Test that BERTScore handles very long texts without errors."""
+        # Create texts that exceed typical model max length (512 tokens)
+        # Average English word is ~5 characters, so 1000 words ≈ 1000+ tokens
+        long_text1 = " ".join([f"word{i}" for i in range(1000)])
+        long_text2 = " ".join([f"word{i}" for i in range(1000)])
+
+        # This should not raise an error due to truncation
+        score = self.metric._get_bert_score(long_text1, long_text2)  # pylint: disable=protected-access
+
+        self.assertIsNotNone(score, "BERTScore should handle very long texts")
+        self.assertGreater(score, 0.95, "Identical long texts should score high even after truncation")
+
 
 if __name__ == "__main__":
     unittest.main()

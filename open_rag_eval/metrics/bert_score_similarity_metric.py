@@ -3,6 +3,7 @@ import logging
 from itertools import combinations
 import torch
 from torchmetrics.text.bert import BERTScore
+from transformers import AutoTokenizer
 
 from open_rag_eval.data_classes.rag_results import MultiRAGResult
 from open_rag_eval.metrics.base_metrics import PairwiseAnswerSimilarityMetric
@@ -16,10 +17,12 @@ class BERTScoreSimilarityMetric(PairwiseAnswerSimilarityMetric):
                  model_type: str = "xlm-roberta-large",
                  lang: str = "en",
                  rescale_with_baseline: bool = True,
-                 device: str = None):
+                 device: str = None,
+                 max_length: int = 512):
         self.model_type = model_type
         self.lang = lang
         self.rescale_with_baseline = rescale_with_baseline
+        self.max_length = max_length
         # Set device
         if device is None:
             self.device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -31,6 +34,8 @@ class BERTScoreSimilarityMetric(PairwiseAnswerSimilarityMetric):
             device=self.device,
             rescale_with_baseline=self.rescale_with_baseline
         )
+        # Initialize tokenizer for truncation
+        self.tokenizer = AutoTokenizer.from_pretrained(self.model_type)
 
     @property
     def name(self) -> str:
@@ -63,9 +68,31 @@ class BERTScoreSimilarityMetric(PairwiseAnswerSimilarityMetric):
 
         return f1_scores
 
+    def _truncate_text(self, text: str) -> str:
+        """
+        Truncate text to max_length tokens using the model's tokenizer.
+
+        Args:
+            text: Input text to truncate
+
+        Returns:
+            Truncated text that fits within max_length tokens
+        """
+        tokens = self.tokenizer.encode(
+            text,
+            max_length=self.max_length,
+            truncation=True,
+            add_special_tokens=True
+        )
+        return self.tokenizer.decode(tokens, skip_special_tokens=True)
+
     def _get_bert_score(self, a: str, b: str) -> float:
         try:
-            result = self.bertscore_metric([a], [b])
+            # Truncate inputs to avoid tensor size mismatches
+            a_truncated = self._truncate_text(a)
+            b_truncated = self._truncate_text(b)
+
+            result = self.bertscore_metric([a_truncated], [b_truncated])
             f1_tensor = result['f1']
             # Handle both scalar and vector tensors
             if f1_tensor.dim() == 0:
