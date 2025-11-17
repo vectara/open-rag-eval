@@ -18,19 +18,13 @@ python-dotenv~=1.0.1
 requests~=2.32.3
 seaborn~=0.13.2
 setuptools>=70.0.0
-streamlit==1.44.1
+streamlit>=1.49.1
 tenacity~=9.1.2
 torch==2.7.1
 tqdm==4.67.1
-transformers>=4.53.0
+transformers==4.50.2
 unstructured>=0.17.2
 unstructured[pdf]>=0.17.2
 rouge>=1.0.0
-bert-score>=0.3.13
+torchmetrics>=1.0.0
 
-# Pin opentelemetry versions to fix chromadb dependency issue
-# opentelemetry-api==1.37.0
-# opentelemetry-sdk==1.37.0
-# opentelemetry-exporter-otlp==1.37.0
-# opentelemetry-exporter-otlp-proto-grpc==1.37.0
-# opentelemetry-exporter-otlp-proto-http==1.37.0

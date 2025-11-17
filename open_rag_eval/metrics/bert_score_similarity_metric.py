@@ -2,15 +2,15 @@ from typing import List
 import logging
 from itertools import combinations
 import torch
+from torchmetrics.text.bert import BERTScore
 
-from bert_score import score as bert_score
 from open_rag_eval.data_classes.rag_results import MultiRAGResult
 from open_rag_eval.metrics.base_metrics import PairwiseAnswerSimilarityMetric
 from open_rag_eval.utils.constants import BERT_SCORE
 
 
 class BERTScoreSimilarityMetric(PairwiseAnswerSimilarityMetric):
-    """Compute BERTScore similarity between pairs of answers."""
+    """Compute BERTScore similarity between pairs of answers using torchmetrics."""
 
     def __init__(self,
                  model_type: str = "xlm-roberta-large",
@@ -20,11 +20,17 @@ class BERTScoreSimilarityMetric(PairwiseAnswerSimilarityMetric):
         self.model_type = model_type
         self.lang = lang
         self.rescale_with_baseline = rescale_with_baseline
-        # Explicitly set device to avoid meta device issues with PyTorch 2.7+
+        # Set device
         if device is None:
             self.device = "cuda" if torch.cuda.is_available() else "cpu"
         else:
             self.device = device
+        # Initialize BERTScore metric once during initialization
+        self.bertscore_metric = BERTScore(
+            model_name_or_path=self.model_type,
+            device=self.device,
+            rescale_with_baseline=self.rescale_with_baseline
+        )
 
     @property
     def name(self) -> str:
@@ -48,36 +54,27 @@ class BERTScoreSimilarityMetric(PairwiseAnswerSimilarityMetric):
         f1_scores = []
 
         for a, b in answer_pairs:
-            f1_ab = self._get_bert_score(
-                a, b, use_baseline=self.rescale_with_baseline)
-            f1_ba = self._get_bert_score(
-                b, a, use_baseline=self.rescale_with_baseline)
-
-            if f1_ab is None or f1_ba is None:
-                # Try fallback without baseline
-                f1_ab = self._get_bert_score(a, b, use_baseline=False)
-                f1_ba = self._get_bert_score(b, a, use_baseline=False)
+            f1_ab = self._get_bert_score(a, b)
+            f1_ba = self._get_bert_score(b, a)  # pylint: disable=arguments-out-of-order
 
             if f1_ab is not None and f1_ba is not None:
                 f1 = (f1_ab + f1_ba) / 2
-            else:
-                continue
-
-            f1_scores.append(f1)
+                f1_scores.append(f1)
 
         return f1_scores
 
-    def _get_bert_score(self, a: str, b: str, use_baseline: bool) -> float:
+    def _get_bert_score(self, a: str, b: str) -> float:
         try:
-            _, _, f1 = bert_score([a], [b],
-                                  model_type=self.model_type,
-                                  lang=self.lang,
-                                  rescale_with_baseline=use_baseline,
-                                  device=self.device,
-                                  verbose=False)
-            return float(f1[0])
+            result = self.bertscore_metric([a], [b])
+            f1_tensor = result['f1']
+            # Handle both scalar and vector tensors
+            if f1_tensor.dim() == 0:
+                f1_score = f1_tensor.item()
+            else:
+                f1_score = f1_tensor[0].item()
+            return float(f1_score)
         except Exception as e:
             logging.warning(
-                f"BERTScore {'with' if use_baseline else 'without'} baseline failed: {e}"
+                f"BERTScore computation failed: {e}"
             )
             return None
