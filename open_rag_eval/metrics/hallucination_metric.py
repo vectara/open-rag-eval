@@ -1,4 +1,3 @@
-import os
 from typing import Dict
 
 from open_rag_eval.metrics.base_metrics import AugmentedGenerationMetric
