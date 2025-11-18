@@ -39,9 +39,12 @@ This guide walks you through an end-to-end evaluation using the toolkit. We'll u
 
 - **Python:** Version 3.9 or higher.
 - **OpenAI API Key:** Required for the default LLM judge model used in some metrics. Set this as an environment variable: `export OPENAI_API_KEY='your-api-key'`
-- **Hugging Face Token:** Required for accessing the HHEM (Hallucination Evaluation Model) used in factual consistency metrics. Set this as an environment variable: `export HF_TOKEN='your-huggingface-token'`
-  - You can obtain a token from your [Hugging Face account settings](https://huggingface.co/settings/tokens).
-  - You'll also need to request access to the [vectara/hallucination_evaluation_model](https://huggingface.co/vectara/hallucination_evaluation_model) model on Hugging Face.
+- **Factual Consistency Evaluation:** For hallucination detection, you can choose between two options:
+  - **Option 1: Open-Source HHEM Model (default)** - Requires a Hugging Face token:
+    - Set as an environment variable: `export HF_TOKEN='your-huggingface-token'`
+    - You can obtain a token from your [Hugging Face account settings](https://huggingface.co/settings/tokens).
+    - You'll also need to request access to the [vectara/hallucination_evaluation_model](https://huggingface.co/vectara/hallucination_evaluation_model) model on Hugging Face.
+  - **Option 2: Vectara Commercial API** - Uses the Vectara Factual Consistency API (requires Vectara API key, see configuration section below)
 - **Vectara Account:** To enable the Vectara connector, you need:
   - A [Vectara account](https://console.vectara.com/signup).
   - A corpus containing your indexed data.
@@ -98,15 +101,59 @@ In addition, make sure you have the required API keys and tokens available in yo
 
 - export VECTARA_API_KEY='your-vectara-api-key'
 - export OPENAI_API_KEY='your-openai-api-key'
-- export HF_TOKEN='your-huggingface-token'
+- export HF_TOKEN='your-huggingface-token' (only needed if using HHEM, see below)
 
 Or create a `.env` file in your working directory with these variables (the CLI will automatically load it):
 
 ```bash
 VECTARA_API_KEY=your-vectara-api-key
 OPENAI_API_KEY=your-openai-api-key
-HF_TOKEN=your-huggingface-token
+HF_TOKEN=your-huggingface-token  # Only needed if using HHEM
 ```
+
+### Configuring Factual Consistency Evaluation
+
+By default, the toolkit uses the open-source HHEM (Hallucination Evaluation Model) for factual consistency scoring. However, you can optionally use the Vectara commercial API instead.
+
+**Option 1: Use HHEM (default)**
+
+No additional configuration needed. Just ensure `HF_TOKEN` is set in your environment.
+
+**Option 2: Use Vectara API**
+
+Add the following to your evaluator configuration in the YAML file:
+
+```yaml
+evaluator:
+  - type: "TRECEvaluator"
+    model:
+      type: "OpenAIModel"
+      name: "gpt-4o-mini"
+      api_key: ${oc.env:OPENAI_API_KEY}
+    options:
+      k_values: [1, 3, 5]
+      # Configure factual consistency to use Vectara API
+      hallucination_metric:
+        backend_type: "vectara_api"
+        api_key: ${oc.env:VECTARA_API_KEY}
+```
+
+You can also customize HHEM parameters if needed:
+
+```yaml
+evaluator:
+  - type: "TRECEvaluator"
+    options:
+      k_values: [1, 3, 5]
+      # Customize HHEM parameters
+      hallucination_metric:
+        backend_type: "hhem"
+        model_name: "vectara/hallucination_evaluation_model"
+        detection_threshold: 0.5
+        max_chars: 8192
+```
+
+The same configuration applies to `ConsistencyEvaluator` if you're using it.
 
 ### Step 3. Run evaluation!
 

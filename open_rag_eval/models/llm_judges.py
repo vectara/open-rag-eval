@@ -1,5 +1,6 @@
 from abc import ABC
 import json
+import logging
 import re
 
 import openai
@@ -193,12 +194,35 @@ class AnthropicModel(LLMJudgeModel):
         self.client = anthropic.Anthropic(api_key=model_options["api_key"])
 
     def _remove_invalid_kwargs(self, model_kwargs) -> dict:
-        model_kwargs = model_kwargs.copy()
-        invalid_kwargs = ["presence_penalty", "frequency_penalty", "seed"]
+        """
+        Remove kwargs that are not supported by Anthropic's API.
 
+        Anthropic does not support:
+        - presence_penalty, frequency_penalty, seed (OpenAI-specific)
+        - Both temperature AND top_p simultaneously (must choose one)
+
+        When both temperature and top_p are present, we keep temperature
+        and remove top_p, as temperature is more commonly used for
+        deterministic outputs (temperature=0).
+
+        Args:
+            model_kwargs: Dictionary of model parameters
+
+        Returns:
+            Dictionary with invalid parameters removed
+        """
+        model_kwargs = model_kwargs.copy()
+
+        # Remove OpenAI-specific parameters
+        invalid_kwargs = ["presence_penalty", "frequency_penalty", "seed"]
         for kwarg in invalid_kwargs:
             if kwarg in model_kwargs:
                 del model_kwargs[kwarg]
+
+        # Handle temperature/top_p conflict
+        # Anthropic doesn't allow both - keep temperature, remove top_p
+        if "temperature" in model_kwargs and "top_p" in model_kwargs:
+            del model_kwargs["top_p"]
 
         return model_kwargs
 
@@ -297,7 +321,53 @@ Return only the JSON object, no other text."""
             **model_kwargs,
         )
 
-        response_json = json.loads(response.content[0].text)
+        # Validate response structure before parsing
+        if not response.content:
+            raise ValueError(
+                "Anthropic API returned empty content array. "
+                f"Response: {response}"
+            )
+
+        response_text = response.content[0].text
+
+        # Debug logging to capture what Claude actually returned
+        logger = logging.getLogger(__name__)
+        logger.info(f"Anthropic response length: {len(response_text)} chars")
+        logger.info(f"Anthropic response (first 500 chars): {response_text[:500]}")
+
+        # Check if response is empty or whitespace
+        if not response_text or not response_text.strip():
+            raise ValueError(
+                f"Anthropic API returned empty or whitespace-only response. "
+                f"Full response object: {response}"
+            )
+
+        # Strip markdown code fences if present (Claude often wraps JSON in ```json...```)
+        cleaned_text = response_text.strip()
+        if cleaned_text.startswith('```'):
+            # Remove opening fence (```json or just ```)
+            lines = cleaned_text.split('\n')
+            if lines[0].startswith('```'):
+                lines = lines[1:]
+            # Remove closing fence (```)
+            if lines and lines[-1].strip() == '```':
+                lines = lines[:-1]
+            cleaned_text = '\n'.join(lines).strip()
+            logger.info("Stripped markdown code fences from Anthropic response")
+
+        # Try to parse JSON with better error handling
+        try:
+            response_json = json.loads(cleaned_text)
+        except json.JSONDecodeError as e:
+            # Provide detailed error with what was actually returned
+            raise ValueError(
+                f"Failed to parse Anthropic response as JSON. "
+                f"JSONDecodeError: {str(e)}. "
+                f"Original response (first 1000 chars): '{response_text[:1000]}'. "
+                f"Cleaned response (first 1000 chars): '{cleaned_text[:1000]}'. "
+                f"Response text length: {len(response_text)} chars."
+            ) from e
+
         parsed_response = TypeAdapter(response_format).validate_python(response_json)
         return parsed_response
 

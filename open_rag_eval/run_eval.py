@@ -236,7 +236,11 @@ def create_openeval_report(results_folder, eval_results_file):
         # Extract consistency fields
         for col in consistency_cols:
             metric_name = "_".join(col.split("_")[1:])
-            entry["consistency"][metric_name] = json.loads(row[col])
+            try:
+                entry["consistency"][metric_name] = json.loads(row[col])
+            except (json.JSONDecodeError, TypeError, ValueError):
+                # Handle NaN or invalid JSON (e.g., when metric failed)
+                entry["consistency"][metric_name] = None
 
         structured_output.append(entry)
 

@@ -193,7 +193,7 @@ class UMBRELAMetric(RetrievalMetric):
                 relevant_so_far += 1
                 precision_at_k.append(relevant_so_far / i)
 
-        return sum(precision_at_k) / len(precision_at_k)
+        return sum(precision_at_k) / len(precision_at_k) if precision_at_k else 0.0
 
     def _calculate_mrr(self, binary_relevance: list[int]) -> float:
         """Calculate Mean Reciprocal Rank from binary relevance scores.
