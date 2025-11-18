@@ -18,11 +18,32 @@ evaluator:
       k_values: [1, 3, 5]
       run_consistency: True
       metrics_to_run_consistency: ["mean_umbrela_score","vital_nuggetizer_score", "citation_f1_score" ]
+
+      # Hallucination metric configuration (factual consistency evaluation)
+      # Option 1: Use default HHEM (open-source) - comment out or omit hallucination_metric
+      # Option 2: Explicit HHEM with custom parameters
+      # hallucination_metric:
+      #   backend_type: "hhem"
+      #   model_name: "vectara/hallucination_evaluation_model"
+      #   detection_threshold: 0.5
+      #   max_chars: 8192
+
+      # Option 3: Use Vectara commercial API for factual consistency
+      # hallucination_metric:
+      #   backend_type: "vectara_api"
+      #   api_key: ${oc.env:VECTARA_API_KEY}
+
   - type: "ConsistencyEvaluator"
     options:
       metrics:
         - bert_score: { }
         - rouge_score: { }
+
+      # Hallucination metric for consistency evaluation
+      # Same options as above (defaults to HHEM if not specified)
+      # hallucination_metric:
+      #   backend_type: "vectara_api"
+      #   api_key: ${oc.env:VECTARA_API_KEY}
 
 connector:
   type: "VectaraConnector"

@@ -198,15 +198,15 @@ def run_query_generation(
 
     # Load documents
     source_options = config.document_source.get("options", {})
-    min_doc_size = source_options.get("min_doc_size", 0)
-    max_num_docs = source_options.get("max_num_docs", None)
-    seed = source_options.get("seed", None)
-
-    logger.info("Loading documents (min_doc_size=%d, max_num_docs=%s)", min_doc_size, max_num_docs)
+    logger.info(
+        "Loading documents (min_doc_size=%d, max_num_docs=%s)",
+        source_options.get("min_doc_size", 0),
+        source_options.get("max_num_docs", None)
+    )
     documents = document_source.fetch_random_documents(
-        min_doc_size=min_doc_size,
-        max_num_docs=max_num_docs,
-        seed=seed
+        min_doc_size=source_options.get("min_doc_size", 0),
+        max_num_docs=source_options.get("max_num_docs", None),
+        seed=source_options.get("seed", None)
     )
 
     if not documents:
@@ -224,12 +224,16 @@ def run_query_generation(
     model = get_model(config.model)
 
     # Initialize query generator
-    questions_per_doc = config.generation.get("questions_per_doc", 10)
-    language = config.generation.get("language", "English")
+    # Convert OmegaConf to dict if present
+    question_type_weights = config.generation.get("question_types", None)
+    if question_type_weights is not None:
+        question_type_weights = dict(question_type_weights)
+
     generator = LLMQueryGenerator(
         model=model,
-        questions_per_doc=questions_per_doc,
-        language=language
+        questions_per_doc=config.generation.get("questions_per_doc", 10),
+        language=config.generation.get("language", "English"),
+        question_type_weights=question_type_weights
     )
 
     # Determine base output filename

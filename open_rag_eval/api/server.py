@@ -5,7 +5,12 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 from dotenv import load_dotenv
 
-from open_rag_eval.data_classes.rag_results import RAGResult, RetrievalResult, AugmentedGenerationResult
+from open_rag_eval.data_classes.rag_results import (
+    RAGResult,
+    RetrievalResult,
+    AugmentedGenerationResult,
+    MultiRAGResult
+)
 from open_rag_eval.data_classes.eval_scores import ScoredRAGResult
 from open_rag_eval.evaluators.trec_evaluator import TRECEvaluator
 from open_rag_eval.models.llm_judges import OpenAIModel
@@ -130,8 +135,18 @@ def evaluate():
         # Convert schema to RAGResult
         rag_result = convert_schema_to_rag_result(request_data.rag_results[0])
 
+        # Wrap in MultiRAGResult (evaluator expects this type)
+        multi_rag_result = MultiRAGResult(
+            query=rag_result.retrieval_result.query,
+            query_id=data.get("query_id", "api_single_query"),
+            rag_results=[rag_result]
+        )
+
         # Evaluate
-        scored_result = evaluator.evaluate(rag_result)
+        multi_scored_result = evaluator.evaluate(multi_rag_result)
+
+        # Extract the single scored result
+        scored_result = multi_scored_result.scored_rag_results[0]
 
         # Convert result to JSON-serializable format
         result_dict = convert_scored_results_to_dict([scored_result])[0]

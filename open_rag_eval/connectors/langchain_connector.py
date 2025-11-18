@@ -7,7 +7,7 @@ from langchain_chroma import Chroma
 from langchain_openai import OpenAIEmbeddings, ChatOpenAI
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.runnables import RunnablePassthrough
-from langchain import hub
+from langchain_core.prompts import ChatPromptTemplate
 
 from open_rag_eval.connectors.connector import Connector
 from open_rag_eval.utils.constants import API_ERROR
@@ -55,7 +55,20 @@ class LangChainConnector(Connector):
         self.retriever = vectorstore.as_retriever(search_kwargs={"k": top_k})
         logger.info("Loaded %d documents and split into %d chunks.", len(docs),
                     len(splits))
-        prompt = hub.pull("rlm/rag-prompt")
+
+        # Define the RAG prompt template directly
+        system_prompt = (
+            "You are an assistant for question-answering tasks. "
+            "Use the following pieces of retrieved context to answer "
+            "the question. If you don't know the answer, say that you "
+            "don't know. Use three sentences maximum and keep the "
+            "answer concise.\n\n"
+            "{context}"
+        )
+        prompt = ChatPromptTemplate.from_messages([
+            ("system", system_prompt),
+            ("human", "{question}"),
+        ])
 
         def format_docs(docs):
             return "\n\n".join(doc.page_content for doc in docs)

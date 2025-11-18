@@ -4,7 +4,10 @@ Command-line interface for Open RAG Eval.
 
 import argparse
 import logging
+import os
 import sys
+
+from dotenv import load_dotenv
 
 from open_rag_eval.run_eval import run_eval
 from open_rag_eval.plot_results import plot_metrics
@@ -13,6 +16,10 @@ from open_rag_eval.run_query_generation import run_query_generation
 
 def main():
     """Main CLI entry point that dispatches to subcommands."""
+    # Load .env file if it exists in the current directory
+    dotenv_path = os.path.join(os.getcwd(), '.env')
+    load_dotenv(dotenv_path=dotenv_path, override=False)
+
     parser = argparse.ArgumentParser(
         description="Open RAG Eval - A toolkit for evaluating RAG systems",
         prog="open-rag-eval",
@@ -110,6 +117,11 @@ def main():
             level=log_level,
             format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
         )
+
+        # Suppress noisy third-party loggers to prevent progress bar interruption
+        logging.getLogger('httpx').setLevel(logging.WARNING)
+        logging.getLogger('openai').setLevel(logging.WARNING)
+        logging.getLogger('anthropic').setLevel(logging.WARNING)
 
         run_query_generation(
             config_path=args.config,

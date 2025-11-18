@@ -39,9 +39,12 @@ This guide walks you through an end-to-end evaluation using the toolkit. We'll u
 
 - **Python:** Version 3.9 or higher.
 - **OpenAI API Key:** Required for the default LLM judge model used in some metrics. Set this as an environment variable: `export OPENAI_API_KEY='your-api-key'`
-- **Hugging Face Token:** Required for accessing the HHEM (Hallucination Evaluation Model) used in factual consistency metrics. Set this as an environment variable: `export HF_TOKEN='your-huggingface-token'`
-  - You can obtain a token from your [Hugging Face account settings](https://huggingface.co/settings/tokens).
-  - You'll also need to request access to the [vectara/hallucination_evaluation_model](https://huggingface.co/vectara/hallucination_evaluation_model) model on Hugging Face.
+- **Factual Consistency Evaluation:** For hallucination detection, you can choose between two options:
+  - **Option 1: Open-Source HHEM Model (default)** - Requires a Hugging Face token:
+    - Set as an environment variable: `export HF_TOKEN='your-huggingface-token'`
+    - You can obtain a token from your [Hugging Face account settings](https://huggingface.co/settings/tokens).
+    - You'll also need to request access to the [vectara/hallucination_evaluation_model](https://huggingface.co/vectara/hallucination_evaluation_model) model on Hugging Face.
+  - **Option 2: Vectara Commercial API** - Uses the Vectara Factual Consistency API (requires Vectara API key, see configuration section below)
 - **Vectara Account:** To enable the Vectara connector, you need:
   - A [Vectara account](https://console.vectara.com/signup).
   - A corpus containing your indexed data.
@@ -94,11 +97,63 @@ Edit the [eval_config_vectara.yaml](https://github.com/vectara/open-rag-eval/blo
 * Update the `connector` section (under `options`/`query_config`) with your Vectara `corpus_key`.
 * Customize any Vectara query parameter to tailor this evaluation to a query configuration set.
 
-In addition, make sure you have the required API keys and tokens available in your environment. For example:
+In addition, make sure you have the required API keys and tokens available in your environment. You can either export them as environment variables:
 
 - export VECTARA_API_KEY='your-vectara-api-key'
 - export OPENAI_API_KEY='your-openai-api-key'
-- export HF_TOKEN='your-huggingface-token'
+- export HF_TOKEN='your-huggingface-token' (only needed if using HHEM, see below)
+
+Or create a `.env` file in your working directory with these variables (the CLI will automatically load it):
+
+```bash
+VECTARA_API_KEY=your-vectara-api-key
+OPENAI_API_KEY=your-openai-api-key
+HF_TOKEN=your-huggingface-token  # Only needed if using HHEM
+```
+
+### Configuring Factual Consistency Evaluation
+
+By default, the toolkit uses the open-source HHEM (Hallucination Evaluation Model) for factual consistency scoring. However, you can optionally use the Vectara commercial API instead.
+
+**Option 1: Use HHEM (default)**
+
+No additional configuration needed. Just ensure `HF_TOKEN` is set in your environment.
+
+**Option 2: Use Vectara API**
+
+Add the following to your evaluator configuration in the YAML file:
+
+```yaml
+evaluator:
+  - type: "TRECEvaluator"
+    model:
+      type: "OpenAIModel"
+      name: "gpt-4o-mini"
+      api_key: ${oc.env:OPENAI_API_KEY}
+    options:
+      k_values: [1, 3, 5]
+      # Configure factual consistency to use Vectara API
+      hallucination_metric:
+        backend_type: "vectara_api"
+        api_key: ${oc.env:VECTARA_API_KEY}
+```
+
+You can also customize HHEM parameters if needed:
+
+```yaml
+evaluator:
+  - type: "TRECEvaluator"
+    options:
+      k_values: [1, 3, 5]
+      # Customize HHEM parameters
+      hallucination_metric:
+        backend_type: "hhem"
+        model_name: "vectara/hallucination_evaluation_model"
+        detection_threshold: 0.5
+        max_chars: 8192
+```
+
+The same configuration applies to `ConsistencyEvaluator` if you're using it.
 
 ### Step 3. Run evaluation!
 
@@ -266,12 +321,39 @@ generation:
   questions_per_doc: 10       # Max queries per document
   language: "English"         # Language for generated questions (optional, default: "English")
 
+  # Control question type distribution (optional)
+  # Weights are auto-normalized - set to 0 to disable a type
+  question_types:
+    directly_answerable: 25        # Questions answerable directly from text
+    reasoning_required: 25         # Questions requiring reasoning/inference
+    unanswerable: 25               # Questions not answerable from text
+    partially_answerable: 25       # Questions partially answerable from text
+
+  # Example: Disable unanswerable questions
+  # question_types:
+  #   directly_answerable: 50
+  #   reasoning_required: 30
+  #   unanswerable: 0
+  #   partially_answerable: 20
+
 output:
   format: "csv"               # or "jsonl"
   base_filename: "queries"
 ```
 
-This generates `queries.csv` with a diverse set of queries at various lengths. See `config_examples/query_gen_*.yaml` for complete examples.
+This generates `queries.csv` with a diverse set of queries at various lengths.
+
+**Customizing Question Types:**
+
+By default, the generator creates equal proportions of four question types:
+- **Directly answerable**: Can be answered from the text alone
+- **Reasoning required**: Need inference or reasoning beyond the text
+- **Unanswerable**: Cannot be answered from the given text
+- **Partially answerable**: Only partially covered by the text
+
+You can customize the distribution using the `question_types` weights. The weights are automatically normalized, so you can use any values (e.g., `[50, 30, 20, 0]` or `[5, 3, 2, 0]` produce the same distribution). Set any weight to 0 to disable that question type entirely.
+
+See `config_examples/query_gen_*.yaml` for complete examples.
 
 # How does open-rag-eval work?
 

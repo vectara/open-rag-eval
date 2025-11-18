@@ -169,6 +169,202 @@ How does AI work?"""
             self.assertFalse(query.startswith('*'))
             self.assertFalse(query[0].isdigit())
 
+    def test_default_question_type_weights(self):
+        """Test that default weights are equal for all types."""
+        generator = LLMQueryGenerator(
+            model=self.mock_model,
+            questions_per_doc=10
+        )
+
+        # Verify default percentages are equal (25% each)
+        percentages = generator.question_type_percentages
+        self.assertEqual(percentages['directly_answerable'], 25.0)
+        self.assertEqual(percentages['reasoning_required'], 25.0)
+        self.assertEqual(percentages['unanswerable'], 25.0)
+        self.assertEqual(percentages['partially_answerable'], 25.0)
+
+    def test_custom_question_type_weights(self):
+        """Test custom question type weights are normalized correctly."""
+        weights = {
+            'directly_answerable': 50,
+            'reasoning_required': 30,
+            'unanswerable': 0,
+            'partially_answerable': 20
+        }
+
+        generator = LLMQueryGenerator(
+            model=self.mock_model,
+            questions_per_doc=10,
+            question_type_weights=weights
+        )
+
+        # Verify weights are normalized to percentages
+        percentages = generator.question_type_percentages
+        self.assertEqual(percentages['directly_answerable'], 50.0)
+        self.assertEqual(percentages['reasoning_required'], 30.0)
+        self.assertEqual(percentages['unanswerable'], 0.0)
+        self.assertEqual(percentages['partially_answerable'], 20.0)
+
+    def test_auto_normalize_weights(self):
+        """Test that weights are auto-normalized to sum to 100."""
+        # Use weights that don't sum to 100
+        weights = {
+            'directly_answerable': 5,
+            'reasoning_required': 3,
+            'unanswerable': 0,
+            'partially_answerable': 2
+        }
+
+        generator = LLMQueryGenerator(
+            model=self.mock_model,
+            questions_per_doc=10,
+            question_type_weights=weights
+        )
+
+        # Verify normalized percentages
+        percentages = generator.question_type_percentages
+        self.assertAlmostEqual(percentages['directly_answerable'], 50.0)
+        self.assertAlmostEqual(percentages['reasoning_required'], 30.0)
+        self.assertAlmostEqual(percentages['unanswerable'], 0.0)
+        self.assertAlmostEqual(percentages['partially_answerable'], 20.0)
+
+        # Verify they sum to 100
+        self.assertAlmostEqual(sum(percentages.values()), 100.0)
+
+    def test_disable_question_type_with_zero_weight(self):
+        """Test that setting weight to 0 disables that question type."""
+        weights = {
+            'directly_answerable': 1,
+            'reasoning_required': 1,
+            'unanswerable': 0,
+            'partially_answerable': 1
+        }
+
+        generator = LLMQueryGenerator(
+            model=self.mock_model,
+            questions_per_doc=10,
+            question_type_weights=weights
+        )
+
+        # Mock response
+        self.mock_model.call.return_value = "What is this?"
+
+        # Generate questions
+        generator.generate(documents=["Test document"], n_questions=1)
+
+        # Verify prompt doesn't mention unanswerable questions
+        call_args = self.mock_model.call.call_args[0][0]
+        self.assertNotIn("cannot be answered", call_args)
+        self.assertNotIn("not be answerable", call_args)
+
+    def test_all_zero_weights_raises_error(self):
+        """Test that all weights being zero raises an error."""
+        weights = {
+            'directly_answerable': 0,
+            'reasoning_required': 0,
+            'unanswerable': 0,
+            'partially_answerable': 0
+        }
+
+        with self.assertRaises(ValueError) as context:
+            LLMQueryGenerator(
+                model=self.mock_model,
+                questions_per_doc=10,
+                question_type_weights=weights
+            )
+
+        self.assertIn("at least one", str(context.exception).lower())
+
+    def test_negative_weight_raises_error(self):
+        """Test that negative weights raise an error."""
+        weights = {
+            'directly_answerable': 50,
+            'reasoning_required': -10,
+            'unanswerable': 25,
+            'partially_answerable': 25
+        }
+
+        with self.assertRaises(ValueError) as context:
+            LLMQueryGenerator(
+                model=self.mock_model,
+                questions_per_doc=10,
+                question_type_weights=weights
+            )
+
+        self.assertIn("non-negative", str(context.exception))
+
+    def test_invalid_question_type_key_raises_error(self):
+        """Test that invalid question type keys raise an error."""
+        weights = {
+            'directly_answerable': 25,
+            'invalid_type': 25,
+            'unanswerable': 25,
+            'partially_answerable': 25
+        }
+
+        with self.assertRaises(ValueError) as context:
+            LLMQueryGenerator(
+                model=self.mock_model,
+                questions_per_doc=10,
+                question_type_weights=weights
+            )
+
+        self.assertIn("Invalid question type keys", str(context.exception))
+
+    def test_prompt_includes_enabled_question_types(self):
+        """Test that prompt includes only enabled question types."""
+        weights = {
+            'directly_answerable': 60,
+            'reasoning_required': 40,
+            'unanswerable': 0,
+            'partially_answerable': 0
+        }
+
+        generator = LLMQueryGenerator(
+            model=self.mock_model,
+            questions_per_doc=10,
+            question_type_weights=weights
+        )
+
+        # Mock response
+        self.mock_model.call.return_value = "What is this?"
+
+        # Generate questions
+        generator.generate(documents=["Test document"], n_questions=1)
+
+        # Verify prompt content
+        call_args = self.mock_model.call.call_args[0][0]
+
+        # Should include enabled types with percentages
+        self.assertIn("60%", call_args)
+        self.assertIn("40%", call_args)
+        self.assertIn("directly", call_args)
+        self.assertIn("reasoning", call_args)
+
+        # Should not include disabled types
+        self.assertNotIn("cannot be answered", call_args)
+        self.assertNotIn("partially", call_args)
+
+    def test_partial_weights_specification(self):
+        """Test that partial weight specification works (missing keys use 0)."""
+        weights = {
+            'directly_answerable': 1,
+            'reasoning_required': 1
+        }
+
+        generator = LLMQueryGenerator(
+            model=self.mock_model,
+            questions_per_doc=10,
+            question_type_weights=weights
+        )
+
+        # Verify only specified types have non-zero weights
+        percentages = generator.question_type_percentages
+        self.assertEqual(percentages['directly_answerable'], 50.0)
+        self.assertEqual(percentages['reasoning_required'], 50.0)
+        self.assertEqual(percentages.get('unanswerable', 0), 0)
+        self.assertEqual(percentages.get('partially_answerable', 0), 0)
+
 
 if __name__ == '__main__':
     unittest.main()
