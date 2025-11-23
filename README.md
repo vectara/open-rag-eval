@@ -105,23 +105,7 @@ You can customize the prompt used by Vectara's generation by providing a custom 
 
 ##### Option 1: From a File (JSON format)
 
-1. Create a JSON file containing your prompt template (e.g., `my_prompt.json`):
-
-```json
-[
-    {"role": "system", "content": "Follow these detailed step-by-step instructions, your task is to generate an accurate and coherent response to the question: '$esc.java($vectaraQuery)' in the '$vectaraLangName' language only based on the search results provided.
-        Step 1- You will receive search results enclosed in triple quotes, listed in order of relevance.
-        Step 2 - Analyze whether the search results collectively provide an accurate answer to the question: '$esc.java($vectaraQuery)'.
-        Step 3 - Analyze if the search results do not provide enough information to answer the question accurately, skip the next steps and respond to user in '$vectaraLangName' language that you do not have enough information.
-        Step 4 - Analyze if the search results provide enough accurate information for the question, compose a coherent answer in '$vectaraLangName' language, not exceeding $vectaraOutChars characters.
-        Step 5 - Base your answer only on the information provided in the search results, do not use any other sources.
-        Step 6 - Cite relevant search results in your answer following these specific instructions: '$vectaraCitationInstructions'.
-        Step 7 - Your response should always be in single language, which is '$vectaraLangName', and only in that language."},
-    {"role": "user", "content": "#foreach ($qResult in $vectaraQueryResults) Search Result $esc.java($foreach.index + 1): '''$esc.java($qResult.text())'''.#end"}
-]
-```
-
-2. Add the file path to your config:
+Create a JSON file containing your prompt template (e.g., `my_prompt.json`) and add the file path to your config:
 
 ```yaml
 connector:
