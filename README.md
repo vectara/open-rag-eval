@@ -90,12 +90,93 @@ How many moons does jupiter have?
 
 ### Step 2. Configure Evaluation Settings
 
-Edit the [eval_config_vectara.yaml](https://github.com/vectara/open-rag-eval/blob/main/config_examples/eval_config_vectara.yaml) file. This file controls the evaluation process, including connector options, evaluator choices, and metric settings. 
+Edit the [eval_config_vectara.yaml](https://github.com/vectara/open-rag-eval/blob/main/config_examples/eval_config_vectara.yaml) file. This file controls the evaluation process, including connector options, evaluator choices, and metric settings.
 
 * Ensure your queries file is listed under `input_queries`, and fill in the correct values for `generated_answers` and `eval_results_file`
 * Choose an output folder (where all artifacts will be stored) and put it under `results_folder`
 * Update the `connector` section (under `options`/`query_config`) with your Vectara `corpus_key`.
 * Customize any Vectara query parameter to tailor this evaluation to a query configuration set.
+
+#### Using Custom Prompt Templates (Optional)
+
+You can customize the prompt used by Vectara's generation by providing a custom prompt template. This is useful when you want to control how the LLM generates answers from the retrieved search results.
+
+**Three ways to specify a prompt template:**
+
+##### Option 1: From a File (JSON format)
+
+1. Create a JSON file containing your prompt template (e.g., `my_prompt.json`):
+
+```json
+[
+    {"role": "system", "content": "Follow these detailed step-by-step instructions, your task is to generate an accurate and coherent response to the question: '$esc.java($vectaraQuery)' in the '$vectaraLangName' language only based on the search results provided.
+        Step 1- You will receive search results enclosed in triple quotes, listed in order of relevance.
+        Step 2 - Analyze whether the search results collectively provide an accurate answer to the question: '$esc.java($vectaraQuery)'.
+        Step 3 - Analyze if the search results do not provide enough information to answer the question accurately, skip the next steps and respond to user in '$vectaraLangName' language that you do not have enough information.
+        Step 4 - Analyze if the search results provide enough accurate information for the question, compose a coherent answer in '$vectaraLangName' language, not exceeding $vectaraOutChars characters.
+        Step 5 - Base your answer only on the information provided in the search results, do not use any other sources.
+        Step 6 - Cite relevant search results in your answer following these specific instructions: '$vectaraCitationInstructions'.
+        Step 7 - Your response should always be in single language, which is '$vectaraLangName', and only in that language."},
+    {"role": "user", "content": "#foreach ($qResult in $vectaraQueryResults) Search Result $esc.java($foreach.index + 1): '''$esc.java($qResult.text())'''.#end"}
+]
+```
+
+2. Add the file path to your config:
+
+```yaml
+connector:
+  type: "VectaraConnector"
+  options:
+    api_key: ${oc.env:VECTARA_API_KEY}
+    corpus_key: "your-corpus-key"
+    query_config:
+      generation:
+        prompt_template: "path/to/my_prompt.json"
+        # ... other generation settings
+```
+
+The connector will automatically detect and parse JSON files, sending them as structured JSON arrays to Vectara's API.
+
+##### Option 2: From a File (Plain Text)
+
+Create a plain text file with your prompt and reference it the same way. If the file content is not valid JSON, it will be sent as a plain string:
+
+```yaml
+connector:
+  type: "VectaraConnector"
+  options:
+    query_config:
+      generation:
+        prompt_template: "path/to/my_prompt.txt"
+```
+
+##### Option 3: Inline in Config (JSON Structure)
+
+You can also define the prompt template directly in your YAML config file:
+
+```yaml
+connector:
+  type: "VectaraConnector"
+  options:
+    query_config:
+      generation:
+        prompt_template:
+          - role: "system"
+            content: "You are a helpful assistant. Answer based on search results."
+          - role: "user"
+            content: "Answer the question: ${query}"
+```
+
+**Key Features:**
+- **Automatic JSON parsing**: JSON files are automatically parsed and sent as structured data (not strings)
+- **Flexible formats**: Supports JSON arrays, plain text, or inline YAML structures
+- **UTF-8 encoding**: All files are read with UTF-8 encoding
+- **Whitespace handling**: Leading/trailing whitespace is automatically stripped from file content
+- **Error handling**: If a file cannot be read, the connector logs a warning and continues with Vectara's default prompt
+
+**Notes:**
+- This feature is optional - if not specified, Vectara uses its default generation prompt
+- For details on Vectara's prompt template format and available variables, refer to the [Vectara documentation](https://docs.vectara.com)
 
 In addition, make sure you have the required API keys and tokens available in your environment. You can either export them as environment variables:
 

@@ -1,4 +1,5 @@
 from itertools import islice
+import json
 import logging
 import os
 
@@ -155,7 +156,11 @@ class VectaraConnector(Connector):
                 (query_config or {}).get("intelligent_query_rewriting", False),
         }
 
-        # Use the default retry configuration
+        # DEBUG LOGGING
+        if "prompt_template" in generation_dict:
+            pt = generation_dict["prompt_template"]
+            print(f"DEBUG_PAYLOAD: query_id={query.get('queryId')} prompt_template_type={type(pt)} value={str(pt)}")
+
         return self._send_request(endpoint_url, headers, payload,
                                   query["queryId"])
 

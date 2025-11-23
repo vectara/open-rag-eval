@@ -338,11 +338,11 @@ How does AI work?"""
         # Should include enabled types with percentages
         self.assertIn("60%", call_args)
         self.assertIn("40%", call_args)
-        self.assertIn("directly", call_args)
+        self.assertIn("factual", call_args)
         self.assertIn("reasoning", call_args)
 
         # Should not include disabled types
-        self.assertNotIn("cannot be answered", call_args)
+        self.assertNotIn("not directly answerable", call_args)
         self.assertNotIn("partially", call_args)
 
     def test_partial_weights_specification(self):
