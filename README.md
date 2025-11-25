@@ -152,7 +152,6 @@ connector:
 ```
 
 **Key Features:**
-- **Automatic JSON parsing**: JSON files are automatically parsed and sent as structured data (not strings)
 - **Flexible formats**: Supports JSON arrays, plain text, or inline YAML structures
 - **UTF-8 encoding**: All files are read with UTF-8 encoding
 - **Whitespace handling**: Leading/trailing whitespace is automatically stripped from file content
