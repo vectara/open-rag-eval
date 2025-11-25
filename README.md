@@ -90,12 +90,58 @@ How many moons does jupiter have?
 
 ### Step 2. Configure Evaluation Settings
 
-Edit the [eval_config_vectara.yaml](https://github.com/vectara/open-rag-eval/blob/main/config_examples/eval_config_vectara.yaml) file. This file controls the evaluation process, including connector options, evaluator choices, and metric settings. 
+Edit the [eval_config_vectara.yaml](https://github.com/vectara/open-rag-eval/blob/main/config_examples/eval_config_vectara.yaml) file. This file controls the evaluation process, including connector options, evaluator choices, and metric settings.
 
 * Ensure your queries file is listed under `input_queries`, and fill in the correct values for `generated_answers` and `eval_results_file`
 * Choose an output folder (where all artifacts will be stored) and put it under `results_folder`
 * Update the `connector` section (under `options`/`query_config`) with your Vectara `corpus_key`.
 * Customize any Vectara query parameter to tailor this evaluation to a query configuration set.
+
+#### Using Custom Prompt Templates (Optional)
+
+You can customize the prompt used by Vectara's generation by providing a custom prompt template. This is useful when you want to control how the LLM generates answers from the retrieved search results.
+
+**Two ways to specify a prompt template:**
+
+##### Option 1: From a File
+
+Create a text file containing your prompt template and add the file path to your config:
+
+```yaml
+connector:
+  type: "VectaraConnector"
+  options:
+    api_key: ${oc.env:VECTARA_API_KEY}
+    corpus_key: "your-corpus-key"
+    query_config:
+      generation:
+        prompt_template: "path/to/my_prompt.txt"
+        # ... other generation settings
+```
+
+The connector reads the file content as a string and sends it to Vectara's API.
+
+##### Option 2: Inline in Config
+
+You can also define the prompt template directly in your YAML config file as a string:
+
+```yaml
+connector:
+  type: "VectaraConnector"
+  options:
+    query_config:
+      generation:
+        prompt_template: "You are a helpful assistant. Answer the question based on the search results provided."
+```
+
+**Key Features:**
+- **UTF-8 encoding**: Files are read with UTF-8 encoding
+- **Whitespace handling**: Leading/trailing whitespace is automatically stripped from file content
+- **Error handling**: If a file cannot be read, the connector logs a warning and continues with Vectara's default prompt
+
+**Notes:**
+- This feature is optional - if not specified, Vectara uses its default generation prompt
+- For details on Vectara's prompt template format and available variables, refer to the [Vectara documentation](https://docs.vectara.com)
 
 In addition, make sure you have the required API keys and tokens available in your environment. You can either export them as environment variables:
 

@@ -138,8 +138,8 @@ class LLMQueryGenerator(QueryGenerator):
         if percentages.get('directly_answerable', 0) > 0:
             pct = percentages['directly_answerable']
             instructions.append(
-                f"- Approximately {pct:.0f}% of questions should be "
-                "answerable directly from the text."
+                f"- Approximately {pct:.0f}% of questions should be factual "
+                "questions with clear, direct answers."
             )
 
         if percentages.get('reasoning_required', 0) > 0:
@@ -152,20 +152,20 @@ class LLMQueryGenerator(QueryGenerator):
         if percentages.get('unanswerable', 0) > 0:
             pct = percentages['unanswerable']
             instructions.append(
-                f"- Approximately {pct:.0f}% of questions should not be "
-                "answerable from the text."
+                f"- Approximately {pct:.0f}% of questions should be related "
+                "but not directly answerable with the given information."
             )
 
         if percentages.get('partially_answerable', 0) > 0:
             pct = percentages['partially_answerable']
             instructions.append(
                 f"- Approximately {pct:.0f}% of questions should be "
-                "only partially answerable from the text."
+                "only partially answerable with the given information."
             )
 
         if not instructions:
             # Fallback - should never happen due to validation
-            instructions.append("- Generate diverse questions based on the text.")
+            instructions.append("- Generate diverse questions covering different aspects.")
 
         return "Vary the question types to include:\n" + "\n".join(instructions)
 
@@ -175,6 +175,7 @@ class LLMQueryGenerator(QueryGenerator):
         n_questions: int = 50,
         min_words: int = 5,
         max_words: int = 20,
+        seed: Optional[int] = None,
         **kwargs
     ) -> List[str]:
         """
@@ -185,6 +186,7 @@ class LLMQueryGenerator(QueryGenerator):
             n_questions: Total number of questions to generate
             min_words: Minimum number of words per question
             max_words: Maximum number of words per question
+            seed: Random seed for reproducible sampling (None for random)
             **kwargs: Additional parameters (unused)
 
         Returns:
@@ -236,7 +238,8 @@ class LLMQueryGenerator(QueryGenerator):
             all_questions,
             n_questions,
             min_words,
-            max_words
+            max_words,
+            seed
         )
 
         logger.info("Successfully generated %d questions", len(all_questions))
@@ -271,7 +274,7 @@ class LLMQueryGenerator(QueryGenerator):
 Each question should have at least {min_words} words, and no more than {max_words} words.
 Generate questions at varying lengths within this range (some shorter, some longer).
 {question_type_instructions}
-A question should not mention or refer to the text it is based on.
+IMPORTANT: Questions must be standalone and self-contained. Do NOT use phrases like "mentioned in the document", "according to the text", "in the passage", "discussed above", or any similar references. Each question should read as if it were asked independently without any source material.
 Each question should end with a question mark.
 Your response must be a list of questions, one per line.
 Do not use bullets, numbers, blank lines, code fences, or any additional text.
@@ -318,7 +321,8 @@ Your response:
         questions: List[str],
         n_questions: int,
         min_words: int,
-        max_words: int
+        max_words: int,
+        seed: Optional[int] = None
     ) -> List[str]:
         """
         Post-process generated questions: deduplicate, filter, and sample.
@@ -353,6 +357,8 @@ Your response:
 
         # Sample if we have more than needed
         if len(filtered_questions) > n_questions:
+            if seed is not None:
+                random.seed(seed)
             filtered_questions = random.sample(filtered_questions, n_questions)
             logger.info("Sampled %d questions", n_questions)
 
