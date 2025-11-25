@@ -101,11 +101,11 @@ Edit the [eval_config_vectara.yaml](https://github.com/vectara/open-rag-eval/blo
 
 You can customize the prompt used by Vectara's generation by providing a custom prompt template. This is useful when you want to control how the LLM generates answers from the retrieved search results.
 
-**Three ways to specify a prompt template:**
+**Two ways to specify a prompt template:**
 
-##### Option 1: From a File (JSON format)
+##### Option 1: From a File
 
-Create a JSON file containing your prompt template (e.g., `my_prompt.json`) and add the file path to your config:
+Create a text file containing your prompt template and add the file path to your config:
 
 ```yaml
 connector:
@@ -115,28 +115,15 @@ connector:
     corpus_key: "your-corpus-key"
     query_config:
       generation:
-        prompt_template: "path/to/my_prompt.json"
+        prompt_template: "path/to/my_prompt.txt"
         # ... other generation settings
 ```
 
-The connector will automatically detect and parse JSON files, sending them as structured JSON arrays to Vectara's API.
+The connector reads the file content as a string and sends it to Vectara's API.
 
-##### Option 2: From a File (Plain Text)
+##### Option 2: Inline in Config
 
-Create a plain text file with your prompt and reference it the same way. If the file content is not valid JSON, it will be sent as a plain string:
-
-```yaml
-connector:
-  type: "VectaraConnector"
-  options:
-    query_config:
-      generation:
-        prompt_template: "path/to/my_prompt.txt"
-```
-
-##### Option 3: Inline in Config (JSON Structure)
-
-You can also define the prompt template directly in your YAML config file:
+You can also define the prompt template directly in your YAML config file as a string:
 
 ```yaml
 connector:
@@ -144,17 +131,11 @@ connector:
   options:
     query_config:
       generation:
-        prompt_template:
-          - role: "system"
-            content: "You are a helpful assistant. Answer based on search results."
-          - role: "user"
-            content: "Answer the question: ${query}"
+        prompt_template: "You are a helpful assistant. Answer the question based on the search results provided."
 ```
 
 **Key Features:**
-- **Automatic JSON parsing**: JSON files are automatically parsed and sent as structured data (not strings)
-- **Flexible formats**: Supports JSON arrays, plain text, or inline YAML structures
-- **UTF-8 encoding**: All files are read with UTF-8 encoding
+- **UTF-8 encoding**: Files are read with UTF-8 encoding
 - **Whitespace handling**: Leading/trailing whitespace is automatically stripped from file content
 - **Error handling**: If a file cannot be read, the connector logs a warning and continues with Vectara's default prompt
 
