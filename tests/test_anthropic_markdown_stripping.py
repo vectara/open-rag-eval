@@ -100,15 +100,20 @@ class TestAnthropicMarkdownStripping(unittest.TestCase):
 }
 ```'''
         mock_response.content = [mock_content]
+        # Mock usage for token tracking
+        mock_response.usage = Mock(input_tokens=100, output_tokens=50)
         mock_client.messages.create.return_value = mock_response
 
         # Create model and call parse
         model = AnthropicModel({"name": "claude-sonnet-4-5", "api_key": "test-key"})
         result = model.parse("test prompt", TestResponse, {"temperature": 0.0})
 
-        # Verify the result
-        self.assertIsInstance(result, TestResponse)
-        self.assertEqual(result.score, "2")
+        # Verify the result - parse returns {"response": ..., "metadata": ...}
+        self.assertIsInstance(result["response"], TestResponse)
+        self.assertEqual(result["response"].score, "2")
+        self.assertEqual(result["metadata"]["input_tokens"], 100)
+        self.assertEqual(result["metadata"]["output_tokens"], 50)
+        self.assertEqual(result["metadata"]["total_tokens"], 150)
 
     @patch('open_rag_eval.models.llm_judges.anthropic.Anthropic')
     def test_anthropic_model_with_plain_json_response(self, mock_anthropic_class):
@@ -125,15 +130,18 @@ class TestAnthropicMarkdownStripping(unittest.TestCase):
         mock_content = Mock()
         mock_content.text = '{"score": "3"}'
         mock_response.content = [mock_content]
+        # Mock usage for token tracking
+        mock_response.usage = Mock(input_tokens=80, output_tokens=20)
         mock_client.messages.create.return_value = mock_response
 
         # Create model and call parse
         model = AnthropicModel({"name": "claude-sonnet-4-5", "api_key": "test-key"})
         result = model.parse("test prompt", TestResponse, {"temperature": 0.0})
 
-        # Verify the result
-        self.assertIsInstance(result, TestResponse)
-        self.assertEqual(result.score, "3")
+        # Verify the result - parse returns {"response": ..., "metadata": ...}
+        self.assertIsInstance(result["response"], TestResponse)
+        self.assertEqual(result["response"].score, "3")
+        self.assertEqual(result["metadata"]["total_tokens"], 100)
 
 
 if __name__ == "__main__":

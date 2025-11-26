@@ -95,14 +95,10 @@ class CitationMetric(AugmentedGenerationMetric):
         part_to_scores = defaultdict(list)
         for part_idx, generated_answer_part in enumerate(
                 generation_result.generated_answer, start=1):
-            answer_sentence, citations = (
-                generated_answer_part.text,
-                generated_answer_part.citations,
-            )
-            if len(citations) == 0:
+            if len(generated_answer_part.citations) == 0:
                 part_to_scores[f"part_score_{part_idx}"] = []
                 continue
-            for citation_key in citations:
+            for citation_key in generated_answer_part.citations:
                 try:
                     passage = retrieval_result.retrieved_passages.get(
                         citation_key, "")
@@ -113,7 +109,7 @@ class CitationMetric(AugmentedGenerationMetric):
                         continue
 
                     prompt = self._CITATION_PROMPT.format(
-                        statement=answer_sentence, citation=passage
+                        statement=generated_answer_part.text, citation=passage
                     )
                     result = self.model.parse(
                         prompt,
@@ -137,8 +133,7 @@ class CitationMetric(AugmentedGenerationMetric):
                         )
                         continue
 
-                    label = response.support.value
-                    score = self.score_map[label]
+                    score = self.score_map[response.support.value]
                     citation_to_scores[f"citation_score_{citation_key}"].append(
                         score)
                     part_to_scores[f"part_score_{part_idx}"].append(score)

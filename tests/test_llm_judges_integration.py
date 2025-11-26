@@ -151,7 +151,7 @@ class TestLLMJudgesIntegration(unittest.TestCase):
         self.assertGreater(metadata["input_tokens"], 0)
         self.assertGreater(metadata["output_tokens"], 0)
         self.assertEqual(metadata["total_tokens"],
-                        metadata["input_tokens"] + metadata["output_tokens"])
+                         metadata["input_tokens"] + metadata["output_tokens"])
 
     def test_gemini_integration(self):
         """Test Gemini model with actual API calls"""
