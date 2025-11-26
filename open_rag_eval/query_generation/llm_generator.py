@@ -286,7 +286,8 @@ The text is:
 Your response:
 """
 
-        response = self.model.call(prompt)
+        result = self.model.call(prompt)
+        response = result["response"]
         questions = response.strip().split('\n')
 
         # Clean up questions: remove bullets, numbers, and formatting

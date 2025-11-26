@@ -39,13 +39,13 @@ class OpenAIModel(LLMJudgeModel):
                 openai.RateLimitError,
                 openai.APIConnectionError,
                 openai.APIError,
-                ValueError,  # catch our “none‐response” too
+                ValueError,  # catch our "none‐response" too
             )
         ),
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=1, max=10),
     )
-    def call(self, prompt: str, model_kwargs=None) -> str:
+    def call(self, prompt: str, model_kwargs=None) -> dict:
         """
         Call the OpenAI API compatible model with the given prompt.
 
@@ -54,7 +54,9 @@ class OpenAIModel(LLMJudgeModel):
             model_kwargs (dict, optional): Additional kwargs for the API call
 
         Returns:
-            str: The model's response text
+            dict: Dictionary containing:
+                - response (str): The model's response text
+                - metadata (dict): Token usage and model information
 
         Raises:
             ValueError: If the prompt is empty or model_kwargs is invalid
@@ -67,6 +69,7 @@ class OpenAIModel(LLMJudgeModel):
             raise ValueError("Prompt cannot be empty")
 
         model_kwargs = model_kwargs or {}
+        logger = logging.getLogger(__name__)
 
         try:
             response = self.client.chat.completions.create(
@@ -74,7 +77,20 @@ class OpenAIModel(LLMJudgeModel):
                 messages=[{"role": "user", "content": prompt}],
                 **model_kwargs,
             )
-            return response.choices[0].message.content
+
+            # Extract token usage
+            metadata = {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0}
+            if hasattr(response, "usage") and response.usage:
+                metadata["input_tokens"] = getattr(response.usage, "prompt_tokens", 0)
+                metadata["output_tokens"] = getattr(response.usage, "completion_tokens", 0)
+                metadata["total_tokens"] = getattr(response.usage, "total_tokens", 0)
+            else:
+                logger.warning("Token usage not available from OpenAI response")
+
+            return {
+                "response": response.choices[0].message.content,
+                "metadata": metadata
+            }
         except openai.RateLimitError:
             raise
         except openai.APIConnectionError:
@@ -85,7 +101,26 @@ class OpenAIModel(LLMJudgeModel):
             raise Exception(f"Unexpected error: {str(e)}") from e
 
     def parse(self, prompt: str, response_format: BaseModel, model_kwargs=None):
+        """
+        Parse structured output from an OpenAI model according to a Pydantic schema.
+
+        Args:
+            prompt (str): The input prompt
+            response_format (BaseModel): Pydantic model defining the expected response structure
+            model_kwargs (dict, optional): Additional kwargs for the API call
+
+        Returns:
+            dict: Dictionary containing:
+                - response (BaseModel): Parsed response matching the response_format schema
+                - metadata (dict): Token usage information with input_tokens, output_tokens, total_tokens
+
+        Raises:
+            ValueError: If prompt is invalid
+            openai.APIError: If there's an API-related error
+        """
         model_kwargs = model_kwargs or {}
+        logger = logging.getLogger(__name__)
+
         completion = self.client.beta.chat.completions.parse(
             model=self.model_name,
             messages=[
@@ -99,8 +134,20 @@ class OpenAIModel(LLMJudgeModel):
             **model_kwargs,
         )
 
+        # Extract token usage
+        metadata = {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0}
+        if hasattr(completion, "usage") and completion.usage:
+            metadata["input_tokens"] = getattr(completion.usage, "prompt_tokens", 0)
+            metadata["output_tokens"] = getattr(completion.usage, "completion_tokens", 0)
+            metadata["total_tokens"] = getattr(completion.usage, "total_tokens", 0)
+        else:
+            logger.warning("Token usage not available from OpenAI parse response")
+
         message = completion.choices[0].message
-        return message.parsed
+        return {
+            "response": message.parsed,
+            "metadata": metadata
+        }
 
 
 class GeminiModel(LLMJudgeModel):
@@ -126,7 +173,7 @@ class GeminiModel(LLMJudgeModel):
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=1, max=10),
     )
-    def call(self, prompt: str, model_kwargs=None) -> str:
+    def call(self, prompt: str, model_kwargs=None) -> dict:
         """
         Call the Gemini API model with the given prompt.
 
@@ -135,7 +182,9 @@ class GeminiModel(LLMJudgeModel):
             model_kwargs (dict, optional): Additional kwargs for the API call
 
         Returns:
-            str: The model's response text
+            dict: Dictionary containing:
+                - response (str): The model's response text
+                - metadata (dict): Token usage and model information
 
         Raises:
             ValueError: If the prompt is empty or model_kwargs is invalid
@@ -146,12 +195,26 @@ class GeminiModel(LLMJudgeModel):
 
         model_kwargs = model_kwargs or {}
         model_kwargs = self._remove_invalid_kwargs(model_kwargs)
+        logger = logging.getLogger(__name__)
 
         try:
             response = self.client.models.generate_content(
                 model=self.model_name, contents=prompt, config=model_kwargs
             )
-            return response.text
+
+            # Extract token usage
+            metadata = {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0}
+            if hasattr(response, "usage_metadata") and response.usage_metadata:
+                metadata["input_tokens"] = getattr(response.usage_metadata, "prompt_token_count", 0)
+                metadata["output_tokens"] = getattr(response.usage_metadata, "candidates_token_count", 0)
+                metadata["total_tokens"] = metadata["input_tokens"] + metadata["output_tokens"]
+            else:
+                logger.warning("Token usage not available from Gemini response")
+
+            return {
+                "response": response.text,
+                "metadata": metadata
+            }
         except Exception as e:
             raise Exception(f"Unexpected error: {str(e)}") from e
 
@@ -165,10 +228,14 @@ class GeminiModel(LLMJudgeModel):
             model_kwargs (dict, optional): Additional kwargs for the API call
 
         Returns:
-            The parsed response matching the provided schema
+            dict: Dictionary containing:
+                - response: The parsed response matching the provided schema
+                - metadata (dict): Token usage and model information
         """
         model_kwargs = model_kwargs or {}
         model_kwargs = self._remove_invalid_kwargs(model_kwargs)
+        logger = logging.getLogger(__name__)
+
         config = {
             "response_mime_type": "application/json",
             "response_schema": response_format,
@@ -181,9 +248,21 @@ class GeminiModel(LLMJudgeModel):
             config=config,
         )
 
+        # Extract token usage
+        metadata = {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0}
+        if hasattr(response, "usage_metadata") and response.usage_metadata:
+            metadata["input_tokens"] = getattr(response.usage_metadata, "prompt_token_count", 0)
+            metadata["output_tokens"] = getattr(response.usage_metadata, "candidates_token_count", 0)
+            metadata["total_tokens"] = metadata["input_tokens"] + metadata["output_tokens"]
+        else:
+            logger.warning("Token usage not available from Gemini parse response")
+
         response_json = json.loads(response.text)
         parsed_response = TypeAdapter(response_format).validate_python(response_json)
-        return parsed_response
+        return {
+            "response": parsed_response,
+            "metadata": metadata
+        }
 
 
 class AnthropicModel(LLMJudgeModel):
@@ -238,7 +317,7 @@ class AnthropicModel(LLMJudgeModel):
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=1, max=10),
     )
-    def call(self, prompt: str, model_kwargs=None) -> str:
+    def call(self, prompt: str, model_kwargs=None) -> dict:
         """
         Call the Anthropic API model with the given prompt.
 
@@ -247,7 +326,9 @@ class AnthropicModel(LLMJudgeModel):
             model_kwargs (dict, optional): Additional kwargs for the API call
 
         Returns:
-            str: The model's response text
+            dict: Dictionary containing:
+                - response (str): The model's response text
+                - metadata (dict): Token usage and model information
 
         Raises:
             ValueError: If the prompt is empty or model_kwargs is invalid
@@ -261,6 +342,7 @@ class AnthropicModel(LLMJudgeModel):
 
         model_kwargs = model_kwargs or {}
         model_kwargs = self._remove_invalid_kwargs(model_kwargs)
+        logger = logging.getLogger(__name__)
 
         try:
             max_tokens = None
@@ -275,7 +357,20 @@ class AnthropicModel(LLMJudgeModel):
                 max_tokens=max_tokens,
                 **model_kwargs,
             )
-            return response.content[0].text
+
+            # Extract token usage
+            metadata = {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0}
+            if hasattr(response, "usage") and response.usage:
+                metadata["input_tokens"] = getattr(response.usage, "input_tokens", 0)
+                metadata["output_tokens"] = getattr(response.usage, "output_tokens", 0)
+                metadata["total_tokens"] = metadata["input_tokens"] + metadata["output_tokens"]
+            else:
+                logger.warning("Token usage not available from Anthropic response")
+
+            return {
+                "response": response.content[0].text,
+                "metadata": metadata
+            }
         except anthropic.InternalServerError:
             raise
         except anthropic.APITimeoutError:
@@ -295,7 +390,9 @@ class AnthropicModel(LLMJudgeModel):
             model_kwargs (dict, optional): Additional kwargs for the API call
 
         Returns:
-            str: The parsed response matching the provided schema
+            dict: Dictionary containing:
+                - response: The parsed response matching the provided schema
+                - metadata (dict): Token usage and model information
         """
         model_kwargs = model_kwargs or {}
         model_kwargs = self._remove_invalid_kwargs(model_kwargs)
@@ -321,6 +418,16 @@ Return only the JSON object, no other text."""
             **model_kwargs,
         )
 
+        # Extract token usage
+        logger = logging.getLogger(__name__)
+        metadata = {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0}
+        if hasattr(response, "usage") and response.usage:
+            metadata["input_tokens"] = getattr(response.usage, "input_tokens", 0)
+            metadata["output_tokens"] = getattr(response.usage, "output_tokens", 0)
+            metadata["total_tokens"] = metadata["input_tokens"] + metadata["output_tokens"]
+        else:
+            logger.warning("Token usage not available from Anthropic parse response")
+
         # Validate response structure before parsing
         if not response.content:
             raise ValueError(
@@ -331,7 +438,6 @@ Return only the JSON object, no other text."""
         response_text = response.content[0].text
 
         # Debug logging to capture what Claude actually returned
-        logger = logging.getLogger(__name__)
         logger.info(f"Anthropic response length: {len(response_text)} chars")
         logger.info(f"Anthropic response (first 500 chars): {response_text[:500]}")
 
@@ -369,7 +475,10 @@ Return only the JSON object, no other text."""
             ) from e
 
         parsed_response = TypeAdapter(response_format).validate_python(response_json)
-        return parsed_response
+        return {
+            "response": parsed_response,
+            "metadata": metadata
+        }
 
 
 class TogetherModel(LLMJudgeModel):
@@ -391,7 +500,7 @@ class TogetherModel(LLMJudgeModel):
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=1, max=10),
     )
-    def call(self, prompt: str, model_kwargs=None) -> str:
+    def call(self, prompt: str, model_kwargs=None) -> dict:
         """
         Call the Together API model with the given prompt.
 
@@ -400,7 +509,9 @@ class TogetherModel(LLMJudgeModel):
             model_kwargs (dict, optional): Additional kwargs for the API call
 
         Returns:
-            str: The model's response text
+            dict: Dictionary containing:
+                - response (str): The model's response text
+                - metadata (dict): Token usage and model information
 
         Raises:
             ValueError: If the prompt is empty or model_kwargs is invalid
@@ -413,6 +524,7 @@ class TogetherModel(LLMJudgeModel):
             raise ValueError("Prompt cannot be empty")
 
         model_kwargs = model_kwargs or {}
+        logger = logging.getLogger(__name__)
 
         try:
             response = self.client.chat.completions.create(
@@ -420,7 +532,20 @@ class TogetherModel(LLMJudgeModel):
                 messages=[{"role": "user", "content": prompt}],
                 **model_kwargs,
             )
-            return response.choices[0].message.content
+
+            # Extract token usage
+            metadata = {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0}
+            if hasattr(response, "usage") and response.usage:
+                metadata["input_tokens"] = getattr(response.usage, "prompt_tokens", 0)
+                metadata["output_tokens"] = getattr(response.usage, "completion_tokens", 0)
+                metadata["total_tokens"] = getattr(response.usage, "total_tokens", 0)
+            else:
+                logger.warning("Token usage not available from Together response")
+
+            return {
+                "response": response.choices[0].message.content,
+                "metadata": metadata
+            }
         except together.error.Timeout:
             raise
         except together.error.APIConnectionError:
@@ -440,9 +565,12 @@ class TogetherModel(LLMJudgeModel):
             model_kwargs (dict, optional): Additional kwargs for the API call
 
         Returns:
-            The parsed response matching the provided schema
+            dict: Dictionary containing:
+                - response: The parsed response matching the provided schema
+                - metadata (dict): Token usage and model information
         """
         model_kwargs = model_kwargs or {}
+        logger = logging.getLogger(__name__)
 
         # Get the raw schema and flatten it to remove $ref constructs (caused by AutoNuggetizer)
         schema = response_format.model_json_schema()
@@ -461,11 +589,23 @@ class TogetherModel(LLMJudgeModel):
                 **model_kwargs,
             )
 
+            # Extract token usage
+            metadata = {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0}
+            if hasattr(response, "usage") and response.usage:
+                metadata["input_tokens"] = getattr(response.usage, "prompt_tokens", 0)
+                metadata["output_tokens"] = getattr(response.usage, "completion_tokens", 0)
+                metadata["total_tokens"] = getattr(response.usage, "total_tokens", 0)
+            else:
+                logger.warning("Token usage not available from Together parse response")
+
             response_json = json.loads(response.choices[0].message.content)
             parsed_response = TypeAdapter(response_format).validate_python(
                 response_json
             )
-            return parsed_response
+            return {
+                "response": parsed_response,
+                "metadata": metadata
+            }
         except Exception as e:
             # If grammar validation fails, fall back to prompt-based approach like AnthropicModel
             if "grammar" in str(e).lower():
@@ -479,6 +619,7 @@ class TogetherModel(LLMJudgeModel):
         Fallback parsing method that uses prompt-based JSON generation instead of grammar validation.
         """
         model_kwargs = model_kwargs or {}
+        logger = logging.getLogger(__name__)
         schema = response_format.model_json_schema()
 
         structured_prompt = f"""{prompt}
@@ -493,6 +634,15 @@ Return only the JSON object, no other text."""
             messages=[{"role": "user", "content": structured_prompt}],
             **model_kwargs,
         )
+
+        # Extract token usage
+        metadata = {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0}
+        if hasattr(response, "usage") and response.usage:
+            metadata["input_tokens"] = getattr(response.usage, "prompt_tokens", 0)
+            metadata["output_tokens"] = getattr(response.usage, "completion_tokens", 0)
+            metadata["total_tokens"] = getattr(response.usage, "total_tokens", 0)
+        else:
+            logger.warning("Token usage not available from Together fallback parse response")
 
         response_text = response.choices[0].message.content.strip()
 
@@ -516,7 +666,10 @@ Return only the JSON object, no other text."""
             parsed_response = TypeAdapter(response_format).validate_python(
                 response_json
             )
-            return parsed_response
+            return {
+                "response": parsed_response,
+                "metadata": metadata
+            }
         except Exception as e:
             raise ValueError(
                 f"Failed to validate response against schema: {response_json}"

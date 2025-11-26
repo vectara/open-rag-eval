@@ -81,10 +81,15 @@ class CitationMetric(AugmentedGenerationMetric):
                 - weighted_recall: Sum of part average scores / total parts
                 - f1: Harmonic mean of precision and recall
                 - Individual citation and part scores
+                - token_usage: Token usage statistics
         """
 
         retrieval_result = rag_result.retrieval_result
         generation_result = rag_result.generation_result
+
+        # Track token usage
+        total_input_tokens = 0
+        total_output_tokens = 0
 
         citation_to_scores = defaultdict(list)
         part_to_scores = defaultdict(list)
@@ -110,7 +115,7 @@ class CitationMetric(AugmentedGenerationMetric):
                     prompt = self._CITATION_PROMPT.format(
                         statement=answer_sentence, citation=passage
                     )
-                    response = self.model.parse(
+                    result = self.model.parse(
                         prompt,
                         response_format=CitationSupport,
                         model_kwargs={
@@ -118,6 +123,13 @@ class CitationMetric(AugmentedGenerationMetric):
                             "seed": 42
                         }
                     )
+                    response = result["response"]
+                    metadata = result["metadata"]
+
+                    # Accumulate tokens
+                    total_input_tokens += metadata.get("input_tokens", 0)
+                    total_output_tokens += metadata.get("output_tokens", 0)
+
                     if not response.support:
                         logging.error(
                             "While calculating citation metrics: failed to parse response – %s",
@@ -161,5 +173,12 @@ class CitationMetric(AugmentedGenerationMetric):
             scores["f1"] = (
                 2 * (scores["weighted_precision"] * scores["weighted_recall"]) /
                 (scores["weighted_precision"] + scores["weighted_recall"]))
+
+        # Add token usage to scores
+        scores["token_usage"] = {
+            "input_tokens": total_input_tokens,
+            "output_tokens": total_output_tokens,
+            "total_tokens": total_input_tokens + total_output_tokens
+        }
 
         return scores

@@ -105,6 +105,11 @@ class UMBRELAMetric(RetrievalMetric):
 
         scores["umbrela_scores"] = {}
         umbrela_scores = scores["umbrela_scores"]
+
+        # Track token usage across all passages
+        total_input_tokens = 0
+        total_output_tokens = 0
+
         for key, passage in retrieval_result.retrieved_passages.items():
             try:
                 query = retrieval_result.query
@@ -117,7 +122,14 @@ class UMBRELAMetric(RetrievalMetric):
                     )
                 else:
                     prompt = self._UMBRELA_PROMPT.format(query=query, passage=passage)
-                response = self.model.parse(prompt, UMBRELAScore, self.model_kwargs)
+
+                result = self.model.parse(prompt, UMBRELAScore, self.model_kwargs)
+                response = result["response"]
+                metadata = result["metadata"]
+
+                # Accumulate tokens
+                total_input_tokens += metadata.get("input_tokens", 0)
+                total_output_tokens += metadata.get("output_tokens", 0)
 
                 if not response.score:
                     raise ValueError(f"Failed to parse response: {response.refusal}")
@@ -126,6 +138,13 @@ class UMBRELAMetric(RetrievalMetric):
 
             except Exception as e:
                 raise Exception(f"Error computing UMBRELA score: {str(e)}") from e
+
+        # Add token usage to scores
+        scores["token_usage"] = {
+            "input_tokens": total_input_tokens,
+            "output_tokens": total_output_tokens,
+            "total_tokens": total_input_tokens + total_output_tokens
+        }
 
         # Calculate traditional retrieval metrics.
         self.add_retrieval_metrics(scores, k_values)

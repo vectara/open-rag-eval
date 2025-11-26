@@ -122,19 +122,34 @@ class AutoNuggetMetric(AugmentedGenerationMetric):
     ) -> Dict[str, int]:
         retrieval_result = rag_result.retrieval_result
         try:
-            nuggets = self._create_nuggets(
+            # Track total token usage across all three steps
+            total_input_tokens = 0
+            total_output_tokens = 0
+
+            # Step 1: Create nuggets
+            nuggets, create_tokens = self._create_nuggets(
                 retrieval_result.query,
                 retrieval_result.retrieved_passages,
                 umbrela_scores,
             )
-            sorted_nuggets, sorted_labels = self._score_and_sort_nuggets(
+            total_input_tokens += create_tokens.get("input_tokens", 0)
+            total_output_tokens += create_tokens.get("output_tokens", 0)
+
+            # Step 2: Score and sort nuggets
+            (sorted_nuggets, sorted_labels), score_tokens = self._score_and_sort_nuggets(
                 retrieval_result.query, nuggets
             )
-            nugget_assignments = self._assign_nuggets(
+            total_input_tokens += score_tokens.get("input_tokens", 0)
+            total_output_tokens += score_tokens.get("output_tokens", 0)
+
+            # Step 3: Assign nuggets
+            nugget_assignments, assign_tokens = self._assign_nuggets(
                 rag_result.generation_result.query,
                 rag_result.generation_result.generated_answer,
                 sorted_nuggets,
             )
+            total_input_tokens += assign_tokens.get("input_tokens", 0)
+            total_output_tokens += assign_tokens.get("output_tokens", 0)
 
             scores = {}
             scores["nuggetizer_scores"] = self._evaluate_answer(
@@ -148,6 +163,13 @@ class AutoNuggetMetric(AugmentedGenerationMetric):
                 for assignment in nugget_assignments
             ]
 
+            # Add token usage to scores
+            scores["token_usage"] = {
+                "input_tokens": total_input_tokens,
+                "output_tokens": total_output_tokens,
+                "total_tokens": total_input_tokens + total_output_tokens
+            }
+
             return scores
         except Exception as e:
             logging.error("Failed to compute nugget metric: %s", str(e))
@@ -158,13 +180,15 @@ class AutoNuggetMetric(AugmentedGenerationMetric):
         query: str,
         retrieved_passages: Dict[str, str],
         umbrela_scores: Dict[str, int],
-    ) -> List[str]:
+    ) -> tuple[List[str], dict]:
         """
         Creates nuggets (concise information units) from retrieved passages based on a query.
 
         This method filters passages based on umbrella scores and iteratively generates nuggets
         using a language model until the maximum number of nuggets is reached or iterations complete.
 
+        Returns:
+            tuple: (nuggets list, token_usage dict)
         """
         if not query.strip():
             raise ValueError("Query cannot be empty.")
@@ -175,6 +199,11 @@ class AutoNuggetMetric(AugmentedGenerationMetric):
             f"[{i+1}] {seg}" for i, (_, seg) in enumerate(filtered_passages.items())
         )
         nuggets = []
+
+        # Track token usage
+        total_input_tokens = 0
+        total_output_tokens = 0
+
         for _ in range(self.nugget_creation_iters):
             prompt = self._NUGGET_CREATION_PROMPT.format(
                 query=query,
@@ -184,11 +213,18 @@ class AutoNuggetMetric(AugmentedGenerationMetric):
                 max_nuggets=self.max_nuggets,
             )
             try:
-                response = self.model.parse(
+                result = self.model.parse(
                     prompt,
                     response_format=Nuggets,
                     model_kwargs=self.model_kwargs
                 )
+                response = result["response"]
+                metadata = result["metadata"]
+
+                # Accumulate tokens
+                total_input_tokens += metadata.get("input_tokens", 0)
+                total_output_tokens += metadata.get("output_tokens", 0)
+
             except Exception as e:
                 logging.error(f"Failed to create nuggets: {e}")
                 raise e
@@ -206,21 +242,36 @@ class AutoNuggetMetric(AugmentedGenerationMetric):
             if len(nuggets) >= self.max_nuggets:
                 break
 
-        return nuggets
+        token_usage = {
+            "input_tokens": total_input_tokens,
+            "output_tokens": total_output_tokens,
+            "total_tokens": total_input_tokens + total_output_tokens
+        }
+
+        return nuggets, token_usage
 
     def _score_and_sort_nuggets(
         self, query: str, nuggets: List[str]
-    ) -> Tuple[List[str], List[str]]:
+    ) -> tuple[Tuple[List[str], List[str]], dict]:
         """
         Evaluates and ranks a list of text nuggets based on their relevance to a query.
         Processes nuggets in batches of 10, scores them using an LLM, and returns the top
         20 most relevant nuggets along with their importance labels.
+
+        Returns:
+            tuple: ((sorted_nuggets, sorted_labels), token_usage dict)
         """
         if not query.strip():
             raise ValueError("Query cannot be empty.")
         if not nuggets:
-            return [], []
+            return ([], []), {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0}
+
         labels = []
+
+        # Track token usage
+        total_input_tokens = 0
+        total_output_tokens = 0
+
         for i in range(0, len(nuggets), 10):
             prompt = self._NUGGET_IMPORTANCE_PROMPT.format(
                 query=query,
@@ -228,11 +279,18 @@ class AutoNuggetMetric(AugmentedGenerationMetric):
                 nuggets=nuggets[i : i + 10],
             )
             try:
-                response = self.model.parse(
+                result = self.model.parse(
                     prompt,
                     response_format=NuggetImportance,
                     model_kwargs=self.model_kwargs
                 )
+                response = result["response"]
+                metadata = result["metadata"]
+
+                # Accumulate tokens
+                total_input_tokens += metadata.get("input_tokens", 0)
+                total_output_tokens += metadata.get("output_tokens", 0)
+
             except Exception as e:
                 logging.error(f"Failed to evaluate nuggets: {e}")
                 raise e
@@ -252,13 +310,24 @@ class AutoNuggetMetric(AugmentedGenerationMetric):
         sorted_pairs = sorted(zip(nuggets, labels), key=lambda x: x[1] == "okay")
         sorted_nuggets, sorted_labels = zip(*sorted_pairs)
         n_nuggets = 20      # return top 20 nuggets, as per the paper implementation.
-        return list(sorted_nuggets[:n_nuggets]), list(sorted_labels[:n_nuggets])
+
+        token_usage = {
+            "input_tokens": total_input_tokens,
+            "output_tokens": total_output_tokens,
+            "total_tokens": total_input_tokens + total_output_tokens
+        }
+
+        return (list(sorted_nuggets[:n_nuggets]), list(sorted_labels[:n_nuggets])), token_usage
 
     def _assign_nuggets(
         self, query: str, generated_answer: Dict[str, str], nuggets: List[str]
-    ) -> List[str]:
+    ) -> tuple[List[str], dict]:
         """Evaluates how well each nugget is covered in the generated passage by assigning
-        support/partial_support/not_support labels"""
+        support/partial_support/not_support labels
+
+        Returns:
+            tuple: (assignments list, token_usage dict)
+        """
 
         # Generated passage maps passage ID to passage text, we need to convert this to a single string.
         generated_passage = " ".join(
@@ -270,8 +339,14 @@ class AutoNuggetMetric(AugmentedGenerationMetric):
         if not generated_passage.strip():
             raise ValueError("Generated passage cannot be empty.")
         if not nuggets:
-            return []
+            return [], {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0}
+
         assignments = []
+
+        # Track token usage
+        total_input_tokens = 0
+        total_output_tokens = 0
+
         for i in range(0, len(nuggets), 10):
             prompt = self._NUGGET_ASSIGNMENT_PROMPT.format(
                 query=query,
@@ -280,11 +355,18 @@ class AutoNuggetMetric(AugmentedGenerationMetric):
                 generated_passage=generated_passage,
             )
             try:
-                response = self.model.parse(
+                result = self.model.parse(
                     prompt,
                     response_format=NuggetAssignment,
                     model_kwargs=self.model_kwargs
                 )
+                response = result["response"]
+                metadata = result["metadata"]
+
+                # Accumulate tokens
+                total_input_tokens += metadata.get("input_tokens", 0)
+                total_output_tokens += metadata.get("output_tokens", 0)
+
             except Exception as e:
                 logging.error(f"Failed to assign nuggets: {e}")
                 raise e
@@ -300,7 +382,14 @@ class AutoNuggetMetric(AugmentedGenerationMetric):
 
         if len(assignments) != len(nuggets):
             raise ValueError("Number of assignments does not match number of nuggets.")
-        return assignments
+
+        token_usage = {
+            "input_tokens": total_input_tokens,
+            "output_tokens": total_output_tokens,
+            "total_tokens": total_input_tokens + total_output_tokens
+        }
+
+        return assignments, token_usage
 
     def _evaluate_answer(
         self, nuggets: List[str], labels: List[str], nugget_assignments: List[str]

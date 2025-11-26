@@ -86,7 +86,7 @@ class NoAnswerMetric(AugmentedGenerationMetric):
             prompt = self._ANSWERED_PROMPT.format(
                 query=generation_result.query, answer=summary
             )
-            response = self.model.parse(
+            result = self.model.parse(
                 prompt,
                 response_format=QueryAnswered,
                 model_kwargs={
@@ -94,10 +94,21 @@ class NoAnswerMetric(AugmentedGenerationMetric):
                     "seed": 42
                 },
             )
+            response = result["response"]
+            metadata = result["metadata"]
+
             if not response.answered:
                 raise ValueError(f"Failed to parse response: {response.refusal}")
 
             scores["query_answered"] = response.answered.value
+
+            # Add token usage to scores
+            scores["token_usage"] = {
+                "input_tokens": metadata.get("input_tokens", 0),
+                "output_tokens": metadata.get("output_tokens", 0),
+                "total_tokens": metadata.get("total_tokens", 0)
+            }
+
         except Exception as e:
             raise Exception(f"Error computing NoAnswer metric: {str(e)}") from e
 

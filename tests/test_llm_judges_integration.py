@@ -128,13 +128,30 @@ class TestLLMJudgesIntegration(unittest.TestCase):
             self.skipTest("OpenAI API key not configured")
 
         prompt = "What is 2+2? Answer with just the number."
-        response = self.openai_model.call(prompt)
+        result = self.openai_model.call(prompt)
 
-        # Basic validation of response
+        # Validate result structure
+        self.assertIsInstance(result, dict)
+        self.assertIn("response", result)
+        self.assertIn("metadata", result)
+
+        # Validate response content
+        response = result["response"]
         self.assertIsInstance(response, str)
         self.assertTrue(len(response.strip()) > 0)
         # The response should contain 4 somewhere
         self.assertIn("4", response)
+
+        # Validate token metadata
+        metadata = result["metadata"]
+        self.assertIsInstance(metadata, dict)
+        self.assertIn("input_tokens", metadata)
+        self.assertIn("output_tokens", metadata)
+        self.assertIn("total_tokens", metadata)
+        self.assertGreater(metadata["input_tokens"], 0)
+        self.assertGreater(metadata["output_tokens"], 0)
+        self.assertEqual(metadata["total_tokens"],
+                        metadata["input_tokens"] + metadata["output_tokens"])
 
     def test_gemini_integration(self):
         """Test Gemini model with actual API calls"""
@@ -142,13 +159,26 @@ class TestLLMJudgesIntegration(unittest.TestCase):
             self.skipTest("Gemini API key not configured")
 
         prompt = "What is 2+2? Answer with just the number."
-        response = self.gemini_model.call(prompt)
+        result = self.gemini_model.call(prompt)
 
-        # Basic validation of response
+        # Validate result structure
+        self.assertIsInstance(result, dict)
+        self.assertIn("response", result)
+        self.assertIn("metadata", result)
+
+        # Validate response content
+        response = result["response"]
         self.assertIsInstance(response, str)
         self.assertTrue(len(response.strip()) > 0)
         # The response should contain 4 somewhere
         self.assertIn("4", response)
+
+        # Validate token metadata
+        metadata = result["metadata"]
+        self.assertIsInstance(metadata, dict)
+        self.assertIn("input_tokens", metadata)
+        self.assertIn("output_tokens", metadata)
+        self.assertIn("total_tokens", metadata)
 
     def test_anthropic_integration(self):
         """Test Anthropic model with actual API calls"""
@@ -156,13 +186,26 @@ class TestLLMJudgesIntegration(unittest.TestCase):
             self.skipTest("Anthropic API key not configured")
 
         prompt = "What is 2+2? Answer with just the number."
-        response = self.anthropic_model.call(prompt)
+        result = self.anthropic_model.call(prompt)
 
-        # Basic validation of response
+        # Validate result structure
+        self.assertIsInstance(result, dict)
+        self.assertIn("response", result)
+        self.assertIn("metadata", result)
+
+        # Validate response content
+        response = result["response"]
         self.assertIsInstance(response, str)
         self.assertTrue(len(response.strip()) > 0)
         # The response should contain 4 somewhere
         self.assertIn("4", response)
+
+        # Validate token metadata
+        metadata = result["metadata"]
+        self.assertIsInstance(metadata, dict)
+        self.assertIn("input_tokens", metadata)
+        self.assertIn("output_tokens", metadata)
+        self.assertIn("total_tokens", metadata)
 
     def test_together_integration(self):
         """Test Together model with actual API calls"""
@@ -170,13 +213,26 @@ class TestLLMJudgesIntegration(unittest.TestCase):
             self.skipTest("Together API key not configured")
 
         prompt = "What is 2+2? Answer with just the number."
-        response = self.together_model.call(prompt)
+        result = self.together_model.call(prompt)
 
-        # Basic validation of response
+        # Validate result structure
+        self.assertIsInstance(result, dict)
+        self.assertIn("response", result)
+        self.assertIn("metadata", result)
+
+        # Validate response content
+        response = result["response"]
         self.assertIsInstance(response, str)
         self.assertTrue(len(response.strip()) > 0)
         # The response should contain 4 somewhere
         self.assertIn("4", response)
+
+        # Validate token metadata
+        metadata = result["metadata"]
+        self.assertIsInstance(metadata, dict)
+        self.assertIn("input_tokens", metadata)
+        self.assertIn("output_tokens", metadata)
+        self.assertIn("total_tokens", metadata)
 
     def test_openai_parse_integration(self):
         """Test OpenAI model parse method with actual API calls"""
@@ -189,11 +245,25 @@ class TestLLMJudgesIntegration(unittest.TestCase):
             statement=statement, citation=citation
         )
 
-        response = self.openai_model.parse(prompt, CitationSupport, self.model_kwargs)
+        result = self.openai_model.parse(prompt, CitationSupport, self.model_kwargs)
 
+        # Validate result structure
+        self.assertIsInstance(result, dict)
+        self.assertIn("response", result)
+        self.assertIn("metadata", result)
+
+        # Validate response content
+        response = result["response"]
         self.assertIsInstance(response, CitationSupport)
         self.assertIsInstance(response.support, CitationSupportValues)
         self.assertIn(response.support, CitationSupportValues)
+
+        # Validate token metadata
+        metadata = result["metadata"]
+        self.assertIsInstance(metadata, dict)
+        self.assertIn("input_tokens", metadata)
+        self.assertIn("output_tokens", metadata)
+        self.assertIn("total_tokens", metadata)
 
     def test_gemini_parse_integration(self):
         """Test Gemini model parse method with actual API calls"""
@@ -206,11 +276,25 @@ class TestLLMJudgesIntegration(unittest.TestCase):
             statement=statement, citation=citation
         )
 
-        response = self.gemini_model.parse(prompt, CitationSupport, self.model_kwargs)
+        result = self.gemini_model.parse(prompt, CitationSupport, self.model_kwargs)
 
+        # Validate result structure
+        self.assertIsInstance(result, dict)
+        self.assertIn("response", result)
+        self.assertIn("metadata", result)
+
+        # Validate response content
+        response = result["response"]
         self.assertIsInstance(response, CitationSupport)
         self.assertIsInstance(response.support, CitationSupportValues)
         self.assertIn(response.support, CitationSupportValues)
+
+        # Validate token metadata
+        metadata = result["metadata"]
+        self.assertIsInstance(metadata, dict)
+        self.assertIn("input_tokens", metadata)
+        self.assertIn("output_tokens", metadata)
+        self.assertIn("total_tokens", metadata)
 
     def test_anthropic_parse_integration(self):
         """Test Anthropic model parse method with actual API calls"""
@@ -223,11 +307,25 @@ class TestLLMJudgesIntegration(unittest.TestCase):
             statement=statement, citation=citation
         )
 
-        response = self.anthropic_model.parse(prompt, CitationSupport, self.model_kwargs)
+        result = self.anthropic_model.parse(prompt, CitationSupport, self.model_kwargs)
 
+        # Validate result structure
+        self.assertIsInstance(result, dict)
+        self.assertIn("response", result)
+        self.assertIn("metadata", result)
+
+        # Validate response content
+        response = result["response"]
         self.assertIsInstance(response, CitationSupport)
         self.assertIsInstance(response.support, CitationSupportValues)
         self.assertIn(response.support, CitationSupportValues)
+
+        # Validate token metadata
+        metadata = result["metadata"]
+        self.assertIsInstance(metadata, dict)
+        self.assertIn("input_tokens", metadata)
+        self.assertIn("output_tokens", metadata)
+        self.assertIn("total_tokens", metadata)
 
     def test_together_parse_integration(self):
         """Test Together model parse method with actual API calls"""
@@ -240,11 +338,25 @@ class TestLLMJudgesIntegration(unittest.TestCase):
             statement=statement, citation=citation
         )
 
-        response = self.together_model.parse(prompt, CitationSupport, self.model_kwargs)
+        result = self.together_model.parse(prompt, CitationSupport, self.model_kwargs)
 
+        # Validate result structure
+        self.assertIsInstance(result, dict)
+        self.assertIn("response", result)
+        self.assertIn("metadata", result)
+
+        # Validate response content
+        response = result["response"]
         self.assertIsInstance(response, CitationSupport)
         self.assertIsInstance(response.support, CitationSupportValues)
         self.assertIn(response.support, CitationSupportValues)
+
+        # Validate token metadata
+        metadata = result["metadata"]
+        self.assertIsInstance(metadata, dict)
+        self.assertIn("input_tokens", metadata)
+        self.assertIn("output_tokens", metadata)
+        self.assertIn("total_tokens", metadata)
 
 
 if __name__ == "__main__":

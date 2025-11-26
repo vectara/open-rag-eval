@@ -265,6 +265,73 @@ def _omit_empty_consistency(report: dict) -> dict:
     return {k: v for k, v in report.items() if k != "consistency" or v}
 
 
+def _print_token_usage_summary(results, evaluator_type: str):
+    """
+    Print a summary of token usage across all evaluation results.
+
+    Args:
+        results: List of MultiScoredRAGResult objects
+        evaluator_type: Type of evaluator (e.g., "TREC", "Consistency")
+    """
+    total_input = 0
+    total_output = 0
+    metric_tokens = {
+        "umbrela": {"input": 0, "output": 0},
+        "autonugget": {"input": 0, "output": 0},
+        "citation": {"input": 0, "output": 0},
+        "no_answer": {"input": 0, "output": 0}
+    }
+
+    # Aggregate tokens from all results
+    for multi_scored_result in results:
+        for scored_result in multi_scored_result.scored_rag_results:
+            if not scored_result.scores or not scored_result.scores.generation_score:
+                continue
+
+            token_usage = scored_result.scores.generation_score.scores.get("token_usage", {})
+            if not token_usage:
+                continue
+
+            # Add to total
+            total_input += token_usage.get("total_input_tokens", 0)
+            total_output += token_usage.get("total_output_tokens", 0)
+
+            # Add to metric-specific counts
+            umbrela_tokens = token_usage.get("umbrela_tokens", {})
+            metric_tokens["umbrela"]["input"] += umbrela_tokens.get("input_tokens", 0)
+            metric_tokens["umbrela"]["output"] += umbrela_tokens.get("output_tokens", 0)
+
+            autonugget_tokens = token_usage.get("autonugget_tokens", {})
+            metric_tokens["autonugget"]["input"] += autonugget_tokens.get("input_tokens", 0)
+            metric_tokens["autonugget"]["output"] += autonugget_tokens.get("output_tokens", 0)
+
+            citation_tokens = token_usage.get("citation_tokens", {})
+            metric_tokens["citation"]["input"] += citation_tokens.get("input_tokens", 0)
+            metric_tokens["citation"]["output"] += citation_tokens.get("output_tokens", 0)
+
+            no_answer_tokens = token_usage.get("no_answer_tokens", {})
+            metric_tokens["no_answer"]["input"] += no_answer_tokens.get("input_tokens", 0)
+            metric_tokens["no_answer"]["output"] += no_answer_tokens.get("output_tokens", 0)
+
+    total_tokens = total_input + total_output
+
+    # Print summary if there are tokens to report
+    if total_tokens > 0:
+        print(f"\n=== Token Usage Summary ({evaluator_type}) ===")
+        print(f"Total Input Tokens:  {total_input:,}")
+        print(f"Total Output Tokens: {total_output:,}")
+        print(f"Total Tokens:        {total_tokens:,}")
+        print("\nBreakdown by Metric:")
+
+        for metric_name, tokens in metric_tokens.items():
+            metric_total = tokens["input"] + tokens["output"]
+            if metric_total > 0:
+                percentage = (metric_total / total_tokens * 100) if total_tokens > 0 else 0
+                print(f"  {metric_name.upper():12} {metric_total:8,} tokens ({percentage:5.1f}%)")
+
+        print("=" * 45 + "\n")
+
+
 def run_eval(config_path: str):
     """
     Main function to run the evaluation process.
@@ -344,6 +411,9 @@ def run_eval(config_path: str):
             results_folder, f"{evaluator_type}-{config.eval_results_file}"
         )
         evaluator.to_csv(results, eval_results_path)
+
+        # Print token usage summary
+        _print_token_usage_summary(results, evaluator_type)
 
         # Plot results
         try:
