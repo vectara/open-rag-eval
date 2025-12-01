@@ -326,7 +326,7 @@ def _print_token_usage_summary(results, evaluator_type: str):
         for metric_name, tokens in metric_tokens.items():
             metric_total = tokens["input"] + tokens["output"]
             if metric_total > 0:
-                percentage = (metric_total / total_tokens * 100) if total_tokens > 0 else 0
+                percentage = metric_total / total_tokens * 100
                 print(f"  {metric_name.upper():12} {metric_total:8,} tokens ({percentage:5.1f}%)")
 
         print("=" * 45 + "\n")

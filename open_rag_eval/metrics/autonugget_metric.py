@@ -180,7 +180,7 @@ class AutoNuggetMetric(AugmentedGenerationMetric):
         query: str,
         retrieved_passages: Dict[str, str],
         umbrela_scores: Dict[str, int],
-    ) -> tuple[List[str], dict]:
+    ) -> Tuple[List[str], Dict[str, int]]:
         """
         Creates nuggets (concise information units) from retrieved passages based on a query.
 
@@ -252,7 +252,7 @@ class AutoNuggetMetric(AugmentedGenerationMetric):
 
     def _score_and_sort_nuggets(
         self, query: str, nuggets: List[str]
-    ) -> tuple[Tuple[List[str], List[str]], dict]:
+    ) -> Tuple[Tuple[List[str], List[str]], Dict[str, int]]:
         """
         Evaluates and ranks a list of text nuggets based on their relevance to a query.
         Processes nuggets in batches of 10, scores them using an LLM, and returns the top
@@ -321,7 +321,7 @@ class AutoNuggetMetric(AugmentedGenerationMetric):
 
     def _assign_nuggets(
         self, query: str, generated_answer: Dict[str, str], nuggets: List[str]
-    ) -> tuple[List[str], dict]:
+    ) -> Tuple[List[str], Dict[str, int]]:
         """Evaluates how well each nugget is covered in the generated passage by assigning
         support/partial_support/not_support labels
 
