@@ -20,8 +20,14 @@ class TestUMBRELAMetric(unittest.TestCase):
         passages = {"1": "passage 1", "2": "passage 2"}
         retrieval_result = RetrievalResult(query=query, retrieved_passages=passages)
 
-        mock_response1 = Mock(score=Mock(value="3"))
-        mock_response2 = Mock(score=Mock(value="2"))
+        mock_response1 = {
+            "response": Mock(score=Mock(value="3")),
+            "metadata": {"input_tokens": 100, "output_tokens": 50, "total_tokens": 150}
+        }
+        mock_response2 = {
+            "response": Mock(score=Mock(value="2")),
+            "metadata": {"input_tokens": 100, "output_tokens": 50, "total_tokens": 150}
+        }
         self.model.parse.side_effect = [mock_response1, mock_response2]
 
         scores = self.metric.compute(retrieval_result, self.k_values)
@@ -29,6 +35,7 @@ class TestUMBRELAMetric(unittest.TestCase):
         expected_umbrela_scores = {"1": 3, "2": 2}
         self.assertEqual(scores["umbrela_scores"], expected_umbrela_scores)
         self.assertIn("retrieval_scores", scores)
+        self.assertEqual(scores["token_usage"]["total_tokens"], 300)
         self.assertEqual(self.model.parse.call_count, 2)
 
     def test_compute_empty_passages(self):
@@ -60,7 +67,10 @@ class TestUMBRELAMetric(unittest.TestCase):
         passages = {"1": "passage 1"}
         retrieval_result = RetrievalResult(query=query, retrieved_passages=passages)
 
-        mock_response = Mock(score=None, refusal="Refused to score")
+        mock_response = {
+            "response": Mock(score=None, refusal="Refused to score"),
+            "metadata": {"input_tokens": 100, "output_tokens": 50, "total_tokens": 150}
+        }
         self.model.parse.return_value = mock_response
 
         with self.assertRaises(Exception) as context:

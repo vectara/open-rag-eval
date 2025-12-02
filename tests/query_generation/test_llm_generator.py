@@ -42,7 +42,10 @@ class TestLLMQueryGenerator(unittest.TestCase):
         )
 
         # Mock the model response
-        self.mock_model.call.return_value = "¿Qué es esto?"
+        self.mock_model.call.return_value = {
+            "response": "¿Qué es esto?",
+            "metadata": {"input_tokens": 10, "output_tokens": 5, "total_tokens": 15}
+        }
 
         # Generate questions
         generator.generate(documents=["Test document"], n_questions=1)
@@ -73,9 +76,12 @@ class TestLLMQueryGenerator(unittest.TestCase):
     def test_generate_with_valid_response(self):
         """Test successful query generation."""
         # Mock LLM response
-        self.mock_model.call.return_value = """What is machine learning?
+        self.mock_model.call.return_value = {
+            "response": """What is machine learning?
 How does neural network work?
-Why is deep learning important?"""
+Why is deep learning important?""",
+            "metadata": {"input_tokens": 10, "output_tokens": 20, "total_tokens": 30}
+        }
 
         documents = ["Machine learning is a subset of AI."]
         queries = self.generator.generate(
@@ -96,9 +102,12 @@ Why is deep learning important?"""
     def test_generate_filters_by_word_count(self):
         """Test that queries are filtered by word count."""
         # Mock LLM response with mixed word counts
-        self.mock_model.call.return_value = """What?
+        self.mock_model.call.return_value = {
+            "response": """What?
 What is this?
-What is this long question about machine learning?"""
+What is this long question about machine learning?""",
+            "metadata": {"input_tokens": 10, "output_tokens": 15, "total_tokens": 25}
+        }
 
         documents = ["Test document"]
         queries = self.generator.generate(
@@ -117,9 +126,12 @@ What is this long question about machine learning?"""
     def test_generate_deduplicates_questions(self):
         """Test that duplicate questions are removed."""
         # Mock LLM response with duplicates
-        self.mock_model.call.return_value = """What is AI?
+        self.mock_model.call.return_value = {
+            "response": """What is AI?
 What is AI?
-How does AI work?"""
+How does AI work?""",
+            "metadata": {"input_tokens": 10, "output_tokens": 10, "total_tokens": 20}
+        }
 
         documents = ["AI is artificial intelligence."]
         queries = self.generator.generate(
@@ -151,9 +163,12 @@ How does AI work?"""
     def test_generate_cleans_question_formatting(self):
         """Test that questions are cleaned of bullets, numbers, etc."""
         # Mock LLM response with formatting
-        self.mock_model.call.return_value = """- What is AI?
+        self.mock_model.call.return_value = {
+            "response": """- What is AI?
 * How does ML work?
-1. Why use deep learning?"""
+1. Why use deep learning?""",
+            "metadata": {"input_tokens": 10, "output_tokens": 15, "total_tokens": 25}
+        }
 
         documents = ["Test document"]
         queries = self.generator.generate(
@@ -247,7 +262,10 @@ How does AI work?"""
         )
 
         # Mock response
-        self.mock_model.call.return_value = "What is this?"
+        self.mock_model.call.return_value = {
+            "response": "What is this?",
+            "metadata": {"input_tokens": 10, "output_tokens": 5, "total_tokens": 15}
+        }
 
         # Generate questions
         generator.generate(documents=["Test document"], n_questions=1)
@@ -327,7 +345,10 @@ How does AI work?"""
         )
 
         # Mock response
-        self.mock_model.call.return_value = "What is this?"
+        self.mock_model.call.return_value = {
+            "response": "What is this?",
+            "metadata": {"input_tokens": 10, "output_tokens": 5, "total_tokens": 15}
+        }
 
         # Generate questions
         generator.generate(documents=["Test document"], n_questions=1)

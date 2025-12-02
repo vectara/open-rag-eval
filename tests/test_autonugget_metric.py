@@ -1,5 +1,5 @@
 import unittest
-from unittest.mock import MagicMock, Mock
+from unittest.mock import MagicMock
 
 from open_rag_eval.metrics.autonugget_metric import (
     AutoNuggetMetric,
@@ -23,43 +23,53 @@ class TestAutoNuggetMetric(unittest.TestCase):
         retrieved_passages = {"1": "passage one", "2": "passage two", "3": "passage 3"}
         umbrela_scores = {"1": 2, "2": 1 ,"3": 0}
 
-        mock_response = Mock()
         mock_response = Nuggets(nuggets=["nugget1", "nugget2"])
-        self.model.parse.return_value = mock_response
+        self.model.parse.return_value = {
+            "response": mock_response,
+            "metadata": {"input_tokens": 100, "output_tokens": 50, "total_tokens": 150}
+        }
 
-        nuggets = self.metric._create_nuggets(query, retrieved_passages, umbrela_scores)
+        nuggets, token_usage = self.metric._create_nuggets(query, retrieved_passages, umbrela_scores)
         self.assertEqual(nuggets, ["nugget1", "nugget2"])
+        # 5 iterations (default nugget_creation_iters) * 150 tokens each = 750
+        self.assertEqual(token_usage["total_tokens"], 750)
 
     def test_score_and_sort_nuggets(self):
         query = "test query"
         nuggets = ["nugget1", "nugget2", "nugget3"]
 
-        mock_response = Mock()
         mock_response = NuggetImportance(importance=[
             NuggetImportanceValues.VITAL,
             NuggetImportanceValues.OKAY,
             NuggetImportanceValues.VITAL
         ])
-        self.model.parse.return_value = mock_response
+        self.model.parse.return_value = {
+            "response": mock_response,
+            "metadata": {"input_tokens": 100, "output_tokens": 50, "total_tokens": 150}
+        }
 
-        sorted_nuggets, sorted_labels = self.metric._score_and_sort_nuggets(query, nuggets)
+        (sorted_nuggets, sorted_labels), token_usage = self.metric._score_and_sort_nuggets(query, nuggets)
         self.assertEqual(sorted_nuggets, ["nugget1", "nugget3", "nugget2"])
         self.assertEqual(sorted_labels, ["vital", "vital", "okay"])
+        self.assertEqual(token_usage["total_tokens"], 150)
 
     def test_assign_nuggets(self):
         query = "test query"
         generated_answer = [GeneratedAnswerPart(text="generated passage", citations=["1"])]
         nuggets = ["nugget1", "nugget2"]
 
-        mock_response = Mock()
         mock_response = NuggetAssignment(assignment=[
             NuggetAssignmentValues.SUPPORT,
             NuggetAssignmentValues.PARTIAL_SUPPORT
         ])
-        self.model.parse.return_value = mock_response
+        self.model.parse.return_value = {
+            "response": mock_response,
+            "metadata": {"input_tokens": 100, "output_tokens": 50, "total_tokens": 150}
+        }
 
-        assignments = self.metric._assign_nuggets(query, generated_answer, nuggets)
+        assignments, token_usage = self.metric._assign_nuggets(query, generated_answer, nuggets)
         self.assertEqual(assignments, ["support", "partial_support"])
+        self.assertEqual(token_usage["total_tokens"], 150)
 
     def test_evaluate_answer(self):
         nuggets = ["nugget1", "nugget2"]
