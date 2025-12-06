@@ -284,6 +284,8 @@ def _print_token_usage_summary(results, evaluator_type: str):
 
     # Aggregate tokens from all results
     for multi_scored_result in results:
+        if not hasattr(multi_scored_result, 'scored_rag_results'):
+            continue
         for scored_result in multi_scored_result.scored_rag_results:
             if not scored_result.scores or not scored_result.scores.generation_score:
                 continue
