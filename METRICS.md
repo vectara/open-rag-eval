@@ -13,9 +13,13 @@ This document provides detailed documentation for all evaluation metrics impleme
    - [Citation Metric](#citation-metric)
    - [Hallucination Detection](#hallucination-detection)
    - [No-Answer Detection](#no-answer-detection)
-4. [Consistency Metrics](#consistency-metrics)
-5. [Implementation Details](#implementation-details)
-6. [References](#references)
+4. [Golden Answer Metrics](#golden-answer-metrics)
+   - [Answer Relevance](#answer-relevance)
+   - [Semantic Similarity](#semantic-similarity)
+   - [Factual Correctness](#factual-correctness)
+5. [Consistency Metrics](#consistency-metrics)
+6. [Implementation Details](#implementation-details)
+7. [References](#references)
 
 ## Overview
 
@@ -219,6 +223,107 @@ This metric evaluates answer attempts and requires:
 
 This metric is crucial for calculating the "Questions Answered" percentage in evaluation reports.
 
+## Golden Answer Metrics
+
+When reference/golden answers are available, the `GoldenAnswerEvaluator` provides metrics to compare generated answers against expected answers. These metrics require an `expected_answer` column in your queries.csv file.
+
+### Answer Relevance
+
+**Purpose**: Measures how relevant the generated answer is to the original query.
+
+**LLM Required**: Configurable via LLMJudgeModel (default: OpenAI GPT-4o-mini)
+**Embedding Model Required**: Configurable (default: OpenAI text-embedding-3-small)
+
+#### Inputs
+
+- **Query**: The original user question
+- **Generated Answer**: The answer produced by the RAG system
+
+#### Process
+
+1. **Question Generation**: LLM generates N questions (default: 3) that the answer could be responding to
+2. **Embedding**: Both the original query and generated questions are embedded
+3. **Similarity**: Cosine similarity computed between original query and each generated question
+4. **Aggregation**: Final score is the average of all similarity scores
+
+#### Output
+
+- **answer_relevance**: Score between 0-1 (higher = more relevant)
+- **generated_questions**: List of questions generated from the answer
+- **question_similarities**: Individual similarity scores
+
+### Semantic Similarity
+
+**Purpose**: Measures direct semantic similarity between generated and golden answers using embeddings.
+
+**Embedding Model Required**: Configurable (default: OpenAI text-embedding-3-small)
+
+#### Inputs
+
+- **Generated Answer**: The answer produced by the RAG system
+- **Expected Answer**: The golden/reference answer
+
+#### Process
+
+1. **Embedding**: Both answers are embedded using the configured embedding model
+2. **Cosine Similarity**: Direct cosine similarity between the two embeddings
+
+#### Output
+
+- **semantic_similarity**: Score between 0-1 (higher = more similar)
+
+### Factual Correctness
+
+**Purpose**: Measures factual accuracy by decomposing answers into claims and using NLI to verify them.
+
+**LLM Required**: Configurable via LLMJudgeModel (default: OpenAI GPT-4o-mini)
+
+#### Inputs
+
+- **Generated Answer**: The answer produced by the RAG system
+- **Expected Answer**: The golden/reference answer
+
+#### Process
+
+1. **Claim Extraction**: LLM extracts atomic factual claims from both answers
+2. **Precision Verification**: Each generated claim is verified against the expected answer using NLI
+   - Verdicts: `entailment`, `contradiction`, or `neutral`
+3. **Recall Verification**: Each expected claim is verified against the generated answer
+4. **Score Calculation**:
+   - **Precision** = (entailed generated claims) / (total generated claims)
+   - **Recall** = (entailed expected claims) / (total expected claims)
+   - **F1** = 2 × (Precision × Recall) / (Precision + Recall)
+
+#### Output
+
+- **factual_correctness_precision**: Fraction of generated claims supported by golden answer (0-1)
+- **factual_correctness_recall**: Fraction of golden claims covered by generated answer (0-1)
+- **factual_correctness_f1**: Harmonic mean of precision and recall (0-1)
+- **generated_claims**: List of claims extracted from generated answer
+- **expected_claims**: List of claims extracted from golden answer
+
+### Configuration
+
+```yaml
+evaluator:
+  - type: "GoldenAnswerEvaluator"
+    model:
+      type: "OpenAIModel"
+      name: "gpt-4o-mini"
+      api_key: ${oc.env:OPENAI_API_KEY}
+    embedding_model:
+      type: "OpenAIEmbeddingModel"
+      name: "text-embedding-3-small"
+      api_key: ${oc.env:OPENAI_API_KEY}
+    options:
+      num_questions: 3  # Questions for answer relevance
+      run_consistency: true
+      metrics_to_run_consistency:
+        - "answer_relevance"
+        - "semantic_similarity"
+        - "factual_correctness_f1"
+```
+
 ## Consistency Metrics
 
 When `run_consistency` is enabled, the system evaluates multiple runs of the same query to measure consistency across answers. The consistency evaluator uses specialized similarity metrics.
@@ -357,8 +462,13 @@ open-rag-eval plot results1.csv results2.csv --evaluator trec --output-file comp
 open-rag-eval plot consistency_results.csv --evaluator consistency
 ```
 
+**Golden Answer Results**:
+```bash
+open-rag-eval plot golden_answer_results.csv --evaluator golden_answer
+```
+
 **Options**:
-- `--evaluator`: Required. Specify "trec" or "consistency" based on the evaluator used
+- `--evaluator`: Required. Specify `trec`, `consistency`, or `golden_answer` based on the evaluator used
 - `--output-file`: Output filename (default: metrics_comparison.png)
 - `--metrics-to-plot`: Specific metrics to visualize (optional)
 

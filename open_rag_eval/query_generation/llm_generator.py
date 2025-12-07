@@ -4,6 +4,7 @@ import logging
 import math
 import random
 import re
+from dataclasses import dataclass
 from typing import Dict, List, Optional
 
 from tqdm import tqdm
@@ -12,6 +13,13 @@ from .base_generator import QueryGenerator
 from ..models.llm_judges import LLMJudgeModel
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass
+class QueryWithAnswer:
+    """Container for a query with its expected answer."""
+    query: str
+    expected_answer: str
 
 
 class LLMQueryGenerator(QueryGenerator):
@@ -364,3 +372,234 @@ Your response:
             logger.info("Sampled %d questions", n_questions)
 
         return filtered_questions
+
+    def generate_with_answers(
+        self,
+        documents: List[str],
+        n_questions: int = 50,
+        min_words: int = 5,
+        max_words: int = 20,
+        seed: Optional[int] = None,
+        **kwargs
+    ) -> List[QueryWithAnswer]:
+        """
+        Generate queries with expected answers from documents using an LLM.
+
+        This method generates question-answer pairs where the answer is derived
+        from the same document used to generate the question. This is useful
+        for creating golden answer evaluation datasets.
+
+        Args:
+            documents: List of document texts
+            n_questions: Total number of question-answer pairs to generate
+            min_words: Minimum number of words per question
+            max_words: Maximum number of words per question
+            seed: Random seed for reproducible sampling (None for random)
+            **kwargs: Additional parameters (unused)
+
+        Returns:
+            List of QueryWithAnswer objects containing query and expected_answer
+
+        Raises:
+            ValueError: If parameters are invalid or no documents provided
+        """
+        if not documents:
+            raise ValueError("No documents provided for query generation")
+        if n_questions < 1:
+            raise ValueError("n_questions must be at least 1")
+        if min_words < 1:
+            raise ValueError("min_words must be at least 1")
+        if max_words < min_words:
+            raise ValueError("max_words must be >= min_words")
+
+        logger.info(
+            "Generating %d question-answer pairs from %d documents",
+            n_questions,
+            len(documents)
+        )
+
+        all_qa_pairs = []
+        # Calculate adaptive questions per doc with 1.5x buffer
+        questions_per_doc = math.ceil((n_questions / len(documents)) * 1.5)
+
+        for doc in tqdm(documents, desc="Generating QA pairs from documents", unit="doc"):
+            try:
+                qa_pairs = self._generate_qa_pairs_for_doc(
+                    doc,
+                    questions_per_doc,
+                    min_words,
+                    max_words
+                )
+                all_qa_pairs.extend(qa_pairs)
+            except Exception as e:
+                logger.warning(
+                    "Failed to generate QA pairs for document: %s",
+                    str(e)
+                )
+                continue
+
+        # Post-processing
+        all_qa_pairs = self._post_process_qa_pairs(
+            all_qa_pairs,
+            n_questions,
+            min_words,
+            max_words,
+            seed
+        )
+
+        logger.info("Successfully generated %d QA pairs", len(all_qa_pairs))
+        return all_qa_pairs
+
+    def _generate_qa_pairs_for_doc(
+        self,
+        doc: str,
+        num_questions: int,
+        min_words: int,
+        max_words: int
+    ) -> List[QueryWithAnswer]:
+        """
+        Generate question-answer pairs for a single document.
+
+        Args:
+            doc: Document text
+            num_questions: Number of QA pairs to generate
+            min_words: Minimum words per question
+            max_words: Maximum words per question
+
+        Returns:
+            List of QueryWithAnswer objects
+
+        Raises:
+            Exception: If LLM call fails
+        """
+        question_type_instructions = self._build_question_type_instructions()
+
+        prompt = f"""Given the following document text, generate {num_questions} question-answer pairs.
+
+For each pair:
+- The QUESTION should have at least {min_words} words and no more than {max_words} words
+- The ANSWER should be a complete, accurate response based on the document content
+- Generate questions at varying lengths within the word range
+
+{question_type_instructions}
+
+IMPORTANT:
+- Questions must be standalone and self-contained
+- Do NOT use phrases like "mentioned in the document", "according to the text", etc.
+- Each question should end with a question mark
+- Answers should be comprehensive but concise (1-3 sentences typically)
+
+Your response must be in this exact format (one QA pair per block):
+Q: [question text]
+A: [answer text]
+
+Q: [question text]
+A: [answer text]
+
+Do not use bullets, numbers, blank lines between Q and A, code fences, or any additional text.
+Your response should always be in {self.language}.
+
+The text is:
+<document>
+{doc}
+</document>
+
+Your response:
+"""
+
+        result = self.model.call(prompt)
+        response = result["response"]
+
+        # Parse Q: A: format
+        qa_pairs = []
+        lines = response.strip().split('\n')
+
+        current_q = None
+        current_a = None
+
+        for line in lines:
+            line = line.strip()
+            if not line:
+                continue
+
+            if line.upper().startswith('Q:'):
+                # Save previous pair if exists
+                if current_q and current_a:
+                    qa_pairs.append(QueryWithAnswer(
+                        query=current_q,
+                        expected_answer=current_a
+                    ))
+                current_q = line[2:].strip()
+                current_a = None
+            elif line.upper().startswith('A:'):
+                current_a = line[2:].strip()
+
+        # Don't forget the last pair
+        if current_q and current_a:
+            qa_pairs.append(QueryWithAnswer(
+                query=current_q,
+                expected_answer=current_a
+            ))
+
+        # Filter: questions must end with ?
+        qa_pairs = [
+            qa for qa in qa_pairs
+            if qa.query and qa.query.endswith('?')
+        ]
+
+        return qa_pairs
+
+    def _post_process_qa_pairs(
+        self,
+        qa_pairs: List[QueryWithAnswer],
+        n_questions: int,
+        min_words: int,
+        max_words: int,
+        seed: Optional[int] = None
+    ) -> List[QueryWithAnswer]:
+        """
+        Post-process generated QA pairs: deduplicate, filter, and sample.
+
+        Args:
+            qa_pairs: List of raw generated QA pairs
+            n_questions: Target number of QA pairs
+            min_words: Minimum words per question
+            max_words: Maximum words per question
+            seed: Random seed for sampling
+
+        Returns:
+            Filtered and sampled list of QA pairs
+        """
+        # Deduplicate by query text
+        seen_queries = set()
+        unique_pairs = []
+        for qa in qa_pairs:
+            if qa.query not in seen_queries:
+                seen_queries.add(qa.query)
+                unique_pairs.append(qa)
+
+        logger.info(
+            "Deduplicated: %d -> %d QA pairs",
+            len(qa_pairs),
+            len(unique_pairs)
+        )
+
+        # Filter by word count
+        filtered_pairs = [
+            qa for qa in unique_pairs
+            if min_words <= len(qa.query.split()) <= max_words
+        ]
+        logger.info(
+            "Filtered by word count: %d -> %d QA pairs",
+            len(unique_pairs),
+            len(filtered_pairs)
+        )
+
+        # Sample if we have more than needed
+        if len(filtered_pairs) > n_questions:
+            if seed is not None:
+                random.seed(seed)
+            filtered_pairs = random.sample(filtered_pairs, n_questions)
+            logger.info("Sampled %d QA pairs", n_questions)
+
+        return filtered_pairs

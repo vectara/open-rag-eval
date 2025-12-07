@@ -1,6 +1,6 @@
 # This file defines classes to hold results from a RAG system which need to be evaluated.
 from dataclasses import dataclass, field
-from typing import List
+from typing import List, Optional
 
 
 @dataclass
@@ -39,6 +39,8 @@ class MultiRAGResult:
     query: str
     query_id: str
     rag_results: List[RAGResult] = field(default_factory=list)
+    # Optional golden/reference answer for evaluation against ground truth
+    expected_answer: Optional[str] = None
 
     def add_result(self, rag_result: RAGResult):
         self.rag_results.append(rag_result)

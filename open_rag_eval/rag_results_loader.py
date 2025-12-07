@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional
 import re
 import uuid
 import logging
@@ -18,8 +18,16 @@ logger = logging.getLogger(__name__)
 
 class RAGResultsLoader:
 
-    def __init__(self, csv_path: str):
+    def __init__(self, csv_path: str, queries_df: Optional[pd.DataFrame] = None):
+        """Initialize RAGResultsLoader.
+
+        Args:
+            csv_path: Path to CSV file containing RAG results (answers)
+            queries_df: Optional DataFrame with query_id and expected_answer columns
+                        for golden answer evaluation
+        """
         self.csv_path = csv_path
+        self.queries_df = queries_df
 
     def load(self) -> List[MultiRAGResult]:
         """Read the CSV file and organize RAGResult objects by query, including all runs."""
@@ -84,6 +92,27 @@ class RAGResultsLoader:
 
             # Add to the appropriate RAGResults object
             query_results_dict[query_id].add_result(rag_result)
+
+        # Merge expected answers from queries_df if available
+        if self.queries_df is not None and 'expected_answer' in self.queries_df.columns:
+            expected_answers = {}
+            # Build mapping from query_id to expected_answer
+            for _, row in self.queries_df.iterrows():
+                qid = str(row.get('query_id', ''))
+                exp_ans = row.get('expected_answer')
+                if qid and pd.notna(exp_ans):
+                    expected_answers[qid] = str(exp_ans)
+
+            # Apply to MultiRAGResult objects
+            for query_id, multi_result in query_results_dict.items():
+                if query_id in expected_answers:
+                    multi_result.expected_answer = expected_answers[query_id]
+
+            if expected_answers:
+                logger.info(
+                    "Loaded %d golden answers from queries file",
+                    len(expected_answers)
+                )
 
         # Return list of RAGResults objects that have at least one valid result
         return [qr for qr in query_results_dict.values() if qr.rag_results]

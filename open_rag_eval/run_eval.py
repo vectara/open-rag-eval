@@ -48,6 +48,34 @@ def get_evaluator(evaluator_config: Dict[str, Any]) -> evaluators.Evaluator:
 
         # Check if model config exists in the evaluator_config
         has_model_config = hasattr(evaluator_config, "model")
+        has_embedding_config = hasattr(evaluator_config, "embedding_model")
+
+        # Special handling for GoldenAnswerEvaluator (requires both LLM and embedding model)
+        if evaluator_type == "GoldenAnswerEvaluator":
+            if not has_model_config:
+                raise ValueError("GoldenAnswerEvaluator requires 'model' configuration")
+            if not has_embedding_config:
+                raise ValueError("GoldenAnswerEvaluator requires 'embedding_model' configuration")
+
+            # Create LLM model
+            model_config = evaluator_config.model
+            model_class = getattr(models, model_config.type)
+            if not issubclass(model_class, models.LLMJudgeModel):
+                raise TypeError(f"{model_config.type} is not a subclass of LLMJudgeModel")
+            llm_model = model_class(model_options=model_config)
+
+            # Create embedding model
+            emb_config = evaluator_config.embedding_model
+            emb_class = getattr(models, emb_config.type)
+            if not issubclass(emb_class, models.EmbeddingModel):
+                raise TypeError(f"{emb_config.type} is not a subclass of EmbeddingModel")
+            embedding_model = emb_class(model_options=emb_config)
+
+            return evaluator_class(
+                llm_model=llm_model,
+                embedding_model=embedding_model,
+                options=options
+            )
 
         if has_model_config:
             # Create the model instance based on config
@@ -361,8 +389,18 @@ def run_eval(config_path: str):
     if connector:
         connector.fetch_data()
 
+    # Load queries with expected_answer (golden answers) if available
+    queries_df = None
+    if hasattr(config, 'input_queries') and config.input_queries:
+        queries_path = config.input_queries
+        if os.path.exists(queries_path):
+            queries_df = pd.read_csv(queries_path)
+            if 'expected_answer' in queries_df.columns:
+                num_golden = queries_df['expected_answer'].notna().sum()
+                print(f"Loaded {num_golden} golden answers from {queries_path}")
+
     answer_path = os.path.join(results_folder, config.generated_answers)
-    rag_results = RAGResultsLoader(answer_path).load()
+    rag_results = RAGResultsLoader(answer_path, queries_df=queries_df).load()
 
     # Run evaluation
     per_evaluator_columns = {}

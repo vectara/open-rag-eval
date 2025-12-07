@@ -19,6 +19,7 @@ The plot is saved by default to a 'metrics_comparison.png' file.
 from typing import List, Optional
 from open_rag_eval.evaluators.trec_evaluator import TRECEvaluator
 from open_rag_eval.evaluators.consistency_evaluator import ConsistencyEvaluator
+from open_rag_eval.evaluators.golden_answer_evaluator import GoldenAnswerEvaluator
 
 def plot_metrics(
     evaluator_type: str,
@@ -30,7 +31,7 @@ def plot_metrics(
     Plot metrics based on the evaluator type.
 
     Args:
-        evaluator_type: Type of evaluator ('trec', 'consistency', etc.)
+        evaluator_type: Type of evaluator ('trec', 'consistency', 'golden_answer', etc.)
         csv_files: List of CSV files containing metrics
         output_file: Output file path for the generated plot
         metrics_to_plot: List of metric column names to plot
@@ -41,6 +42,8 @@ def plot_metrics(
         TRECEvaluator.plot_metrics(csv_files=csv_files, output_file=output_file, metrics_to_plot=metrics_to_plot)
     elif evaluator_type == 'consistency':
         ConsistencyEvaluator.plot_metrics(csv_files=csv_files, output_file=output_file, metrics_to_plot=metrics_to_plot)
+    elif evaluator_type == 'golden_answer':
+        GoldenAnswerEvaluator.plot_metrics(csv_files=csv_files, output_file=output_file, metrics_to_plot=metrics_to_plot)
     else:
         raise ValueError(f"Unsupported evaluator type: {evaluator_type}")
 

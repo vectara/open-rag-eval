@@ -3,7 +3,10 @@
 import unittest
 from unittest.mock import Mock
 
-from open_rag_eval.query_generation.llm_generator import LLMQueryGenerator
+from open_rag_eval.query_generation.llm_generator import (
+    LLMQueryGenerator,
+    QueryWithAnswer
+)
 
 
 class TestLLMQueryGenerator(unittest.TestCase):
@@ -385,6 +388,200 @@ How does AI work?""",
         self.assertEqual(percentages['reasoning_required'], 50.0)
         self.assertEqual(percentages.get('unanswerable', 0), 0)
         self.assertEqual(percentages.get('partially_answerable', 0), 0)
+
+
+class TestQueryWithAnswer(unittest.TestCase):
+    """Test cases for QueryWithAnswer dataclass."""
+
+    def test_query_with_answer_creation(self):
+        """Test that QueryWithAnswer can be created."""
+        qa = QueryWithAnswer(
+            query="What is machine learning?",
+            expected_answer="Machine learning is a subset of AI."
+        )
+        self.assertEqual(qa.query, "What is machine learning?")
+        self.assertEqual(qa.expected_answer, "Machine learning is a subset of AI.")
+
+
+class TestGenerateWithAnswers(unittest.TestCase):
+    """Test cases for generate_with_answers method."""
+
+    def setUp(self):
+        """Set up test fixtures."""
+        self.mock_model = Mock()
+        self.generator = LLMQueryGenerator(
+            model=self.mock_model,
+            questions_per_doc=10
+        )
+
+    def test_generate_with_answers_requires_documents(self):
+        """Test that generate_with_answers requires non-empty documents list."""
+        with self.assertRaises(ValueError):
+            self.generator.generate_with_answers(documents=[])
+
+    def test_generate_with_answers_requires_positive_n_questions(self):
+        """Test that n_questions must be positive."""
+        with self.assertRaises(ValueError):
+            self.generator.generate_with_answers(documents=["test"], n_questions=0)
+
+    def test_generate_with_answers_validates_word_counts(self):
+        """Test that max_words must be >= min_words."""
+        with self.assertRaises(ValueError):
+            self.generator.generate_with_answers(
+                documents=["test"],
+                min_words=20,
+                max_words=10
+            )
+
+    def test_generate_with_answers_valid_response(self):
+        """Test successful QA pair generation."""
+        # Mock LLM response with Q: A: format
+        self.mock_model.call.return_value = {
+            "response": """Q: What is machine learning?
+A: Machine learning is a subset of artificial intelligence.
+
+Q: How does neural network work?
+A: Neural networks use layers of nodes to process information.
+
+Q: Why is deep learning important?
+A: Deep learning enables complex pattern recognition in data.""",
+            "metadata": {"input_tokens": 50, "output_tokens": 100, "total_tokens": 150}
+        }
+
+        documents = ["Machine learning is a subset of AI."]
+        qa_pairs = self.generator.generate_with_answers(
+            documents=documents,
+            n_questions=3,
+            min_words=2,
+            max_words=10
+        )
+
+        # Verify we got QA pairs
+        self.assertGreater(len(qa_pairs), 0)
+
+        # Verify structure
+        for qa in qa_pairs:
+            self.assertIsInstance(qa, QueryWithAnswer)
+            self.assertTrue(qa.query.endswith('?'))
+            self.assertGreater(len(qa.expected_answer), 0)
+
+    def test_generate_with_answers_filters_by_word_count(self):
+        """Test that QA pairs are filtered by question word count."""
+        self.mock_model.call.return_value = {
+            "response": """Q: What?
+A: Something short.
+
+Q: What is this thing?
+A: This is a test answer.
+
+Q: What is this extremely long question about machine learning and artificial intelligence?
+A: Long answer here.""",
+            "metadata": {"input_tokens": 50, "output_tokens": 80, "total_tokens": 130}
+        }
+
+        documents = ["Test document"]
+        qa_pairs = self.generator.generate_with_answers(
+            documents=documents,
+            n_questions=10,
+            min_words=3,
+            max_words=6
+        )
+
+        # Verify all questions are within word count range
+        for qa in qa_pairs:
+            word_count = len(qa.query.split())
+            self.assertGreaterEqual(word_count, 3)
+            self.assertLessEqual(word_count, 6)
+
+    def test_generate_with_answers_deduplicates(self):
+        """Test that duplicate questions are removed."""
+        self.mock_model.call.return_value = {
+            "response": """Q: What is AI?
+A: AI is artificial intelligence.
+
+Q: What is AI?
+A: AI refers to artificial intelligence systems.
+
+Q: How does AI work?
+A: AI works by processing data.""",
+            "metadata": {"input_tokens": 50, "output_tokens": 80, "total_tokens": 130}
+        }
+
+        documents = ["AI is artificial intelligence."]
+        qa_pairs = self.generator.generate_with_answers(
+            documents=documents,
+            n_questions=10,
+            min_words=2,
+            max_words=10
+        )
+
+        # Verify no duplicate queries
+        queries = [qa.query for qa in qa_pairs]
+        self.assertEqual(len(queries), len(set(queries)))
+
+    def test_generate_with_answers_handles_model_errors(self):
+        """Test that model errors are handled gracefully."""
+        self.mock_model.call.side_effect = Exception("API Error")
+
+        documents = ["Test document"]
+        qa_pairs = self.generator.generate_with_answers(
+            documents=documents,
+            n_questions=10,
+            min_words=2,
+            max_words=10
+        )
+
+        # Should return empty list
+        self.assertEqual(len(qa_pairs), 0)
+
+    def test_generate_with_answers_filters_non_questions(self):
+        """Test that responses without ? are filtered out."""
+        self.mock_model.call.return_value = {
+            "response": """Q: What is AI?
+A: AI is artificial intelligence.
+
+Q: Tell me about ML
+A: ML is machine learning.
+
+Q: How does it work?
+A: It works by learning patterns.""",
+            "metadata": {"input_tokens": 50, "output_tokens": 80, "total_tokens": 130}
+        }
+
+        documents = ["Test document"]
+        qa_pairs = self.generator.generate_with_answers(
+            documents=documents,
+            n_questions=10,
+            min_words=2,
+            max_words=10
+        )
+
+        # Verify all questions end with ?
+        for qa in qa_pairs:
+            self.assertTrue(qa.query.endswith('?'))
+
+    def test_generate_with_answers_parses_multiline_answers(self):
+        """Test parsing of Q: A: format."""
+        self.mock_model.call.return_value = {
+            "response": """Q: What is machine learning?
+A: It is a type of AI.
+
+Q: How does it work?
+A: By learning from data.""",
+            "metadata": {"input_tokens": 50, "output_tokens": 60, "total_tokens": 110}
+        }
+
+        documents = ["Test document about ML"]
+        qa_pairs = self.generator.generate_with_answers(
+            documents=documents,
+            n_questions=2,
+            min_words=2,
+            max_words=10
+        )
+
+        self.assertEqual(len(qa_pairs), 2)
+        self.assertEqual(qa_pairs[0].query, "What is machine learning?")
+        self.assertEqual(qa_pairs[0].expected_answer, "It is a type of AI.")
 
 
 if __name__ == '__main__':
