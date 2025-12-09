@@ -394,8 +394,8 @@ class TestGoldenAnswerEvaluator(unittest.TestCase):
         """run_consistency=False should work without specifying metrics_to_run_consistency."""
         from open_rag_eval.evaluators.golden_answer_evaluator import GoldenAnswerEvaluator as GAE
 
-        # BUG: Previously, setting only run_consistency=False would still enable
-        # consistency because metrics_to_run_consistency defaults to non-empty list
+        # Verifies that setting run_consistency=False disables consistency,
+        # even if metrics_to_run_consistency is not specified (should default to empty list).
         evaluator = GAE(
             llm_model=self.llm_model,
             embedding_model=self.embedding_model,

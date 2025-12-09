@@ -482,7 +482,7 @@ open-rag-eval eval --config eval_config_golden_answer.yaml
 
 ### Golden Answer Metrics
 
-The evaluator computes three metrics:
+The evaluator computes two metrics:
 
 | Metric | Description | Range |
 |--------|-------------|-------|

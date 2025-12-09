@@ -100,7 +100,7 @@ class RAGResultsLoader:
             for _, row in self.queries_df.iterrows():
                 qid = str(row.get('query_id', ''))
                 exp_ans = row.get('expected_answer')
-                if qid and pd.notna(exp_ans):
+                if qid and pd.notna(exp_ans) and str(exp_ans).strip():
                     expected_answers[qid] = str(exp_ans)
 
             # Apply to MultiRAGResult objects

@@ -5,7 +5,7 @@ Implements golden answer metrics:
 - Factual Correctness: Claim-based NLI with precision/recall/F1
 """
 
-from typing import Dict, List
+from typing import Any, Dict, List
 from enum import Enum
 import logging
 
@@ -94,7 +94,7 @@ class SemanticSimilarityMetric(GoldenAnswerMetric):
         """Compute semantic similarity between generated and expected answers.
 
         Returns:
-            Dict with 'semantic_similarity' score (0-1)
+            Dict with 'semantic_similarity' score
         """
         try:
             # Embed both answers
@@ -160,7 +160,7 @@ For each claim, provide a verdict: "entailment" (claim is supported), "contradic
         query: str,
         generated_answer: str,
         expected_answer: str
-    ) -> Dict[str, float]:
+    ) -> Dict[str, Any]:
         """Compute factual correctness metrics.
 
         Returns:
