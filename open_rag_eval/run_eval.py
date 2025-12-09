@@ -299,16 +299,26 @@ def _print_token_usage_summary(results, evaluator_type: str):
 
     Args:
         results: List of MultiScoredRAGResult objects
-        evaluator_type: Type of evaluator (e.g., "TREC", "Consistency")
+        evaluator_type: Type of evaluator (e.g., "TRECEvaluator", "GoldenAnswerEvaluator")
     """
     total_input = 0
     total_output = 0
-    metric_tokens = {
-        "umbrela": {"input": 0, "output": 0},
-        "autonugget": {"input": 0, "output": 0},
-        "citation": {"input": 0, "output": 0},
-        "no_answer": {"input": 0, "output": 0}
-    }
+
+    # Define metric token keys based on evaluator type
+    if evaluator_type == "GoldenAnswerEvaluator":
+        metric_keys = {
+            "factual_correctness": "factual_correctness_tokens",
+        }
+    else:
+        # Default to TREC evaluator metrics
+        metric_keys = {
+            "umbrela": "umbrela_tokens",
+            "autonugget": "autonugget_tokens",
+            "citation": "citation_tokens",
+            "no_answer": "no_answer_tokens",
+        }
+
+    metric_tokens = {name: {"input": 0, "output": 0} for name in metric_keys}
 
     # Aggregate tokens from all results
     for multi_scored_result in results:
@@ -327,21 +337,10 @@ def _print_token_usage_summary(results, evaluator_type: str):
             total_output += token_usage.get("total_output_tokens", 0)
 
             # Add to metric-specific counts
-            umbrela_tokens = token_usage.get("umbrela_tokens", {})
-            metric_tokens["umbrela"]["input"] += umbrela_tokens.get("input_tokens", 0)
-            metric_tokens["umbrela"]["output"] += umbrela_tokens.get("output_tokens", 0)
-
-            autonugget_tokens = token_usage.get("autonugget_tokens", {})
-            metric_tokens["autonugget"]["input"] += autonugget_tokens.get("input_tokens", 0)
-            metric_tokens["autonugget"]["output"] += autonugget_tokens.get("output_tokens", 0)
-
-            citation_tokens = token_usage.get("citation_tokens", {})
-            metric_tokens["citation"]["input"] += citation_tokens.get("input_tokens", 0)
-            metric_tokens["citation"]["output"] += citation_tokens.get("output_tokens", 0)
-
-            no_answer_tokens = token_usage.get("no_answer_tokens", {})
-            metric_tokens["no_answer"]["input"] += no_answer_tokens.get("input_tokens", 0)
-            metric_tokens["no_answer"]["output"] += no_answer_tokens.get("output_tokens", 0)
+            for metric_name, token_key in metric_keys.items():
+                metric_data = token_usage.get(token_key, {})
+                metric_tokens[metric_name]["input"] += metric_data.get("input_tokens", 0)
+                metric_tokens[metric_name]["output"] += metric_data.get("output_tokens", 0)
 
     total_tokens = total_input + total_output
 
@@ -357,9 +356,9 @@ def _print_token_usage_summary(results, evaluator_type: str):
             metric_total = tokens["input"] + tokens["output"]
             if metric_total > 0:
                 percentage = metric_total / total_tokens * 100
-                print(f"  {metric_name.upper():12} {metric_total:8,} tokens ({percentage:5.1f}%)")
+                print(f"  {metric_name.upper():20} {metric_total:8,} tokens ({percentage:5.1f}%)")
 
-        print("=" * 45 + "\n")
+        print("=" * 50 + "\n")
 
 
 def run_eval(config_path: str):

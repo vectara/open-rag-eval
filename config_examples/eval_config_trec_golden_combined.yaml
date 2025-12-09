@@ -55,7 +55,6 @@ evaluator:
       # Enable consistency evaluation for golden answer metrics
       run_consistency: true
       metrics_to_run_consistency:
-        - "answer_relevance"
         - "semantic_similarity"
         - "factual_correctness_f1"
 
@@ -73,6 +72,6 @@ evaluator:
 
 # Output files produced:
 # - TRECEvaluator-results.csv: UMBRELA scores, nugget scores, citation, hallucination
-# - GoldenAnswerEvaluator-results.csv: answer_relevance, semantic_similarity, factual_correctness
+# - GoldenAnswerEvaluator-results.csv: semantic_similarity, factual_correctness
 # - ConsistencyEvaluator-results.csv: BERTScore, ROUGE scores between runs
 # - results.csv: Merged results from all evaluators (joined by query_id)

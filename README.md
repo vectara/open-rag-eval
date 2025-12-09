@@ -468,10 +468,8 @@ evaluator:
       name: "text-embedding-3-small"
       api_key: ${oc.env:OPENAI_API_KEY}
     options:
-      num_questions: 3
       run_consistency: True
       metrics_to_run_consistency:
-        - "answer_relevance"
         - "semantic_similarity"
         - "factual_correctness_f1"
 ```
@@ -488,7 +486,6 @@ The evaluator computes three metrics:
 
 | Metric | Description | Range |
 |--------|-------------|-------|
-| **Answer Relevance** | LLM generates questions from the answer; measures how similar they are to the original query via embeddings | Typically 0-1* |
 | **Semantic Similarity** | Direct cosine similarity between generated and golden answer embeddings | Typically 0-1* |
 | **Factual Correctness** | Decomposes both answers into claims, uses NLI to compute precision/recall/F1 | 0-1 |
 
@@ -561,8 +558,7 @@ The `open-rag-eval` framework follows these general steps during an evaluation:
 - **MultiRAGResult:** The main input to evaluators. It holds multiple RAGResult instances for the same query (e.g., different generations or retrievals) and allows comparison across these runs to compute metrics like consistency.
 - **Evaluators:** Evaluators compute quality metrics for RAG systems. The framework currently supports three built-in evaluators:
   - **TRECEvaluator:** Evaluates each query independently using retrieval and generation metrics such as UMBRELA, HHEM Score, and others. Returns a `MultiScoredRAGResult`, which holds a list of `ScoredRAGResult` objects, each containing the original `RAGResult` along with the scores assigned by the evaluator and its metrics.
-  - **GoldenAnswerEvaluator:** Evaluates generated answers against reference/golden answers using appropriate metrics. Requires an `expected_answer` column in your queries.csv file. Computes three metrics:
-    - **Answer Relevance**: Generates questions from the answer and measures semantic similarity to the original query
+  - **GoldenAnswerEvaluator:** Evaluates generated answers against reference/golden answers using appropriate metrics. Requires an `expected_answer` column in your queries.csv file. Computes two metrics:
     - **Semantic Similarity**: Direct embedding cosine similarity between generated and golden answers
     - **Factual Correctness**: Decomposes answers into claims and uses NLI to compute precision/recall/F1
   - **ConsistencyEvaluator:** Evaluates the consistency of a model's responses across multiple generations for the same query. It currently uses two default metrics:

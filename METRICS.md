@@ -14,7 +14,6 @@ This document provides detailed documentation for all evaluation metrics impleme
    - [Hallucination Detection](#hallucination-detection)
    - [No-Answer Detection](#no-answer-detection)
 4. [Golden Answer Metrics](#golden-answer-metrics)
-   - [Answer Relevance](#answer-relevance)
    - [Semantic Similarity](#semantic-similarity)
    - [Factual Correctness](#factual-correctness)
 5. [Consistency Metrics](#consistency-metrics)
@@ -227,31 +226,6 @@ This metric is crucial for calculating the "Questions Answered" percentage in ev
 
 When reference/golden answers are available, the `GoldenAnswerEvaluator` provides metrics to compare generated answers against expected answers. These metrics require an `expected_answer` column in your queries.csv file.
 
-### Answer Relevance
-
-**Purpose**: Measures how relevant the generated answer is to the original query.
-
-**LLM Required**: Configurable via LLMJudgeModel (default: OpenAI GPT-4o-mini)
-**Embedding Model Required**: Configurable (default: OpenAI text-embedding-3-small)
-
-#### Inputs
-
-- **Query**: The original user question
-- **Generated Answer**: The answer produced by the RAG system
-
-#### Process
-
-1. **Question Generation**: LLM generates N questions (default: 3) that the answer could be responding to
-2. **Embedding**: Both the original query and generated questions are embedded
-3. **Similarity**: Cosine similarity computed between original query and each generated question
-4. **Aggregation**: Final score is the average of all similarity scores
-
-#### Output
-
-- **answer_relevance**: Cosine similarity score (typically 0-1 for text embeddings, though mathematically can be -1 to 1). Higher = more relevant.
-- **generated_questions**: List of questions generated from the answer
-- **question_similarities**: Individual similarity scores
-
 ### Semantic Similarity
 
 **Purpose**: Measures direct semantic similarity between generated and golden answers using embeddings.
@@ -318,10 +292,8 @@ evaluator:
       name: "text-embedding-3-small"
       api_key: ${oc.env:OPENAI_API_KEY}
     options:
-      num_questions: 3  # Questions for answer relevance
       run_consistency: true
       metrics_to_run_consistency:
-        - "answer_relevance"
         - "semantic_similarity"
         - "factual_correctness_f1"
 ```

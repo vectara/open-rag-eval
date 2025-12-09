@@ -1,7 +1,6 @@
 """Golden Answer Evaluator - Evaluates RAG answers against reference/golden answers.
 
 Implements evaluation metrics when we have golden answers:
-- Answer Relevance
 - Semantic Similarity
 - Factual Correctness (Precision/Recall/F1)
 """
@@ -128,11 +127,24 @@ class GoldenAnswerEvaluator(Evaluator):
                     query, generated_answer, expected_answer
                 )
 
+                # Extract and aggregate token usage
+                factual_tokens = correctness_scores.pop("token_usage", {})
+                total_input_tokens = factual_tokens.get("input_tokens", 0)
+                total_output_tokens = factual_tokens.get("output_tokens", 0)
+
+                aggregated_token_usage = {
+                    "factual_correctness_tokens": factual_tokens,
+                    "total_input_tokens": total_input_tokens,
+                    "total_output_tokens": total_output_tokens,
+                    "total_tokens": total_input_tokens + total_output_tokens
+                }
+
                 # Combine into scores structure
                 generation_scores = {
                     **similarity_scores,
                     **correctness_scores,
-                    "expected_answer": expected_answer
+                    "expected_answer": expected_answer,
+                    "token_usage": aggregated_token_usage
                 }
 
                 rag_scores = RAGScores(
@@ -344,6 +356,21 @@ class GoldenAnswerEvaluator(Evaluator):
                             result_dict[f"{run_id}generation_score_{key}"] = value
                         else:
                             result_dict[f"{run_id}generation_score_{key}"] = json.dumps(value)
+
+                    # Add flattened token usage columns for easier analysis
+                    token_usage = result.scores.generation_score.scores.get(
+                        "token_usage", {}
+                    )
+                    if token_usage:
+                        result_dict[f"{run_id}total_input_tokens"] = token_usage.get(
+                            "total_input_tokens", 0
+                        )
+                        result_dict[f"{run_id}total_output_tokens"] = token_usage.get(
+                            "total_output_tokens", 0
+                        )
+                        result_dict[f"{run_id}total_tokens"] = token_usage.get(
+                            "total_tokens", 0
+                        )
 
             results_dict.append(result_dict)
 

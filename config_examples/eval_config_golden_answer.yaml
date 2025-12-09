@@ -29,13 +29,10 @@ evaluator:
       name: "text-embedding-3-small"
       api_key: ${oc.env:OPENAI_API_KEY}
     options:
-      # Number of questions to generate for answer relevance metric
-      num_questions: 3
       # Enable consistency evaluation across multiple runs
       run_consistency: True
       # Metrics to track for consistency evaluation
       metrics_to_run_consistency:
-        - "answer_relevance"
         - "semantic_similarity"
         - "factual_correctness_f1"
 

@@ -1,6 +1,6 @@
 """Golden answer evaluation metrics for comparing generated answers against reference answers.
 
-Implements Golden answer metrics:
+Implements golden answer metrics:
 - Semantic Similarity: Direct embedding similarity
 - Factual Correctness: Claim-based NLI with precision/recall/F1
 """
@@ -147,6 +147,9 @@ For each claim, provide a verdict: "entailment" (claim is supported), "contradic
         """
         self.llm_model = llm_model
         self.model_kwargs = {"temperature": 0.0}
+        # Token tracking
+        self._total_input_tokens = 0
+        self._total_output_tokens = 0
 
     @property
     def name(self) -> str:
@@ -161,8 +164,12 @@ For each claim, provide a verdict: "entailment" (claim is supported), "contradic
         """Compute factual correctness metrics.
 
         Returns:
-            Dict with precision, recall, f1 scores
+            Dict with precision, recall, f1 scores and token_usage
         """
+        # Reset token counters for this computation
+        self._total_input_tokens = 0
+        self._total_output_tokens = 0
+
         try:
             # Extract claims from both answers
             generated_claims = self._extract_claims(generated_answer)
@@ -174,7 +181,11 @@ For each claim, provide a verdict: "entailment" (claim is supported), "contradic
                     "factual_correctness_recall": 0.0,
                     "factual_correctness_f1": 0.0,
                     "generated_claims": generated_claims,
-                    "expected_claims": expected_claims
+                    "expected_claims": expected_claims,
+                    "token_usage": {
+                        "input_tokens": self._total_input_tokens,
+                        "output_tokens": self._total_output_tokens
+                    }
                 }
 
             # Precision: generated claims verified against expected answer
@@ -198,7 +209,11 @@ For each claim, provide a verdict: "entailment" (claim is supported), "contradic
                 "generated_claims": generated_claims,
                 "expected_claims": expected_claims,
                 "precision_verdicts": [v.model_dump() for v in precision_verdicts],
-                "recall_verdicts": [v.model_dump() for v in recall_verdicts]
+                "recall_verdicts": [v.model_dump() for v in recall_verdicts],
+                "token_usage": {
+                    "input_tokens": self._total_input_tokens,
+                    "output_tokens": self._total_output_tokens
+                }
             }
 
         except Exception as e:
@@ -206,7 +221,11 @@ For each claim, provide a verdict: "entailment" (claim is supported), "contradic
             return {
                 "factual_correctness_precision": 0.0,
                 "factual_correctness_recall": 0.0,
-                "factual_correctness_f1": 0.0
+                "factual_correctness_f1": 0.0,
+                "token_usage": {
+                    "input_tokens": self._total_input_tokens,
+                    "output_tokens": self._total_output_tokens
+                }
             }
 
     def _extract_claims(self, text: str) -> List[str]:
@@ -218,6 +237,11 @@ For each claim, provide a verdict: "entailment" (claim is supported), "contradic
             response_format=Claims,
             model_kwargs=self.model_kwargs
         )
+
+        # Track tokens
+        metadata = result.get("metadata", {})
+        self._total_input_tokens += metadata.get("input_tokens", 0)
+        self._total_output_tokens += metadata.get("output_tokens", 0)
 
         return result["response"].claims
 
@@ -237,6 +261,11 @@ For each claim, provide a verdict: "entailment" (claim is supported), "contradic
             response_format=ClaimVerdicts,
             model_kwargs=self.model_kwargs
         )
+
+        # Track tokens
+        metadata = result.get("metadata", {})
+        self._total_input_tokens += metadata.get("input_tokens", 0)
+        self._total_output_tokens += metadata.get("output_tokens", 0)
 
         return result["response"].verdicts
 
