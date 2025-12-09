@@ -12,10 +12,8 @@ from .base_metrics import (
 from .bert_score_similarity_metric import BERTScoreSimilarityMetric
 from .rouge_score_similarity_metric import ROUGEScoreSimilarityMetric
 from .golden_answer_metrics import (
-    AnswerRelevanceMetric,
     SemanticSimilarityMetric,
     FactualCorrectnessMetric,
-    GeneratedQuestions,
     Claims,
     ClaimVerdicts,
     ClaimVerdict,
@@ -28,7 +26,6 @@ __all__ = [
     "AugmentedGenerationMetric", "NoAnswerMetric", "RetrievalMetric",
     "HallucinationMetric", "PairwiseAnswerSimilarityMetric",
     "BERTScoreSimilarityMetric", "ROUGEScoreSimilarityMetric",
-    "GoldenAnswerMetric", "AnswerRelevanceMetric",
-    "SemanticSimilarityMetric", "FactualCorrectnessMetric",
-    "GeneratedQuestions", "Claims", "ClaimVerdicts", "ClaimVerdict", "NLIVerdict"
+    "GoldenAnswerMetric", "SemanticSimilarityMetric", "FactualCorrectnessMetric",
+    "Claims", "ClaimVerdicts", "ClaimVerdict", "NLIVerdict"
 ]

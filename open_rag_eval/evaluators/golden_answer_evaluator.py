@@ -28,7 +28,6 @@ from open_rag_eval.data_classes.eval_scores import (
 )
 from open_rag_eval.data_classes.rag_results import MultiRAGResult
 from open_rag_eval.metrics.golden_answer_metrics import (
-    AnswerRelevanceMetric,
     FactualCorrectnessMetric,
     SemanticSimilarityMetric,
 )
@@ -49,7 +48,6 @@ class GoldenAnswerEvaluator(Evaluator):
 
     # Metrics that produce single float scores suitable for consistency
     CONSISTENCY_METRICS = [
-        "answer_relevance",
         "semantic_similarity",
         "factual_correctness_f1"
     ]
@@ -63,34 +61,28 @@ class GoldenAnswerEvaluator(Evaluator):
         """Initialize Golden Answer Evaluator.
 
         Args:
-            llm_model: LLM for question generation and NLI
+            llm_model: LLM for NLI-based factual correctness
             embedding_model: Model for computing embeddings
             options: Optional configuration:
                 - run_consistency: bool - Whether to support consistency evaluation
                 - metrics_to_run_consistency: List[str] - Which metrics to include
-                - num_questions: int - Questions to generate for relevance (default 3)
         """
         self.llm_model = llm_model
         self.embedding_model = embedding_model
         self.options = options or {}
 
         # Initialize metrics
-        num_questions = self.options.get("num_questions", 3)
-        self.answer_relevance_metric = AnswerRelevanceMetric(
-            llm_model, embedding_model, num_questions=num_questions
-        )
         self.semantic_similarity_metric = SemanticSimilarityMetric(embedding_model)
         self.factual_correctness_metric = FactualCorrectnessMetric(llm_model)
 
         # Consistency settings
         self.run_consistency = self.options.get("run_consistency", False)
-        self.metrics_to_run_consistency = self.options.get(
-            "metrics_to_run_consistency", self.CONSISTENCY_METRICS
-        )
-        if self.metrics_to_run_consistency:
-            self.run_consistency = True
-
-        self.to_repeat = 1
+        if self.run_consistency:
+            self.metrics_to_run_consistency = self.options.get(
+                "metrics_to_run_consistency", self.CONSISTENCY_METRICS
+            )
+        else:
+            self.metrics_to_run_consistency = []
 
     def evaluate(self, multi_rag_result: MultiRAGResult) -> MultiScoredRAGResult:
         """Evaluate RAG results against the golden answer.
@@ -129,9 +121,6 @@ class GoldenAnswerEvaluator(Evaluator):
                 query = rag_result.generation_result.query
 
                 # Compute all metrics
-                relevance_scores = self.answer_relevance_metric.compute(
-                    query, generated_answer, expected_answer
-                )
                 similarity_scores = self.semantic_similarity_metric.compute(
                     query, generated_answer, expected_answer
                 )
@@ -141,7 +130,6 @@ class GoldenAnswerEvaluator(Evaluator):
 
                 # Combine into scores structure
                 generation_scores = {
-                    **relevance_scores,
                     **similarity_scores,
                     **correctness_scores,
                     "expected_answer": expected_answer
@@ -241,7 +229,6 @@ class GoldenAnswerEvaluator(Evaluator):
         """Plot golden answer evaluation metrics."""
         if metrics_to_plot is None:
             metrics_to_plot = [
-                "generation_score_answer_relevance",
                 "generation_score_semantic_similarity",
                 "generation_score_factual_correctness_precision",
                 "generation_score_factual_correctness_recall",
@@ -255,7 +242,6 @@ class GoldenAnswerEvaluator(Evaluator):
         axs = axs.flatten() if isinstance(axs, np.ndarray) else [axs]
 
         display_names = {
-            "generation_score_answer_relevance": "Answer Relevance",
             "generation_score_semantic_similarity": "Semantic Similarity",
             "generation_score_factual_correctness_precision": "Factual Precision",
             "generation_score_factual_correctness_recall": "Factual Recall",
@@ -327,11 +313,15 @@ class GoldenAnswerEvaluator(Evaluator):
         """Save golden answer evaluation results to CSV."""
         results_dict = []
 
+        # Calculate max runs across all results for column generation
+        max_runs = 1
+        for multi_scored_result in scored_results:
+            if multi_scored_result.scored_rag_results:
+                max_runs = max(max_runs, len(multi_scored_result.scored_rag_results))
+
         for multi_scored_result in scored_results:
             if not multi_scored_result.scored_rag_results:
                 continue
-
-            self.to_repeat = max(self.to_repeat, len(multi_scored_result.scored_rag_results))
 
             result_dict = {
                 "query_id": multi_scored_result.query_id,
@@ -362,11 +352,17 @@ class GoldenAnswerEvaluator(Evaluator):
         if not df.empty:
             print(f"Golden answer scores saved to {output_file}")
 
-    def get_consolidated_columns(self) -> List[str]:
-        """Return columns for consolidated CSV."""
+    def get_consolidated_columns(self, num_runs: int = 1) -> List[str]:
+        """Return columns for consolidated CSV.
+
+        Args:
+            num_runs: Number of runs to include columns for (default 1)
+
+        Returns:
+            List of column names for consolidated output
+        """
         columns = ["query_id", "query"]
         metrics = [
-            "answer_relevance",
             "semantic_similarity",
             "factual_correctness_precision",
             "factual_correctness_recall",
@@ -374,7 +370,7 @@ class GoldenAnswerEvaluator(Evaluator):
             "expected_answer"
         ]
 
-        for i in range(self.to_repeat):
+        for i in range(num_runs):
             run_id = f"run_{i + 1}_"
             columns.append(f"{run_id}generated_answer")
             for metric in metrics:
@@ -385,7 +381,6 @@ class GoldenAnswerEvaluator(Evaluator):
     def get_metrics_to_plot(self) -> List[str]:
         """Return metrics to plot."""
         return [
-            "generation_score_answer_relevance",
             "generation_score_semantic_similarity",
             "generation_score_factual_correctness_f1"
         ]

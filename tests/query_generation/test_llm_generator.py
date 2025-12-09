@@ -435,16 +435,22 @@ class TestGenerateWithAnswers(unittest.TestCase):
 
     def test_generate_with_answers_valid_response(self):
         """Test successful QA pair generation."""
-        # Mock LLM response with Q: A: format
+        # Mock LLM response with XML format
         self.mock_model.call.return_value = {
-            "response": """Q: What is machine learning?
-A: Machine learning is a subset of artificial intelligence.
+            "response": """<qa>
+<question>What is machine learning?</question>
+<answer>Machine learning is a subset of artificial intelligence.</answer>
+</qa>
 
-Q: How does neural network work?
-A: Neural networks use layers of nodes to process information.
+<qa>
+<question>How does neural network work?</question>
+<answer>Neural networks use layers of nodes to process information.</answer>
+</qa>
 
-Q: Why is deep learning important?
-A: Deep learning enables complex pattern recognition in data.""",
+<qa>
+<question>Why is deep learning important?</question>
+<answer>Deep learning enables complex pattern recognition in data.</answer>
+</qa>""",
             "metadata": {"input_tokens": 50, "output_tokens": 100, "total_tokens": 150}
         }
 
@@ -468,14 +474,20 @@ A: Deep learning enables complex pattern recognition in data.""",
     def test_generate_with_answers_filters_by_word_count(self):
         """Test that QA pairs are filtered by question word count."""
         self.mock_model.call.return_value = {
-            "response": """Q: What?
-A: Something short.
+            "response": """<qa>
+<question>What?</question>
+<answer>Something short.</answer>
+</qa>
 
-Q: What is this thing?
-A: This is a test answer.
+<qa>
+<question>What is this thing?</question>
+<answer>This is a test answer.</answer>
+</qa>
 
-Q: What is this extremely long question about machine learning and artificial intelligence?
-A: Long answer here.""",
+<qa>
+<question>What is this extremely long question about machine learning and artificial intelligence?</question>
+<answer>Long answer here.</answer>
+</qa>""",
             "metadata": {"input_tokens": 50, "output_tokens": 80, "total_tokens": 130}
         }
 
@@ -496,14 +508,20 @@ A: Long answer here.""",
     def test_generate_with_answers_deduplicates(self):
         """Test that duplicate questions are removed."""
         self.mock_model.call.return_value = {
-            "response": """Q: What is AI?
-A: AI is artificial intelligence.
+            "response": """<qa>
+<question>What is AI?</question>
+<answer>AI is artificial intelligence.</answer>
+</qa>
 
-Q: What is AI?
-A: AI refers to artificial intelligence systems.
+<qa>
+<question>What is AI?</question>
+<answer>AI refers to artificial intelligence systems.</answer>
+</qa>
 
-Q: How does AI work?
-A: AI works by processing data.""",
+<qa>
+<question>How does AI work?</question>
+<answer>AI works by processing data.</answer>
+</qa>""",
             "metadata": {"input_tokens": 50, "output_tokens": 80, "total_tokens": 130}
         }
 
@@ -537,14 +555,20 @@ A: AI works by processing data.""",
     def test_generate_with_answers_filters_non_questions(self):
         """Test that responses without ? are filtered out."""
         self.mock_model.call.return_value = {
-            "response": """Q: What is AI?
-A: AI is artificial intelligence.
+            "response": """<qa>
+<question>What is AI?</question>
+<answer>AI is artificial intelligence.</answer>
+</qa>
 
-Q: Tell me about ML
-A: ML is machine learning.
+<qa>
+<question>Tell me about ML</question>
+<answer>ML is machine learning.</answer>
+</qa>
 
-Q: How does it work?
-A: It works by learning patterns.""",
+<qa>
+<question>How does it work?</question>
+<answer>It works by learning patterns.</answer>
+</qa>""",
             "metadata": {"input_tokens": 50, "output_tokens": 80, "total_tokens": 130}
         }
 
@@ -560,14 +584,18 @@ A: It works by learning patterns.""",
         for qa in qa_pairs:
             self.assertTrue(qa.query.endswith('?'))
 
-    def test_generate_with_answers_parses_multiline_answers(self):
-        """Test parsing of Q: A: format."""
+    def test_generate_with_answers_parses_xml_format(self):
+        """Test parsing of XML-formatted QA pairs."""
         self.mock_model.call.return_value = {
-            "response": """Q: What is machine learning?
-A: It is a type of AI.
+            "response": """<qa>
+<question>What is machine learning?</question>
+<answer>Machine learning is a subset of artificial intelligence.</answer>
+</qa>
 
-Q: How does it work?
-A: By learning from data.""",
+<qa>
+<question>How does neural network work?</question>
+<answer>Neural networks use layers of nodes to process information.</answer>
+</qa>""",
             "metadata": {"input_tokens": 50, "output_tokens": 60, "total_tokens": 110}
         }
 
@@ -581,7 +609,71 @@ A: By learning from data.""",
 
         self.assertEqual(len(qa_pairs), 2)
         self.assertEqual(qa_pairs[0].query, "What is machine learning?")
-        self.assertEqual(qa_pairs[0].expected_answer, "It is a type of AI.")
+        self.assertEqual(
+            qa_pairs[0].expected_answer,
+            "Machine learning is a subset of artificial intelligence."
+        )
+
+    def test_generate_with_answers_parses_multiline_answers(self):
+        """Test parsing of multi-line answers within XML tags."""
+        self.mock_model.call.return_value = {
+            "response": """<qa>
+<question>What is machine learning?</question>
+<answer>Machine learning is a subset of artificial intelligence.
+It enables systems to learn from data automatically.
+This includes supervised, unsupervised, and reinforcement learning.</answer>
+</qa>
+
+<qa>
+<question>How does it work?</question>
+<answer>It works by:
+1. Collecting training data
+2. Training a model
+3. Making predictions</answer>
+</qa>""",
+            "metadata": {"input_tokens": 50, "output_tokens": 100, "total_tokens": 150}
+        }
+
+        documents = ["Test document about ML"]
+        qa_pairs = self.generator.generate_with_answers(
+            documents=documents,
+            n_questions=2,
+            min_words=2,
+            max_words=10
+        )
+
+        self.assertEqual(len(qa_pairs), 2)
+        # First answer should contain all three lines
+        self.assertIn("Machine learning is a subset", qa_pairs[0].expected_answer)
+        self.assertIn("enables systems to learn", qa_pairs[0].expected_answer)
+        self.assertIn("reinforcement learning", qa_pairs[0].expected_answer)
+
+        # Second answer should contain the numbered list
+        self.assertIn("Collecting training data", qa_pairs[1].expected_answer)
+        self.assertIn("Making predictions", qa_pairs[1].expected_answer)
+
+    def test_generate_with_answers_handles_whitespace_variations(self):
+        """Test XML parsing handles various whitespace patterns."""
+        self.mock_model.call.return_value = {
+            "response": """<qa><question>What is AI?</question><answer>Artificial intelligence.</answer></qa>
+<qa>
+  <question>How does it work?</question>
+  <answer>By processing data.</answer>
+</qa>""",
+            "metadata": {"input_tokens": 50, "output_tokens": 50, "total_tokens": 100}
+        }
+
+        documents = ["Test document"]
+        qa_pairs = self.generator.generate_with_answers(
+            documents=documents,
+            n_questions=2,
+            min_words=2,
+            max_words=10
+        )
+
+        self.assertEqual(len(qa_pairs), 2)
+        self.assertEqual(qa_pairs[0].query, "What is AI?")
+        self.assertEqual(qa_pairs[0].expected_answer, "Artificial intelligence.")
 
 
 if __name__ == '__main__':

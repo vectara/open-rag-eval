@@ -1,7 +1,6 @@
 """Golden answer evaluation metrics for comparing generated answers against reference answers.
 
 Implements Golden answer metrics:
-- Answer Relevance: Question generation + semantic similarity
 - Semantic Similarity: Direct embedding similarity
 - Factual Correctness: Claim-based NLI with precision/recall/F1
 """
@@ -21,12 +20,26 @@ from open_rag_eval.models.llm_judges import LLMJudgeModel
 logger = logging.getLogger(__name__)
 
 
+# ============ Utility Functions ============
+
+def cosine_similarity(a: np.ndarray, b: np.ndarray) -> float:
+    """Compute cosine similarity between two vectors.
+
+    Args:
+        a: First vector
+        b: Second vector
+
+    Returns:
+        Cosine similarity score (float between -1 and 1)
+    """
+    norm_a = np.linalg.norm(a)
+    norm_b = np.linalg.norm(b)
+    if norm_a == 0 or norm_b == 0:
+        return 0.0
+    return float(np.dot(a, b) / (norm_a * norm_b))
+
+
 # ============ Pydantic Models for Structured Output ============
-
-class GeneratedQuestions(BaseModel):
-    """Container for questions generated from an answer."""
-    questions: List[str]
-
 
 class Claims(BaseModel):
     """Container for claims extracted from text."""
@@ -90,126 +103,13 @@ class SemanticSimilarityMetric(GoldenAnswerMetric):
             exp_embedding = embeddings[1]
 
             # Compute cosine similarity
-            similarity = self._cosine_similarity(gen_embedding, exp_embedding)
+            similarity = cosine_similarity(gen_embedding, exp_embedding)
 
             return {"semantic_similarity": similarity}
 
         except Exception as e:
             logger.error("Failed to compute semantic similarity: %s", e)
             return {"semantic_similarity": 0.0}
-
-    @staticmethod
-    def _cosine_similarity(a: np.ndarray, b: np.ndarray) -> float:
-        """Compute cosine similarity between two vectors."""
-        norm_a = np.linalg.norm(a)
-        norm_b = np.linalg.norm(b)
-        if norm_a == 0 or norm_b == 0:
-            return 0.0
-        return float(np.dot(a, b) / (norm_a * norm_b))
-
-
-class AnswerRelevanceMetric(GoldenAnswerMetric):
-    """Answer Relevance metric.
-
-    Generates questions from the answer and measures how similar those
-    questions are to the original query using embedding cosine similarity.
-
-    Higher scores indicate the answer is more relevant to the query.
-    """
-
-    _QUESTION_GENERATION_PROMPT = """Given the following answer to a question, generate {num_questions} questions that this answer could be responding to.
-The generated questions should be diverse and cover different aspects of the answer.
-
-Answer: {answer}
-
-Generate exactly {num_questions} questions."""
-
-    def __init__(
-        self,
-        llm_model: LLMJudgeModel,
-        embedding_model: EmbeddingModel,
-        num_questions: int = 3
-    ):
-        """Initialize Answer Relevance metric.
-
-        Args:
-            llm_model: LLM for question generation
-            embedding_model: Model for computing embeddings
-            num_questions: Number of questions to generate from answer
-        """
-        self.llm_model = llm_model
-        self.embedding_model = embedding_model
-        self.num_questions = num_questions
-        self.model_kwargs = {"temperature": 0.7}
-
-    @property
-    def name(self) -> str:
-        return "answer_relevance"
-
-    def compute(
-        self,
-        query: str,
-        generated_answer: str,
-        expected_answer: str  # Not used for this metric
-    ) -> Dict[str, float]:
-        """Compute answer relevance score.
-
-        Returns:
-            Dict with 'answer_relevance' score (0-1) and additional info
-        """
-        try:
-            # Generate questions from the answer
-            questions = self._generate_questions(generated_answer)
-
-            if not questions:
-                return {"answer_relevance": 0.0}
-
-            # Embed original query and generated questions
-            query_embedding = self.embedding_model.embed_single(query)
-            question_embeddings = self.embedding_model.embed(questions)
-
-            # Compute cosine similarities
-            similarities = []
-            for q_emb in question_embeddings:
-                sim = self._cosine_similarity(query_embedding, q_emb)
-                similarities.append(sim)
-
-            # Average similarity is the relevance score
-            relevance_score = float(np.mean(similarities))
-
-            return {
-                "answer_relevance": relevance_score,
-                "generated_questions": questions,
-                "question_similarities": similarities
-            }
-
-        except Exception as e:
-            logger.error("Failed to compute answer relevance: %s", e)
-            return {"answer_relevance": 0.0}
-
-    def _generate_questions(self, answer: str) -> List[str]:
-        """Generate questions that the answer could be responding to."""
-        prompt = self._QUESTION_GENERATION_PROMPT.format(
-            answer=answer,
-            num_questions=self.num_questions
-        )
-
-        result = self.llm_model.parse(
-            prompt,
-            response_format=GeneratedQuestions,
-            model_kwargs=self.model_kwargs
-        )
-
-        return result["response"].questions
-
-    @staticmethod
-    def _cosine_similarity(a: np.ndarray, b: np.ndarray) -> float:
-        """Compute cosine similarity between two vectors."""
-        norm_a = np.linalg.norm(a)
-        norm_b = np.linalg.norm(b)
-        if norm_a == 0 or norm_b == 0:
-            return 0.0
-        return float(np.dot(a, b) / (norm_a * norm_b))
 
 
 class FactualCorrectnessMetric(GoldenAnswerMetric):

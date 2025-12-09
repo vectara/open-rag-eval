@@ -2,7 +2,6 @@
 
 These tests define the expected behavior for the golden answer evaluation feature:
 - SemanticSimilarityMetric: embedding-based cosine similarity
-- AnswerRelevanceMetric: LLM generates questions, compare to query via embeddings
 - FactualCorrectnessMetric: claim decomposition + NLI for precision/recall/F1
 - GoldenAnswerEvaluator: orchestrates all metrics, integrates with consistency
 """
@@ -156,61 +155,6 @@ class TestSemanticSimilarityMetric(unittest.TestCase):
         self.assertIsInstance(result["semantic_similarity"], float)
 
 
-class TestAnswerRelevanceMetric(unittest.TestCase):
-    """Test AnswerRelevanceMetric."""
-
-    def setUp(self):
-        from open_rag_eval.metrics.golden_answer_metrics import (
-            AnswerRelevanceMetric,
-            GeneratedQuestions
-        )
-        self.GeneratedQuestions = GeneratedQuestions
-        self.llm_model = MockLLMModel()
-        self.embedding_model = MockEmbeddingModel()
-        self.metric = AnswerRelevanceMetric(
-            self.llm_model, self.embedding_model, num_questions=3
-        )
-
-    def test_name(self):
-        """Metric should have correct name."""
-        self.assertEqual(self.metric.name, "answer_relevance")
-
-    def test_compute_with_generated_questions(self):
-        """Should generate questions and compute relevance."""
-        mock_questions = self.GeneratedQuestions(questions=[
-            "What color is the sky?",
-            "Is the sky blue?",
-            "What is the color of sky?"
-        ])
-        self.llm_model.set_parse_response(self.GeneratedQuestions, mock_questions)
-
-        result = self.metric.compute(
-            query="What color is the sky?",
-            generated_answer="The sky is blue",
-            expected_answer="The sky appears blue"  # Not used by this metric
-        )
-
-        self.assertIn("answer_relevance", result)
-        self.assertIn("generated_questions", result)
-        self.assertEqual(len(result["generated_questions"]), 3)
-        self.assertIsInstance(result["answer_relevance"], float)
-
-    def test_relevance_score_in_valid_range(self):
-        """Relevance score should be between 0 and 1 for typical cases."""
-        mock_questions = self.GeneratedQuestions(questions=["Q1?", "Q2?", "Q3?"])
-        self.llm_model.set_parse_response(self.GeneratedQuestions, mock_questions)
-
-        result = self.metric.compute(
-            query="What is Python?",
-            generated_answer="Python is a programming language",
-            expected_answer=""
-        )
-
-        # Cosine similarity is typically in [-1, 1], but averaged positives are [0, 1]
-        self.assertGreaterEqual(result["answer_relevance"], -1.0)
-        self.assertLessEqual(result["answer_relevance"], 1.0)
-
-
 class TestFactualCorrectnessMetric(unittest.TestCase):
     """Test FactualCorrectnessMetric."""
 
@@ -304,7 +248,6 @@ class TestGoldenAnswerEvaluator(unittest.TestCase):
     def setUp(self):
         from open_rag_eval.evaluators.golden_answer_evaluator import GoldenAnswerEvaluator
         from open_rag_eval.metrics.golden_answer_metrics import (
-            GeneratedQuestions,
             Claims,
             ClaimVerdicts,
             ClaimVerdict,
@@ -315,10 +258,6 @@ class TestGoldenAnswerEvaluator(unittest.TestCase):
         self.embedding_model = MockEmbeddingModel()
 
         # Setup default mock responses
-        self.llm_model.set_parse_response(
-            GeneratedQuestions,
-            GeneratedQuestions(questions=["Q1?", "Q2?", "Q3?"])
-        )
         self.llm_model.set_parse_response(
             Claims,
             Claims(claims=["Claim 1", "Claim 2"])
@@ -349,7 +288,6 @@ class TestGoldenAnswerEvaluator(unittest.TestCase):
         self.assertEqual(len(scored_result.scored_rag_results), 1)
 
         gen_scores = scored_result.scored_rag_results[0].scores.generation_score.scores
-        self.assertIn("answer_relevance", gen_scores)
         self.assertIn("semantic_similarity", gen_scores)
         self.assertIn("factual_correctness_f1", gen_scores)
 
@@ -420,7 +358,7 @@ class TestGoldenAnswerEvaluator(unittest.TestCase):
             embedding_model=self.embedding_model,
             options={
                 "run_consistency": True,
-                "metrics_to_run_consistency": ["answer_relevance", "semantic_similarity"]
+                "metrics_to_run_consistency": ["semantic_similarity", "factual_correctness_f1"]
             }
         )
 
@@ -436,8 +374,8 @@ class TestGoldenAnswerEvaluator(unittest.TestCase):
         )
 
         self.assertIn("test_id", result)
-        self.assertIn("answer_relevance", result["test_id"])
         self.assertIn("semantic_similarity", result["test_id"])
+        self.assertIn("factual_correctness_f1", result["test_id"])
 
     def test_get_metrics_to_plot(self):
         """Should return list of metrics to plot."""
@@ -451,6 +389,20 @@ class TestGoldenAnswerEvaluator(unittest.TestCase):
         self.assertIsInstance(columns, list)
         self.assertIn("query_id", columns)
         self.assertIn("query", columns)
+
+    def test_run_consistency_false_without_empty_metrics_list(self):
+        """run_consistency=False should work without specifying metrics_to_run_consistency."""
+        from open_rag_eval.evaluators.golden_answer_evaluator import GoldenAnswerEvaluator as GAE
+
+        # BUG: Previously, setting only run_consistency=False would still enable
+        # consistency because metrics_to_run_consistency defaults to non-empty list
+        evaluator = GAE(
+            llm_model=self.llm_model,
+            embedding_model=self.embedding_model,
+            options={"run_consistency": False}  # Should work without metrics_to_run_consistency: []
+        )
+        self.assertFalse(evaluator.run_consistency)
+        self.assertEqual(evaluator.metrics_to_run_consistency, [])
 
 
 class TestGoldenAnswerMetricBase(unittest.TestCase):

@@ -248,7 +248,7 @@ When reference/golden answers are available, the `GoldenAnswerEvaluator` provide
 
 #### Output
 
-- **answer_relevance**: Score between 0-1 (higher = more relevant)
+- **answer_relevance**: Cosine similarity score (typically 0-1 for text embeddings, though mathematically can be -1 to 1). Higher = more relevant.
 - **generated_questions**: List of questions generated from the answer
 - **question_similarities**: Individual similarity scores
 
@@ -270,7 +270,9 @@ When reference/golden answers are available, the `GoldenAnswerEvaluator` provide
 
 #### Output
 
-- **semantic_similarity**: Score between 0-1 (higher = more similar)
+- **semantic_similarity**: Cosine similarity score (typically 0-1 for text embeddings, though mathematically can be -1 to 1). Higher = more similar.
+
+> **Note**: While cosine similarity mathematically ranges from -1 to 1, modern text embedding models (like OpenAI's text-embedding-3-small) typically produce values in the 0-1 range because embeddings tend to have non-negative components. Negative values (indicating semantic opposition) are rare but theoretically possible.
 
 ### Factual Correctness
 

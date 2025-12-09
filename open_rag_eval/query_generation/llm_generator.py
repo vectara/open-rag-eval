@@ -380,7 +380,6 @@ Your response:
         min_words: int = 5,
         max_words: int = 20,
         seed: Optional[int] = None,
-        **kwargs
     ) -> List[QueryWithAnswer]:
         """
         Generate queries with expected answers from documents using an LLM.
@@ -450,6 +449,35 @@ Your response:
         logger.info("Successfully generated %d QA pairs", len(all_qa_pairs))
         return all_qa_pairs
 
+    def _parse_qa_xml(self, response: str) -> List[QueryWithAnswer]:
+        """Parse QA pairs from XML-formatted response.
+
+        Args:
+            response: LLM response containing XML-formatted QA pairs
+
+        Returns:
+            List of QueryWithAnswer objects
+        """
+        qa_pairs = []
+
+        # Find all <qa>...</qa> blocks with flexible whitespace handling
+        qa_pattern = re.compile(
+            r'<qa>\s*<question>(.*?)</question>\s*<answer>(.*?)</answer>\s*</qa>',
+            re.DOTALL | re.IGNORECASE
+        )
+
+        for match in qa_pattern.finditer(response):
+            question = match.group(1).strip()
+            answer = match.group(2).strip()
+
+            if question and answer:
+                qa_pairs.append(QueryWithAnswer(
+                    query=question,
+                    expected_answer=answer
+                ))
+
+        return qa_pairs
+
     def _generate_qa_pairs_for_doc(
         self,
         doc: str,
@@ -488,15 +516,20 @@ IMPORTANT:
 - Do NOT use phrases like "mentioned in the document", "according to the text", etc.
 - Each question should end with a question mark
 - Answers should be comprehensive but concise (1-3 sentences typically)
+- Answers may span multiple lines if needed
 
-Your response must be in this exact format (one QA pair per block):
-Q: [question text]
-A: [answer text]
+Your response must use XML tags in this exact format:
+<qa>
+<question>[question text]</question>
+<answer>[answer text]</answer>
+</qa>
 
-Q: [question text]
-A: [answer text]
+<qa>
+<question>[question text]</question>
+<answer>[answer text]</answer>
+</qa>
 
-Do not use bullets, numbers, blank lines between Q and A, code fences, or any additional text.
+Do not use bullets, numbers, code fences, or any text outside the XML tags.
 Your response should always be in {self.language}.
 
 The text is:
@@ -510,36 +543,8 @@ Your response:
         result = self.model.call(prompt)
         response = result["response"]
 
-        # Parse Q: A: format
-        qa_pairs = []
-        lines = response.strip().split('\n')
-
-        current_q = None
-        current_a = None
-
-        for line in lines:
-            line = line.strip()
-            if not line:
-                continue
-
-            if line.upper().startswith('Q:'):
-                # Save previous pair if exists
-                if current_q and current_a:
-                    qa_pairs.append(QueryWithAnswer(
-                        query=current_q,
-                        expected_answer=current_a
-                    ))
-                current_q = line[2:].strip()
-                current_a = None
-            elif line.upper().startswith('A:'):
-                current_a = line[2:].strip()
-
-        # Don't forget the last pair
-        if current_q and current_a:
-            qa_pairs.append(QueryWithAnswer(
-                query=current_q,
-                expected_answer=current_a
-            ))
+        # Parse XML-formatted QA pairs
+        qa_pairs = self._parse_qa_xml(response)
 
         # Filter: questions must end with ?
         qa_pairs = [

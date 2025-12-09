@@ -488,9 +488,58 @@ The evaluator computes three metrics:
 
 | Metric | Description | Range |
 |--------|-------------|-------|
-| **Answer Relevance** | LLM generates questions from the answer; measures how similar they are to the original query via embeddings | 0-1 |
-| **Semantic Similarity** | Direct cosine similarity between generated and golden answer embeddings | 0-1 |
+| **Answer Relevance** | LLM generates questions from the answer; measures how similar they are to the original query via embeddings | Typically 0-1* |
+| **Semantic Similarity** | Direct cosine similarity between generated and golden answer embeddings | Typically 0-1* |
 | **Factual Correctness** | Decomposes both answers into claims, uses NLI to compute precision/recall/F1 | 0-1 |
+
+\* Cosine similarity mathematically ranges from -1 to 1, but modern text embeddings typically produce 0-1.
+
+## Combining Multiple Evaluators
+
+You can run multiple evaluators in a single evaluation by listing them in your config file. This is useful when you want both retrieval metrics (TRECEvaluator) and answer comparison metrics (GoldenAnswerEvaluator).
+
+### Example Combined Configuration
+
+```yaml
+evaluator:
+  # TRECEvaluator - Works without golden answers
+  - type: "TRECEvaluator"
+    model:
+      type: "OpenAIModel"
+      name: "gpt-4o-mini"
+      api_key: ${oc.env:OPENAI_API_KEY}
+    options:
+      k_values: [1, 3, 5]
+
+  # GoldenAnswerEvaluator - Requires expected_answer column
+  - type: "GoldenAnswerEvaluator"
+    model:
+      type: "OpenAIModel"
+      name: "gpt-4o-mini"
+      api_key: ${oc.env:OPENAI_API_KEY}
+    embedding_model:
+      type: "OpenAIEmbeddingModel"
+      name: "text-embedding-3-small"
+      api_key: ${oc.env:OPENAI_API_KEY}
+
+  # ConsistencyEvaluator - Must come LAST
+  - type: "ConsistencyEvaluator"
+    options:
+      metrics:
+        - bert_score: {}
+```
+
+### How It Works
+
+1. Each evaluator runs independently and produces its own output CSV (`TRECEvaluator-results.csv`, `GoldenAnswerEvaluator-results.csv`, etc.)
+2. Results are merged into a single CSV using `query_id` as the join key
+3. **Important**: `ConsistencyEvaluator` must be listed last if used, as it depends on scores from other evaluators
+
+### Notes
+
+- `GoldenAnswerEvaluator` will skip queries that don't have an `expected_answer` (a warning is logged)
+- You can use TRECEvaluator alone for queries without golden answers, and GoldenAnswerEvaluator will only evaluate those that have them
+- See `config_examples/eval_config_trec_golden_combined.yaml` for a complete example
 
 # How does open-rag-eval work?
 

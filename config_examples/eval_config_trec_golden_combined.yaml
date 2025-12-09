@@ -1,0 +1,78 @@
+# Example configuration combining TRECEvaluator and GoldenAnswerEvaluator
+#
+# This configuration demonstrates how to run both TREC metrics (which don't require
+# golden answers) and golden answer metrics in a single evaluation run.
+#
+# Use this when:
+# - You have reference/expected answers for some or all queries
+# - You want both retrieval quality metrics (UMBRELA) and answer comparison metrics
+# - Results from both evaluators are merged into a single CSV by query_id
+#
+# queries.csv format (expected_answer column is optional):
+#   query_id,query,expected_answer
+#   q1,"What is Python?","Python is a high-level programming language..."
+#   q2,"What is machine learning?","Machine learning is a subset of AI..."
+
+# Input file containing queries (expected_answer column enables GoldenAnswerEvaluator)
+input_queries: "queries.csv"
+
+# Evaluation results are written to the "results_folder" folder
+results_folder: "results/"
+generated_answers: "answers.csv"
+eval_results_file: "results.csv"
+metrics_file: "metrics.png"
+
+evaluator:
+  # TRECEvaluator - Evaluates retrieval and generation WITHOUT golden answers
+  # Outputs: TRECEvaluator-results.csv
+  - type: "TRECEvaluator"
+    model:
+      type: "OpenAIModel"
+      name: "gpt-4o-mini"
+      api_key: ${oc.env:OPENAI_API_KEY}
+    options:
+      k_values: [1, 3, 5]
+      # Enable if you want consistency evaluation on TREC metrics
+      # run_consistency: true
+      # metrics_to_run_consistency:
+      #   - "mean_umbrela_score"
+      #   - "vital_nuggetizer_score"
+
+  # GoldenAnswerEvaluator - Evaluates answers against expected_answer column
+  # Outputs: GoldenAnswerEvaluator-results.csv
+  # NOTE: Queries without expected_answer will be skipped (warning logged)
+  - type: "GoldenAnswerEvaluator"
+    model:
+      type: "OpenAIModel"
+      name: "gpt-4o-mini"
+      api_key: ${oc.env:OPENAI_API_KEY}
+    embedding_model:
+      type: "OpenAIEmbeddingModel"
+      name: "text-embedding-3-small"
+      api_key: ${oc.env:OPENAI_API_KEY}
+    options:
+      num_questions: 3
+      # Enable consistency evaluation for golden answer metrics
+      run_consistency: true
+      metrics_to_run_consistency:
+        - "answer_relevance"
+        - "semantic_similarity"
+        - "factual_correctness_f1"
+
+  # ConsistencyEvaluator - Evaluates pairwise similarity between runs
+  # IMPORTANT: Must come LAST in the evaluator list
+  # Outputs: ConsistencyEvaluator-results.csv
+  - type: "ConsistencyEvaluator"
+    options:
+      metrics:
+        - bert_score:
+            model_type: "xlm-roberta-large"
+            lang: "en"
+            rescale_with_baseline: true
+        - rouge_score: {}
+
+# Output files produced:
+# - TRECEvaluator-results.csv: UMBRELA scores, nugget scores, citation, hallucination
+# - GoldenAnswerEvaluator-results.csv: answer_relevance, semantic_similarity, factual_correctness
+# - ConsistencyEvaluator-results.csv: BERTScore, ROUGE scores between runs
+# - results.csv: Merged results from all evaluators (joined by query_id)
