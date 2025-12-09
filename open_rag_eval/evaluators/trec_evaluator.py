@@ -87,26 +87,28 @@ class TRECEvaluator(Evaluator):
                     rag_result.generation_result)
 
                 # Aggregate token usage from all metrics
+                # Use .pop() to remove token_usage from score dicts to maintain
+                # UI compatibility (UI expects only numbers in score dicts)
                 total_input_tokens = 0
                 total_output_tokens = 0
 
                 # UMBRELA tokens (retrieval)
-                umbrela_tokens = retrieval_scores.get("token_usage", {})
+                umbrela_tokens = retrieval_scores.pop("token_usage", {})
                 total_input_tokens += umbrela_tokens.get("input_tokens", 0)
                 total_output_tokens += umbrela_tokens.get("output_tokens", 0)
 
                 # AutoNugget tokens (generation)
-                autonugget_tokens = autonugget_scores.get("token_usage", {})
+                autonugget_tokens = autonugget_scores.pop("token_usage", {})
                 total_input_tokens += autonugget_tokens.get("input_tokens", 0)
                 total_output_tokens += autonugget_tokens.get("output_tokens", 0)
 
                 # Citation tokens (generation)
-                citation_tokens = citation_scores.get("token_usage", {})
+                citation_tokens = citation_scores.pop("token_usage", {})
                 total_input_tokens += citation_tokens.get("input_tokens", 0)
                 total_output_tokens += citation_tokens.get("output_tokens", 0)
 
                 # NoAnswer tokens (generation)
-                no_answer_tokens = no_answer_score.get("token_usage", {})
+                no_answer_tokens = no_answer_score.pop("token_usage", {})
                 total_input_tokens += no_answer_tokens.get("input_tokens", 0)
                 total_output_tokens += no_answer_tokens.get("output_tokens", 0)
 
