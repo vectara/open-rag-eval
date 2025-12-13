@@ -506,7 +506,7 @@ Your response:
 
 For each pair:
 - The QUESTION should have at least {min_words} words and no more than {max_words} words
-- The ANSWER should be a complete, accurate response based on the document content
+- The ANSWER should be a complete, accurate response based on all relevant content from the document.
 - Generate questions at varying lengths within the word range
 
 {question_type_instructions}

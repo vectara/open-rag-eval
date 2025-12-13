@@ -47,7 +47,7 @@ class OpenAIEmbeddingModel(EmbeddingModel):
 
         Args:
             model_options: Dict containing:
-                - name: Model name (e.g., "text-embedding-3-small")
+                - name: Model name (e.g., "text-embedding-3-large")
                 - api_key: OpenAI API key
         """
         self.model_name = model_options["name"]

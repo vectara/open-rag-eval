@@ -230,7 +230,7 @@ When reference/golden answers are available, the `GoldenAnswerEvaluator` provide
 
 **Purpose**: Measures direct semantic similarity between generated and golden answers using embeddings.
 
-**Embedding Model Required**: Configurable (default: OpenAI text-embedding-3-small)
+**Embedding Model Required**: Configurable (default: OpenAI text-embedding-3-large)
 
 #### Inputs
 
@@ -246,7 +246,7 @@ When reference/golden answers are available, the `GoldenAnswerEvaluator` provide
 
 - **semantic_similarity**: Cosine similarity score (typically 0-1 for text embeddings, though mathematically can be -1 to 1). Higher = more similar.
 
-> **Note**: While cosine similarity mathematically ranges from -1 to 1, modern text embedding models (like OpenAI's text-embedding-3-small) typically produce values in the 0-1 range because embeddings tend to have non-negative components. Negative values (indicating semantic opposition) are rare but theoretically possible.
+> **Note**: While cosine similarity mathematically ranges from -1 to 1, modern text embedding models (like OpenAI's text-embedding-3-large) typically produce values in the 0-1 range because embeddings tend to have non-negative components. Negative values (indicating semantic opposition) are rare but theoretically possible.
 
 ### Factual Correctness
 
@@ -289,7 +289,7 @@ evaluator:
       api_key: ${oc.env:OPENAI_API_KEY}
     embedding_model:
       type: "OpenAIEmbeddingModel"
-      name: "text-embedding-3-small"
+      name: "text-embedding-3-large"
       api_key: ${oc.env:OPENAI_API_KEY}
     options:
       run_consistency: true

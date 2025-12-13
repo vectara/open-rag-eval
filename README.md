@@ -465,7 +465,7 @@ evaluator:
       api_key: ${oc.env:OPENAI_API_KEY}
     embedding_model:
       type: "OpenAIEmbeddingModel"
-      name: "text-embedding-3-small"
+      name: "text-embedding-3-large"
       api_key: ${oc.env:OPENAI_API_KEY}
     options:
       run_consistency: True
@@ -516,7 +516,7 @@ evaluator:
       api_key: ${oc.env:OPENAI_API_KEY}
     embedding_model:
       type: "OpenAIEmbeddingModel"
-      name: "text-embedding-3-small"
+      name: "text-embedding-3-large"
       api_key: ${oc.env:OPENAI_API_KEY}
 
   # ConsistencyEvaluator - Must come LAST
