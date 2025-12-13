@@ -91,6 +91,11 @@ class OpenAIModel(LLMJudgeModel):
                 "response": response.choices[0].message.content,
                 "metadata": metadata
             }
+        except openai.NotFoundError as e:
+            raise ValueError(
+                f"Invalid OpenAI model name: '{self.model_name}'. "
+                f"Please check the OpenAI documentation for valid model names."
+            ) from e
         except openai.RateLimitError:
             raise
         except openai.APIConnectionError:
@@ -121,18 +126,24 @@ class OpenAIModel(LLMJudgeModel):
         model_kwargs = model_kwargs or {}
         logger = logging.getLogger(__name__)
 
-        completion = self.client.beta.chat.completions.parse(
-            model=self.model_name,
-            messages=[
-                {
-                    "role": "system",
-                    "content": "You are a helpful assistant that follows user instructions precisely and provides accurate information.",
-                },
-                {"role": "user", "content": prompt},
-            ],
-            response_format=response_format,
-            **model_kwargs,
-        )
+        try:
+            completion = self.client.beta.chat.completions.parse(
+                model=self.model_name,
+                messages=[
+                    {
+                        "role": "system",
+                        "content": "You are a helpful assistant that follows user instructions precisely and provides accurate information.",
+                    },
+                    {"role": "user", "content": prompt},
+                ],
+                response_format=response_format,
+                **model_kwargs,
+            )
+        except openai.NotFoundError as e:
+            raise ValueError(
+                f"Invalid OpenAI model name: '{self.model_name}'. "
+                f"Please check the OpenAI documentation for valid model names."
+            ) from e
 
         # Extract token usage
         metadata = {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0}
@@ -215,6 +226,14 @@ class GeminiModel(LLMJudgeModel):
                 "response": response.text,
                 "metadata": metadata
             }
+        except APIError as e:
+            error_msg = str(e).lower()
+            if "not found" in error_msg or "model" in error_msg:
+                raise ValueError(
+                    f"Invalid Gemini model name: '{self.model_name}'. "
+                    f"Please check the Google AI documentation for valid model names."
+                ) from e
+            raise
         except Exception as e:
             raise Exception(f"Unexpected error: {str(e)}") from e
 
@@ -242,11 +261,20 @@ class GeminiModel(LLMJudgeModel):
             **model_kwargs,
         }
 
-        response = self.client.models.generate_content(
-            model=self.model_name,
-            contents=prompt,
-            config=config,
-        )
+        try:
+            response = self.client.models.generate_content(
+                model=self.model_name,
+                contents=prompt,
+                config=config,
+            )
+        except APIError as e:
+            error_msg = str(e).lower()
+            if "not found" in error_msg or "model" in error_msg:
+                raise ValueError(
+                    f"Invalid Gemini model name: '{self.model_name}'. "
+                    f"Please check the Google AI documentation for valid model names."
+                ) from e
+            raise
 
         # Extract token usage
         metadata = {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0}
@@ -371,6 +399,11 @@ class AnthropicModel(LLMJudgeModel):
                 "response": response.content[0].text,
                 "metadata": metadata
             }
+        except anthropic.NotFoundError as e:
+            raise ValueError(
+                f"Invalid Anthropic model name: '{self.model_name}'. "
+                f"Please check the Anthropic documentation for valid model names."
+            ) from e
         except anthropic.InternalServerError:
             raise
         except anthropic.APITimeoutError:
@@ -411,12 +444,18 @@ Return only the JSON object, no other text."""
         else:
             max_tokens = 16384
 
-        response = self.client.messages.create(
-            model=self.model_name,
-            messages=[{"role": "user", "content": structured_prompt}],
-            max_tokens=max_tokens,
-            **model_kwargs,
-        )
+        try:
+            response = self.client.messages.create(
+                model=self.model_name,
+                messages=[{"role": "user", "content": structured_prompt}],
+                max_tokens=max_tokens,
+                **model_kwargs,
+            )
+        except anthropic.NotFoundError as e:
+            raise ValueError(
+                f"Invalid Anthropic model name: '{self.model_name}'. "
+                f"Please check the Anthropic documentation for valid model names."
+            ) from e
 
         # Extract token usage
         logger = logging.getLogger(__name__)
@@ -553,6 +592,12 @@ class TogetherModel(LLMJudgeModel):
         except together.error.RateLimitError:
             raise
         except Exception as e:
+            error_msg = str(e).lower()
+            if "not found" in error_msg or "invalid model" in error_msg:
+                raise ValueError(
+                    f"Invalid Together model name: '{self.model_name}'. "
+                    f"Please check the Together AI documentation for valid model names."
+                ) from e
             raise Exception(f"Unexpected error: {str(e)}") from e
 
     def parse(self, prompt: str, response_format: BaseModel, model_kwargs=None):
@@ -607,8 +652,15 @@ class TogetherModel(LLMJudgeModel):
                 "metadata": metadata
             }
         except Exception as e:
+            error_msg = str(e).lower()
+            # Check for invalid model name error
+            if "not found" in error_msg or "invalid model" in error_msg:
+                raise ValueError(
+                    f"Invalid Together model name: '{self.model_name}'. "
+                    f"Please check the Together AI documentation for valid model names."
+                ) from e
             # If grammar validation fails, fall back to prompt-based approach like AnthropicModel
-            if "grammar" in str(e).lower():
+            if "grammar" in error_msg:
                 return self._fallback_parse(prompt, response_format, model_kwargs)
             raise e
 
@@ -629,11 +681,20 @@ Please respond with a JSON object that matches this exact schema:
 
 Return only the JSON object, no other text."""
 
-        response = self.client.chat.completions.create(
-            model=self.model_name,
-            messages=[{"role": "user", "content": structured_prompt}],
-            **model_kwargs,
-        )
+        try:
+            response = self.client.chat.completions.create(
+                model=self.model_name,
+                messages=[{"role": "user", "content": structured_prompt}],
+                **model_kwargs,
+            )
+        except Exception as e:
+            error_msg = str(e).lower()
+            if "not found" in error_msg or "invalid model" in error_msg:
+                raise ValueError(
+                    f"Invalid Together model name: '{self.model_name}'. "
+                    f"Please check the Together AI documentation for valid model names."
+                ) from e
+            raise
 
         # Extract token usage
         metadata = {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0}

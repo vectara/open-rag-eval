@@ -1,0 +1,53 @@
+# Example configuration for Golden Answer evaluation
+#
+# This configuration demonstrates how to evaluate RAG answers against "golden" reference answers.
+# The golden answers should be provided in the queries.csv file with an 'expected_answer' column.
+#
+# queries.csv format:
+#   query_id,query,expected_answer
+#   q1,"What is Python?","Python is a high-level programming language..."
+#   q2,"What is machine learning?","Machine learning is a subset of AI..."
+
+# Input file containing queries with golden answers (expected_answer column)
+input_queries: "queries.csv"
+
+# Evaluation results are written to the "results_folder" folder.
+results_folder: "results/"
+generated_answers: "answers.csv"
+eval_results_file: "results.csv"
+metrics_file: "metrics.png"
+
+evaluator:
+  # Golden Answer Evaluator - compares generated answers to reference answers
+  - type: "GoldenAnswerEvaluator"
+    model:
+      type: "OpenAIModel"
+      name: "gpt-4o-mini"
+      api_key: ${oc.env:OPENAI_API_KEY}
+    embedding_model:
+      type: "OpenAIEmbeddingModel"
+      name: "text-embedding-3-large"
+      api_key: ${oc.env:OPENAI_API_KEY}
+    options:
+      # Enable consistency evaluation across multiple runs
+      run_consistency: True
+      # Metrics to track for consistency evaluation
+      metrics_to_run_consistency:
+        - "semantic_similarity"
+        - "factual_correctness_f1"
+
+  # Optional: ConsistencyEvaluator for additional pairwise similarity metrics
+  - type: "ConsistencyEvaluator"
+    options:
+      metrics:
+        - bert_score: {}
+        - rouge_score: {}
+
+# Connector configuration (optional - use if generating answers from documents)
+# connector:
+#   type: "LangChainConnector"
+#   options:
+#     folder: /path/to/documents/
+#     top_k: 10
+#     max_workers: -1
+#     repeat_query: 5  # For consistency evaluation across multiple runs

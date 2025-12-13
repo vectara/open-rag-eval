@@ -6,3 +6,8 @@ ROUGE_SCORE = "rouge_score"
 HALLUCINATION_SCORE = "hallucination_score"
 CONSISTENCYEVALUATOR = "ConsistencyEvaluator"
 CONSISTENCY = "consistency"
+
+# Golden Answer constants
+GOLDENANSWEREVALUATOR = "GoldenAnswerEvaluator"
+SEMANTIC_SIMILARITY = "semantic_similarity"
+FACTUAL_CORRECTNESS = "factual_correctness"

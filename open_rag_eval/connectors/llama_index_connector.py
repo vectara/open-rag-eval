@@ -20,7 +20,7 @@ class LlamaIndexConnector(Connector):
             config: dict,
             folder: str,
             top_k: int = 10,
-            openai_embedding_model: str = "text-embedding-3-small",
+            openai_embedding_model: str = "text-embedding-3-large",
             openai_llm_model: str = "gpt-4.1-mini",
             max_workers: int = -1,
             repeat_query: int = 1,  # Add repeat_query parameter

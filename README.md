@@ -15,8 +15,10 @@
 
 Evaluating RAG quality can be complex. `open-rag-eval` provides a flexible and extensible framework to measure the performance of your RAG system, helping you identify areas for improvement. Its modular design allows easy integration of custom metrics and connectors for various RAG implementations.
 
-Importantly, open-rag-eval's metrics do not require golden chunks or golden answer, making RAG evaluation easy and scalable. This is achieved by utilizing
+The core metrics (UMBRELA, AutoNuggetizer) do not require golden chunks or golden answers, making RAG evaluation easy and scalable. This is achieved by utilizing
 [UMBRELA](https://arxiv.org/pdf/2406.06519) and [AutoNuggetizer](https://arxiv.org/pdf/2411.09607), techniques originating and researched in [Jimmy Lin's lab at UWaterloo](https://cs.uwaterloo.ca/~jimmylin/).
+
+Additionally, the toolkit supports **optional golden answer evaluation** using appropriate metrics when reference answers are available.
 
 Out-of-the-box, the toolkit includes:
 
@@ -299,7 +301,7 @@ If you're running from source:
 python -m open_rag_eval.cli plot results.csv --evaluator trec
 ```
 
-⚠️ Required: The `--evaluator` argument must be specified to indicate which evaluator (trec or consistency) the plots should be generated for.
+⚠️ Required: The `--evaluator` argument must be specified to indicate which evaluator (`trec`, `consistency`, or `golden_answer`) the plots should be generated for.
 
 ✅ Optional: `--metrics-to-plot` - A comma-separated list of metrics to include in the plot (e.g., bert_score,rouge_score).
 
@@ -401,6 +403,141 @@ You can customize the distribution using the `question_types` weights. The weigh
 
 See `config_examples/query_gen_*.yaml` for complete examples.
 
+### Generating Expected Answers with Queries
+
+If you plan to use the `GoldenAnswerEvaluator`, you can generate queries with expected answers simultaneously. This creates a dataset with pre-computed "golden answers" that can be used to evaluate your RAG system.
+
+Add `generate_expected_answers: true` to your generation config:
+
+```yaml
+generation:
+  n_questions: 100
+  min_words: 5
+  max_words: 25
+  generate_expected_answers: true   # Enable expected answer generation
+
+  # For golden answer evaluation, focus on answerable questions
+  question_types:
+    directly_answerable: 60
+    reasoning_required: 30
+    unanswerable: 0              # Disable unanswerable questions
+    partially_answerable: 10
+```
+
+This generates a CSV with three columns: `query_id`, `query`, and `expected_answer`:
+
+```csv
+query_id,query,expected_answer
+550e8400-e29b-41d4-a716-446655440000,What is machine learning?,"Machine learning is a subset of AI that enables systems to learn from data."
+550e8400-e29b-41d4-a716-446655440001,How does neural network training work?,"Neural networks are trained using backpropagation to adjust weights."
+```
+
+See `config_examples/query_generation_with_answers.yaml` for a complete example.
+
+## Using Golden Answer Evaluation
+
+If you have reference/expected answers for your queries, you can evaluate how well your RAG system's generated answers match these "golden answers" using the `GoldenAnswerEvaluator`.
+
+### Step 1: Add Expected Answers to Your Queries File
+
+Add an `expected_answer` column to your `queries.csv`:
+
+```csv
+query_id,query,expected_answer
+q1,What is Python?,"Python is a high-level, interpreted programming language known for its simple syntax and readability."
+q2,What is machine learning?,"Machine learning is a subset of artificial intelligence that enables systems to learn from data."
+```
+
+### Step 2: Configure the Golden Answer Evaluator
+
+Use a configuration like `config_examples/eval_config_golden_answer.yaml`:
+
+```yaml
+input_queries: "queries.csv"  # Must contain expected_answer column
+results_folder: "results/"
+generated_answers: "answers.csv"
+
+evaluator:
+  - type: "GoldenAnswerEvaluator"
+    model:
+      type: "OpenAIModel"
+      name: "gpt-4o-mini"
+      api_key: ${oc.env:OPENAI_API_KEY}
+    embedding_model:
+      type: "OpenAIEmbeddingModel"
+      name: "text-embedding-3-large"
+      api_key: ${oc.env:OPENAI_API_KEY}
+    options:
+      run_consistency: True
+      metrics_to_run_consistency:
+        - "semantic_similarity"
+        - "factual_correctness_f1"
+```
+
+### Step 3: Run Evaluation
+
+```bash
+open-rag-eval eval --config eval_config_golden_answer.yaml
+```
+
+### Golden Answer Metrics
+
+The evaluator computes two metrics:
+
+| Metric | Description | Range |
+|--------|-------------|-------|
+| **Semantic Similarity** | Direct cosine similarity between generated and golden answer embeddings | Typically 0-1* |
+| **Factual Correctness** | Decomposes both answers into claims, uses NLI to compute precision/recall/F1 | 0-1 |
+
+\* Cosine similarity mathematically ranges from -1 to 1, but modern text embeddings typically produce 0-1.
+
+## Combining Multiple Evaluators
+
+You can run multiple evaluators in a single evaluation by listing them in your config file. This is useful when you want both retrieval metrics (TRECEvaluator) and answer comparison metrics (GoldenAnswerEvaluator).
+
+### Example Combined Configuration
+
+```yaml
+evaluator:
+  # TRECEvaluator - Works without golden answers
+  - type: "TRECEvaluator"
+    model:
+      type: "OpenAIModel"
+      name: "gpt-4o-mini"
+      api_key: ${oc.env:OPENAI_API_KEY}
+    options:
+      k_values: [1, 3, 5]
+
+  # GoldenAnswerEvaluator - Requires expected_answer column
+  - type: "GoldenAnswerEvaluator"
+    model:
+      type: "OpenAIModel"
+      name: "gpt-4o-mini"
+      api_key: ${oc.env:OPENAI_API_KEY}
+    embedding_model:
+      type: "OpenAIEmbeddingModel"
+      name: "text-embedding-3-large"
+      api_key: ${oc.env:OPENAI_API_KEY}
+
+  # ConsistencyEvaluator - Must come LAST
+  - type: "ConsistencyEvaluator"
+    options:
+      metrics:
+        - bert_score: {}
+```
+
+### How It Works
+
+1. Each evaluator runs independently and produces its own output CSV (`TRECEvaluator-results.csv`, `GoldenAnswerEvaluator-results.csv`, etc.)
+2. Results are merged into a single CSV using `query_id` as the join key
+3. **Important**: `ConsistencyEvaluator` must be listed last if used, as it depends on scores from other evaluators
+
+### Notes
+
+- `GoldenAnswerEvaluator` will skip queries that don't have an `expected_answer` (a warning is logged)
+- You can use TRECEvaluator alone for queries without golden answers, and GoldenAnswerEvaluator will only evaluate those that have them
+- See `config_examples/eval_config_trec_golden_combined.yaml` for a complete example
+
 # How does open-rag-eval work?
 
 ## Evaluation Workflow
@@ -419,9 +556,12 @@ The `open-rag-eval` framework follows these general steps during an evaluation:
 - **Models:** Models are the underlying judgement models used by some of the metrics. They are used to judge the quality of the RAG system. Models can be diverse: they may be LLMs, classifiers, rule based systems, etc.
 - **RAGResult:** Represents the output of a single run of a RAG pipeline — including the input query, retrieved contexts, and generated answer.
 - **MultiRAGResult:** The main input to evaluators. It holds multiple RAGResult instances for the same query (e.g., different generations or retrievals) and allows comparison across these runs to compute metrics like consistency.
-- **Evaluators:** Evaluators compute quality metrics for RAG systems. The framework currently supports two built-in evaluators:
+- **Evaluators:** Evaluators compute quality metrics for RAG systems. The framework currently supports three built-in evaluators:
   - **TRECEvaluator:** Evaluates each query independently using retrieval and generation metrics such as UMBRELA, HHEM Score, and others. Returns a `MultiScoredRAGResult`, which holds a list of `ScoredRAGResult` objects, each containing the original `RAGResult` along with the scores assigned by the evaluator and its metrics.
-  - **ConsistencyEvaluator** evaluates the consistency of a model's responses across multiple generations for the same query. It currently uses two default metrics:
+  - **GoldenAnswerEvaluator:** Evaluates generated answers against reference/golden answers using appropriate metrics. Requires an `expected_answer` column in your queries.csv file. Computes two metrics:
+    - **Semantic Similarity**: Direct embedding cosine similarity between generated and golden answers
+    - **Factual Correctness**: Decomposes answers into claims and uses NLI to compute precision/recall/F1
+  - **ConsistencyEvaluator:** Evaluates the consistency of a model's responses across multiple generations for the same query. It currently uses two default metrics:
     - **BERTScore**: This metric evaluates the semantic similarity between generations using the multilingual xlm-roberta-large model (used by default), which supports over 100 languages. In this evaluator, `BERTScore` is computed with baseline rescaling enabled (`rescale_with_baseline=True` by default), which normalizes the similarity scores by subtracting language-specific baselines. This adjustment helps produce more interpretable and comparable scores across languages, reducing the inherent bias that transformer models often exhibit toward unrelated sentence pairs. If a language-specific baseline is not available, the evaluator logs a warning and automatically falls back to raw `BERTScore` values, ensuring robustness.
     - **ROUGE-L**: This metric measures the longest common subsequence (LCS) between two sequences of text, capturing fluency and in-sequence overlap without requiring exact n-gram matches. In this evaluator, `ROUGE-L` is computed without stemming or tokenization, making it most reliable for English-only evaluations. Its accuracy may degrade for other languages due to the lack of language-specific segmentation and preprocessing. As such, it complements `BERTScore` by providing a syntactic alignment signal in English-language scenarios.
   

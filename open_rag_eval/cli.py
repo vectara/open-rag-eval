@@ -49,7 +49,7 @@ def main():
         "--evaluator",
         type=str,
         required=True,
-        choices=["trec", "consistency"],
+        choices=["trec", "consistency", "golden_answer"],
         help="Type of evaluator used to generate the CSV files",
     )
     plot_parser.add_argument(

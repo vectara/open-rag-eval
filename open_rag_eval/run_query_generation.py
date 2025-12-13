@@ -116,7 +116,8 @@ def generate_query_variant(
     documents: List[str],
     variant_config: Dict,
     output_config: Dict,
-    base_filename: str
+    base_filename: str,
+    generate_expected_answers: bool = False
 ) -> None:
     """
     Generate a single query variant and save to file.
@@ -127,6 +128,7 @@ def generate_query_variant(
         variant_config: Variant configuration (name, min_words, max_words, n_questions)
         output_config: Output configuration
         base_filename: Base filename for output
+        generate_expected_answers: Whether to generate expected answers with queries
 
     Raises:
         Exception: If generation or saving fails
@@ -138,14 +140,6 @@ def generate_query_variant(
 
     logger.info("Generating variant: %s", variant_name)
 
-    # Generate queries
-    queries = generator.generate(
-        documents=documents,
-        n_questions=n_questions,
-        min_words=min_words,
-        max_words=max_words,
-    )
-
     # Prepare output filename
     output_format = output_config.get("format", "csv")
     if variant_name and variant_name != "queries":
@@ -153,20 +147,50 @@ def generate_query_variant(
     else:
         output_filename = f"{base_filename}.{output_format}"
 
-    # Save queries
-    OutputFormatter.save_queries(
-        queries=queries,
-        output_path=output_filename,
-        output_format=output_format,
-        include_metadata=output_config.get("include_metadata", False),
-    )
+    if generate_expected_answers:
+        # Generate QA pairs with expected answers
+        qa_pairs = generator.generate_with_answers(
+            documents=documents,
+            n_questions=n_questions,
+            min_words=min_words,
+            max_words=max_words,
+        )
 
-    logger.info(
-        "Saved %d queries for variant '%s' to %s",
-        len(queries),
-        variant_name,
-        output_filename
-    )
+        OutputFormatter.save_qa_pairs(
+            qa_pairs=qa_pairs,
+            output_path=output_filename,
+            output_format=output_format,
+            include_metadata=output_config.get("include_metadata", False),
+        )
+
+        logger.info(
+            "Saved %d QA pairs for variant '%s' to %s",
+            len(qa_pairs),
+            variant_name,
+            output_filename
+        )
+    else:
+        # Generate queries only
+        queries = generator.generate(
+            documents=documents,
+            n_questions=n_questions,
+            min_words=min_words,
+            max_words=max_words,
+        )
+
+        OutputFormatter.save_queries(
+            queries=queries,
+            output_path=output_filename,
+            output_format=output_format,
+            include_metadata=output_config.get("include_metadata", False),
+        )
+
+        logger.info(
+            "Saved %d queries for variant '%s' to %s",
+            len(queries),
+            variant_name,
+            output_filename
+        )
 
 
 def run_query_generation(
@@ -244,6 +268,11 @@ def run_query_generation(
         # Override with CLI argument
         base_filename = str(Path(output_file).stem)
 
+    # Check if we should generate expected answers
+    generate_expected_answers = config.generation.get("generate_expected_answers", False)
+    if generate_expected_answers:
+        logger.info("Will generate expected answers along with queries")
+
     # Generate queries based on variants or single generation
     variants = config.generation.get("variants", None)
 
@@ -256,35 +285,53 @@ def run_query_generation(
                 documents=documents,
                 variant_config=variant,
                 output_config=output_config,
-                base_filename=base_filename
+                base_filename=base_filename,
+                generate_expected_answers=generate_expected_answers
             )
     else:
         # Single generation
         n_questions = num_queries or config.generation.get("n_questions", 50)
         min_words = config.generation.get("min_words", 5)
         max_words = config.generation.get("max_words", 20)
-
-        logger.info("Generating %d queries", n_questions)
-
-        queries = generator.generate(
-            documents=documents,
-            n_questions=n_questions,
-            min_words=min_words,
-            max_words=max_words,
-        )
-
-        # Save queries
         output_format = output_config.get("format", "csv")
         output_filename = output_file or f"{base_filename}.{output_format}"
 
-        OutputFormatter.save_queries(
-            queries=queries,
-            output_path=output_filename,
-            output_format=output_format,
-            include_metadata=output_config.get("include_metadata", False),
-        )
+        if generate_expected_answers:
+            logger.info("Generating %d QA pairs", n_questions)
 
-        logger.info("Saved %d queries to %s", len(queries), output_filename)
+            qa_pairs = generator.generate_with_answers(
+                documents=documents,
+                n_questions=n_questions,
+                min_words=min_words,
+                max_words=max_words,
+            )
+
+            OutputFormatter.save_qa_pairs(
+                qa_pairs=qa_pairs,
+                output_path=output_filename,
+                output_format=output_format,
+                include_metadata=output_config.get("include_metadata", False),
+            )
+
+            logger.info("Saved %d QA pairs to %s", len(qa_pairs), output_filename)
+        else:
+            logger.info("Generating %d queries", n_questions)
+
+            queries = generator.generate(
+                documents=documents,
+                n_questions=n_questions,
+                min_words=min_words,
+                max_words=max_words,
+            )
+
+            OutputFormatter.save_queries(
+                queries=queries,
+                output_path=output_filename,
+                output_format=output_format,
+                include_metadata=output_config.get("include_metadata", False),
+            )
+
+            logger.info("Saved %d queries to %s", len(queries), output_filename)
 
     logger.info("Query generation complete!")
 
