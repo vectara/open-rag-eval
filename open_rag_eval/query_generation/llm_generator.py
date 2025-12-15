@@ -4,10 +4,7 @@ import logging
 import math
 import random
 import re
-<<<<<<< HEAD
 from dataclasses import dataclass
-=======
->>>>>>> origin/main
 from typing import Dict, List, Optional
 
 from tqdm import tqdm
