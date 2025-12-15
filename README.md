@@ -145,6 +145,7 @@ connector:
 - This feature is optional - if not specified, Vectara uses its default generation prompt
 - For details on Vectara's prompt template format and available variables, refer to the [Vectara documentation](https://docs.vectara.com)
 
+
 In addition, make sure you have the required API keys and tokens available in your environment. You can either export them as environment variables:
 
 - export VECTARA_API_KEY='your-vectara-api-key'
