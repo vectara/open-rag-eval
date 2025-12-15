@@ -21,9 +21,10 @@ class TestNoAnswerMetric(unittest.TestCase):
         # Setup
         query = "What is the capital of France?"
         answer = "I don't have enough information to answer this question."
-        self.mock_model.parse.return_value = QueryAnswered(
-            answered=QueryAnsweredValues.NO
-        )
+        self.mock_model.parse.return_value = {
+            "response": QueryAnswered(answered=QueryAnsweredValues.NO),
+            "metadata": {"input_tokens": 100, "output_tokens": 50, "total_tokens": 150}
+        }
 
         result = AugmentedGenerationResult(
             query=query,
@@ -37,14 +38,16 @@ class TestNoAnswerMetric(unittest.TestCase):
 
         # Assert
         self.assertEqual(scores["query_answered"], "no")
+        self.assertEqual(scores["token_usage"]["total_tokens"], 150)
         self.mock_model.parse.assert_called_once()
 
     def test_compute_positive_answer(self):
         # Setup
         query = "What is the capital of France?"
-        self.mock_model.parse.return_value = QueryAnswered(
-            answered=QueryAnsweredValues.YES
-        )
+        self.mock_model.parse.return_value = {
+            "response": QueryAnswered(answered=QueryAnsweredValues.YES),
+            "metadata": {"input_tokens": 80, "output_tokens": 20, "total_tokens": 100}
+        }
 
         result = AugmentedGenerationResult(
             query=query,
@@ -63,6 +66,7 @@ class TestNoAnswerMetric(unittest.TestCase):
 
         # Assert
         self.assertEqual(scores["query_answered"], "yes")
+        self.assertEqual(scores["token_usage"]["total_tokens"], 100)
         self.mock_model.parse.assert_called_once()
 
     def test_compute_model_error(self):

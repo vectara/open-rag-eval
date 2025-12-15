@@ -155,7 +155,6 @@ class VectaraConnector(Connector):
                 (query_config or {}).get("intelligent_query_rewriting", False),
         }
 
-        # Use the default retry configuration
         return self._send_request(endpoint_url, headers, payload,
                                   query["queryId"])
 

@@ -86,6 +86,42 @@ class TRECEvaluator(Evaluator):
                 no_answer_score = self.no_answer_metric.compute(
                     rag_result.generation_result)
 
+                # Aggregate token usage from all metrics
+                # Use .pop() to remove token_usage from score dicts to maintain
+                # UI compatibility (UI expects only numbers in score dicts)
+                total_input_tokens = 0
+                total_output_tokens = 0
+
+                # UMBRELA tokens (retrieval)
+                umbrela_tokens = retrieval_scores.pop("token_usage", {})
+                total_input_tokens += umbrela_tokens.get("input_tokens", 0)
+                total_output_tokens += umbrela_tokens.get("output_tokens", 0)
+
+                # AutoNugget tokens (generation)
+                autonugget_tokens = autonugget_scores.pop("token_usage", {})
+                total_input_tokens += autonugget_tokens.get("input_tokens", 0)
+                total_output_tokens += autonugget_tokens.get("output_tokens", 0)
+
+                # Citation tokens (generation)
+                citation_tokens = citation_scores.pop("token_usage", {})
+                total_input_tokens += citation_tokens.get("input_tokens", 0)
+                total_output_tokens += citation_tokens.get("output_tokens", 0)
+
+                # NoAnswer tokens (generation)
+                no_answer_tokens = no_answer_score.pop("token_usage", {})
+                total_input_tokens += no_answer_tokens.get("input_tokens", 0)
+                total_output_tokens += no_answer_tokens.get("output_tokens", 0)
+
+                aggregated_token_usage = {
+                    "umbrela_tokens": umbrela_tokens,
+                    "autonugget_tokens": autonugget_tokens,
+                    "citation_tokens": citation_tokens,
+                    "no_answer_tokens": no_answer_tokens,
+                    "total_input_tokens": total_input_tokens,
+                    "total_output_tokens": total_output_tokens,
+                    "total_tokens": total_input_tokens + total_output_tokens
+                }
+
                 # Create aggregate scores
                 mean_umbrela_score = sum(
                     umbrela_scores.values()) / len(umbrela_scores)
@@ -113,6 +149,8 @@ class TRECEvaluator(Evaluator):
                                 retrieval_scores["retrieval_scores"],
                             "mean_umbrela_score":
                                 mean_umbrela_score,
+                            "token_usage":
+                                umbrela_tokens,
                         }),
                     AugmentedGenerationScores(
                         scores={
@@ -130,6 +168,8 @@ class TRECEvaluator(Evaluator):
                                 citation_scores["f1"],
                             "no_answer_score":
                                 no_answer_score,
+                            "token_usage":
+                                aggregated_token_usage,
                         }),
                 )
 
@@ -395,6 +435,13 @@ class TRECEvaluator(Evaluator):
                         result_dict[
                             f"{run_id}generation_score_{key}"] = json.dumps(
                                 value)
+
+                    # Add flattened token usage columns for easier analysis
+                    token_usage = result.scores.generation_score.scores.get("token_usage", {})
+                    if token_usage:
+                        result_dict[f"{run_id}total_input_tokens"] = token_usage.get("total_input_tokens", 0)
+                        result_dict[f"{run_id}total_output_tokens"] = token_usage.get("total_output_tokens", 0)
+                        result_dict[f"{run_id}total_tokens"] = token_usage.get("total_tokens", 0)
 
             results_dict.append(result_dict)
 

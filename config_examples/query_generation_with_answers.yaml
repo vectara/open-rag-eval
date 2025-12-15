@@ -1,0 +1,50 @@
+# Query Generation Configuration with Expected Answers
+# This example shows how to generate queries along with golden/expected answers
+# for use with the GoldenAnswerEvaluator
+
+# Document source configuration
+document_source:
+  type: "LocalFileSource"
+  options:
+    path: "/path/to/documents"      # Replace with your documents directory
+    file_extensions: [".txt", ".md"]
+    min_doc_size: 500               # Minimum document size in characters
+    max_num_docs: null              # null = use all documents
+
+# LLM model for query generation
+model:
+  type: "OpenAIModel"
+  name: "gpt-4o-mini"
+  api_key: ${oc.env:OPENAI_API_KEY}
+
+# Alternative: Use Anthropic Claude
+# model:
+#   type: "AnthropicModel"
+#   name: "claude-sonnet-4-5"
+#   api_key: ${oc.env:ANTHROPIC_API_KEY}
+
+# Query generation parameters
+generation:
+  n_questions: 100                 # Total query-answer pairs to generate
+  min_words: 5                     # Minimum words per query
+  max_words: 25                    # Maximum words per query
+  questions_per_doc: 10            # Max queries per document
+
+  # Enable expected answer generation
+  # When true, generates query + expected_answer pairs
+  # Output CSV will contain: query_id, query, expected_answer
+  generate_expected_answers: true
+
+  # Question type distribution (weights are auto-normalized)
+  # For golden answer evaluation, consider focusing on directly answerable questions
+  question_types:
+    directly_answerable: 60        # Questions answerable directly from text
+    reasoning_required: 30         # Questions requiring reasoning/inference
+    unanswerable: 0                # Disabled - not useful for golden answer eval
+    partially_answerable: 10       # Questions partially answerable from text
+
+# Output configuration
+output:
+  format: "csv"                    # or "jsonl"
+  base_filename: "queries_with_answers"  # Generates queries_with_answers.csv
+  include_metadata: false

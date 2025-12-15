@@ -48,6 +48,34 @@ def get_evaluator(evaluator_config: Dict[str, Any]) -> evaluators.Evaluator:
 
         # Check if model config exists in the evaluator_config
         has_model_config = hasattr(evaluator_config, "model")
+        has_embedding_config = hasattr(evaluator_config, "embedding_model")
+
+        # Special handling for GoldenAnswerEvaluator (requires both LLM and embedding model)
+        if evaluator_type == "GoldenAnswerEvaluator":
+            if not has_model_config:
+                raise ValueError("GoldenAnswerEvaluator requires 'model' configuration")
+            if not has_embedding_config:
+                raise ValueError("GoldenAnswerEvaluator requires 'embedding_model' configuration")
+
+            # Create LLM model
+            model_config = evaluator_config.model
+            model_class = getattr(models, model_config.type)
+            if not issubclass(model_class, models.LLMJudgeModel):
+                raise TypeError(f"{model_config.type} is not a subclass of LLMJudgeModel")
+            llm_model = model_class(model_options=model_config)
+
+            # Create embedding model
+            emb_config = evaluator_config.embedding_model
+            emb_class = getattr(models, emb_config.type)
+            if not issubclass(emb_class, models.EmbeddingModel):
+                raise TypeError(f"{emb_config.type} is not a subclass of EmbeddingModel")
+            embedding_model = emb_class(model_options=emb_config)
+
+            return evaluator_class(
+                llm_model=llm_model,
+                embedding_model=embedding_model,
+                options=options
+            )
 
         if has_model_config:
             # Create the model instance based on config
@@ -265,6 +293,74 @@ def _omit_empty_consistency(report: dict) -> dict:
     return {k: v for k, v in report.items() if k != "consistency" or v}
 
 
+def _print_token_usage_summary(results, evaluator_type: str):
+    """
+    Print a summary of token usage across all evaluation results.
+
+    Args:
+        results: List of MultiScoredRAGResult objects
+        evaluator_type: Type of evaluator (e.g., "TRECEvaluator", "GoldenAnswerEvaluator")
+    """
+    total_input = 0
+    total_output = 0
+
+    # Define metric token keys based on evaluator type
+    if evaluator_type == "GoldenAnswerEvaluator":
+        metric_keys = {
+            "factual_correctness": "factual_correctness_tokens",
+        }
+    else:
+        # Default to TREC evaluator metrics
+        metric_keys = {
+            "umbrela": "umbrela_tokens",
+            "autonugget": "autonugget_tokens",
+            "citation": "citation_tokens",
+            "no_answer": "no_answer_tokens",
+        }
+
+    metric_tokens = {name: {"input": 0, "output": 0} for name in metric_keys}
+
+    # Aggregate tokens from all results
+    for multi_scored_result in results:
+        if not hasattr(multi_scored_result, 'scored_rag_results'):
+            continue
+        for scored_result in multi_scored_result.scored_rag_results:
+            if not scored_result.scores or not scored_result.scores.generation_score:
+                continue
+
+            token_usage = scored_result.scores.generation_score.scores.get("token_usage", {})
+            if not token_usage:
+                continue
+
+            # Add to total
+            total_input += token_usage.get("total_input_tokens", 0)
+            total_output += token_usage.get("total_output_tokens", 0)
+
+            # Add to metric-specific counts
+            for metric_name, token_key in metric_keys.items():
+                metric_data = token_usage.get(token_key, {})
+                metric_tokens[metric_name]["input"] += metric_data.get("input_tokens", 0)
+                metric_tokens[metric_name]["output"] += metric_data.get("output_tokens", 0)
+
+    total_tokens = total_input + total_output
+
+    # Print summary if there are tokens to report
+    if total_tokens > 0:
+        print(f"\n=== Token Usage Summary ({evaluator_type}) ===")
+        print(f"Total Input Tokens:  {total_input:,}")
+        print(f"Total Output Tokens: {total_output:,}")
+        print(f"Total Tokens:        {total_tokens:,}")
+        print("\nBreakdown by Metric:")
+
+        for metric_name, tokens in metric_tokens.items():
+            metric_total = tokens["input"] + tokens["output"]
+            if metric_total > 0:
+                percentage = metric_total / total_tokens * 100
+                print(f"  {metric_name.upper():20} {metric_total:8,} tokens ({percentage:5.1f}%)")
+
+        print("=" * 50 + "\n")
+
+
 def run_eval(config_path: str):
     """
     Main function to run the evaluation process.
@@ -292,8 +388,18 @@ def run_eval(config_path: str):
     if connector:
         connector.fetch_data()
 
+    # Load queries with expected_answer (golden answers) if available
+    queries_df = None
+    if hasattr(config, 'input_queries') and config.input_queries:
+        queries_path = config.input_queries
+        if os.path.exists(queries_path):
+            queries_df = pd.read_csv(queries_path)
+            if 'expected_answer' in queries_df.columns:
+                num_golden = queries_df['expected_answer'].notna().sum()
+                print(f"Loaded {num_golden} golden answers from {queries_path}")
+
     answer_path = os.path.join(results_folder, config.generated_answers)
-    rag_results = RAGResultsLoader(answer_path).load()
+    rag_results = RAGResultsLoader(answer_path, queries_df=queries_df).load()
 
     # Run evaluation
     per_evaluator_columns = {}
@@ -344,6 +450,9 @@ def run_eval(config_path: str):
             results_folder, f"{evaluator_type}-{config.eval_results_file}"
         )
         evaluator.to_csv(results, eval_results_path)
+
+        # Print token usage summary
+        _print_token_usage_summary(results, evaluator_type)
 
         # Plot results
         try:
