@@ -63,10 +63,17 @@ def _mean_metric(results_file: Optional[str], metric: str) -> Optional[float]:
     except Exception as e:  # pragma: no cover - defensive
         logger.warning("Failed to read %s for ranking: %s", results_file, e)
         return None
-    if metric not in df.columns:
+    # TRECEvaluator.to_csv writes per-run columns prefixed with "run_1_". Mirror
+    # the resolution used by TRECEvaluator.plot_metrics: prefer the bare metric
+    # name (present in the consolidated CSV), else fall back to the run_1_ form.
+    if metric in df.columns:
+        column = metric
+    elif f"run_1_{metric}" in df.columns:
+        column = f"run_1_{metric}"
+    else:
         logger.warning("Metric '%s' not found in %s.", metric, results_file)
         return None
-    series = pd.to_numeric(df[metric], errors="coerce").dropna()
+    series = pd.to_numeric(df[column], errors="coerce").dropna()
     if series.empty:
         return None
     return float(series.mean())

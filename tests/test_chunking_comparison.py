@@ -52,6 +52,19 @@ class TestChunkingComparison(unittest.TestCase):
         self.assertEqual(ranked[1]["name"], "missing")
         self.assertIsNone(ranked[1]["score"])
 
+    def test_run_prefixed_metric_column_is_resolved(self):
+        # TRECEvaluator.to_csv writes the metric prefixed with "run_1_"; ranking
+        # must resolve it the same way TRECEvaluator.plot_metrics does.
+        path = os.path.join(self.tmp, "run-prefixed.csv")
+        pd.DataFrame({
+            "query_id": ["q0", "q1"],
+            f"run_1_{RANKING_METRIC}": [1.2, 1.4],
+        }).to_csv(path, index=False)
+        ranked = rank_strategies([
+            {"name": "x", "chunk_size": 512, "chunk_overlap": 64, "results_file": path}
+        ])
+        self.assertAlmostEqual(ranked[0]["score"], 1.3)
+
     def test_missing_metric_column_scores_none(self):
         path = os.path.join(self.tmp, "no-metric.csv")
         pd.DataFrame({"query_id": ["q0"], "some_other_col": [1.0]}).to_csv(path, index=False)
