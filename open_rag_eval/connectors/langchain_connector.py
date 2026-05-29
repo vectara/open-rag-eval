@@ -1,5 +1,6 @@
 import logging
 import os
+from typing import Optional
 
 from langchain_community.document_loaders import DirectoryLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
@@ -9,6 +10,7 @@ from langchain_core.output_parsers import StrOutputParser
 from langchain_core.runnables import RunnablePassthrough
 from langchain_core.prompts import ChatPromptTemplate
 
+from open_rag_eval.chunking import ChunkingStrategy
 from open_rag_eval.connectors.connector import Connector
 from open_rag_eval.utils.constants import API_ERROR
 
@@ -24,6 +26,8 @@ class LangChainConnector(Connector):
             top_k: int = 10,
             max_workers: int = -1,
             repeat_query: int = 1,  # Add repeat_query parameter
+            chunking_strategy: Optional[ChunkingStrategy] = None,
+            output_filename: Optional[str] = None,
     ) -> None:
         self.top_k = top_k
 
@@ -31,7 +35,9 @@ class LangChainConnector(Connector):
         queries_csv = config.get("input_queries", "")
         results_folder = config.get("results_folder",
                                     ".")  # Default to current directory
-        generated_answers_filename = config.get(
+        # When the chunking-comparison layer drives this connector, it routes
+        # each strategy to its own answers file via output_filename.
+        generated_answers_filename = output_filename or config.get(
             "generated_answers", "langchain_generated_answers.csv")
         outputs_csv = os.path.join(results_folder, generated_answers_filename)
 
@@ -47,8 +53,16 @@ class LangChainConnector(Connector):
         loader = DirectoryLoader(folder, glob="**/*.*")
         docs = loader.load()
 
-        text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000,
-                                                       chunk_overlap=200)
+        # Build the text splitter from the chunking strategy. Defaults preserve
+        # the previous hardcoded behavior (chunk_size=1000, chunk_overlap=200).
+        chunk_size = chunking_strategy.chunk_size if chunking_strategy else 1000
+        chunk_overlap = chunking_strategy.chunk_overlap if chunking_strategy else 200
+        if chunking_strategy:
+            logger.info(
+                "Using chunking strategy '%s' (chunk_size=%d, chunk_overlap=%d).",
+                chunking_strategy.name, chunk_size, chunk_overlap)
+        text_splitter = RecursiveCharacterTextSplitter(chunk_size=chunk_size,
+                                                       chunk_overlap=chunk_overlap)
         splits = text_splitter.split_documents(docs)
         vectorstore = Chroma.from_documents(documents=splits,
                                             embedding=OpenAIEmbeddings())

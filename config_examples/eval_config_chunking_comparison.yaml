@@ -1,0 +1,46 @@
+
+input_queries: "queries.csv"  # file with a list of queries to use for evaluation
+
+# Evaluation results are written to the "results_folder" folder.
+# You can override the names of files in this folder by specifying 'generated_answers', 'eval_results_file', and 'metrics_file'.
+results_folder: "results/"
+generated_answers: "answers.csv"
+eval_results_file: "results.csv"
+metrics_file: "metrics.png"
+
+evaluator:
+  - type: "TRECEvaluator"
+    model:
+      type: "OpenAIModel"
+      name: "gpt-4o-mini"
+      api_key: ${oc.env:OPENAI_API_KEY}  # Reads from environment variable.
+    options:
+      # The k values to evaluate metrics like precision@k at.
+      k_values: [1, 3, 5]
+      run_consistency: True
+      metrics_to_run_consistency: ["mean_umbrela_score","vital_nuggetizer_score", "citation_f1_score" ]
+
+connector:
+  type: "LangChainConnector"  # also supported: "LlamaIndexConnector"
+  options:
+    # the folder with the files to be indexed.
+    # all files in this folder and any subfolders will be indexed.
+    folder: /path/to/folder-with-files/
+    top_k: 10
+    max_workers: -1  # -1 to use all available CPU cores for parallel processing.
+    repeat_query: 1
+
+# Optional chunking-comparison layer.
+# When present (and the connector controls document chunking, i.e. LangChain or
+# LlamaIndex), the pipeline re-indexes the documents once per strategy below,
+# evaluates each, and reports the best-performing strategy (ranked by mean
+# UMBRELA retrieval score). It produces:
+#   - results/answers_<name>.csv and results/TRECEvaluator-<name>-results.csv per strategy
+#   - results/chunking_comparison.png  (grouped boxplots, one box per strategy)
+#   - results/chunking_comparison.json (ranked strategies + best_strategy)
+#   - a ranked summary printed to the console
+chunking:
+  strategies:
+    - { name: small,  chunk_size: 256,  chunk_overlap: 32 }
+    - { name: medium, chunk_size: 512,  chunk_overlap: 64 }
+    - { name: large,  chunk_size: 1024, chunk_overlap: 128 }
