@@ -539,6 +539,39 @@ evaluator:
 - You can use TRECEvaluator alone for queries without golden answers, and GoldenAnswerEvaluator will only evaluate those that have them
 - See `config_examples/eval_config_trec_golden_combined.yaml` for a complete example
 
+## Comparing Chunking Strategies
+
+When you index your own documents (using the `LangChainConnector` or `LlamaIndexConnector`), the chunk size and overlap used during indexing have a large impact on retrieval and answer quality. Open RAG Eval can compare multiple chunking strategies for you and report the best-performing one.
+
+Add an optional `chunking` block to your eval config listing the strategies to compare:
+
+```yaml
+connector:
+  type: "LangChainConnector"   # or "LlamaIndexConnector"
+  options:
+    folder: /path/to/folder-with-files/
+    top_k: 10
+
+chunking:
+  strategies:
+    - { name: small,  chunk_size: 256,  chunk_overlap: 32 }
+    - { name: medium, chunk_size: 512,  chunk_overlap: 64 }
+    - { name: large,  chunk_size: 1024, chunk_overlap: 128 }
+```
+
+When a `chunking` block is present, the pipeline re-indexes the documents once per strategy, runs the configured evaluators on each, and then ranks the strategies by **mean UMBRELA retrieval score**. It produces, in your `results_folder`:
+
+- `answers_<name>.csv` and `TRECEvaluator-<name>-results.csv` for each strategy
+- `chunking_comparison.png` — grouped boxplots comparing the strategies (one box per strategy)
+- `chunking_comparison.json` — the ranked strategies plus the `best_strategy`
+- a ranked summary printed to the console, highlighting the winning strategy
+
+Notes:
+
+- Chunking comparison only applies to connectors that control document chunking (`LangChainConnector`, `LlamaIndexConnector`). It is ignored (with a warning) for connectors such as the Vectara connector, which return pre-chunked passages.
+- If no `chunking` block is present, evaluation runs exactly as before.
+- See `config_examples/eval_config_chunking_comparison.yaml` for a complete example.
+
 # How does open-rag-eval work?
 
 ## Evaluation Workflow

@@ -9,6 +9,21 @@ from tqdm import tqdm
 logger = logging.getLogger(__name__)
 
 
+def _sanitize_row(row):
+    """Strip NUL bytes from string values in a result row.
+
+    Extracted document text (e.g. from PDFs) can contain NUL (``\\x00``)
+    characters. On Python 3.10 the stdlib ``csv`` writer raises
+    "need to escape, but no escapechar set" when a field contains a NUL,
+    and even where it doesn't, NUL bytes break ``pandas.read_csv``. NUL is
+    not meaningful text, so we drop it before writing.
+    """
+    return {
+        key: value.replace("\x00", "") if isinstance(value, str) else value
+        for key, value in row.items()
+    }
+
+
 class Connector(ABC):
 
     def __init__(self,
@@ -53,7 +68,7 @@ class Connector(ABC):
                         results = self.process_query(query, run_idx + 1)
                         if results:
                             for row in results:
-                                writer.writerow(row)
+                                writer.writerow(_sanitize_row(row))
         else:
             # Create repeated queries based on self.repeat_query
             repeated_queries = [(query, run_idx + 1)
@@ -83,7 +98,7 @@ class Connector(ABC):
                 writer.writeheader()
                 results_buffer.sort(key=lambda x: x[0])
                 for _, row in results_buffer:
-                    writer.writerow(row)
+                    writer.writerow(_sanitize_row(row))
 
         logger.info("%s query processing is complete. Results saved to %s",
                     self.get_connector_name(), output_path)

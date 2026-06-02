@@ -2,13 +2,14 @@
 This script evaluates the performance of a retrieval-augmented generation (RAG) system.
 """
 
+import inspect
 import json
 import logging
 import os
 import shutil
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 import pandas as pd
 from omegaconf import DictConfig, ListConfig, OmegaConf
@@ -16,6 +17,8 @@ from pandas.errors import EmptyDataError
 
 from open_rag_eval import connectors, evaluators, models
 from open_rag_eval._version import __version__
+from open_rag_eval.chunking import ChunkingStrategy, parse_chunking_strategies
+from open_rag_eval import chunking_comparison
 from open_rag_eval.rag_results_loader import RAGResultsLoader
 from open_rag_eval.utils.constants import CONSISTENCY, CONSISTENCYEVALUATOR
 
@@ -101,12 +104,20 @@ def get_evaluator(evaluator_config: Dict[str, Any]) -> evaluators.Evaluator:
         raise ImportError(f"Could not load evaluator {evaluator_type}: {str(e)}") from e
 
 
-def get_connector(config: Dict[str, Any]) -> connectors.Connector:
+def get_connector(
+    config: Dict[str, Any],
+    chunking_strategy: Optional[ChunkingStrategy] = None,
+    output_filename: Optional[str] = None,
+) -> connectors.Connector:
     """
     Dynamically import and instantiate a connector class based on configuration.
 
     Args:
         config: Configuration dictionary containing connector settings
+        chunking_strategy: Optional chunking strategy to apply. Only forwarded to
+            connectors whose constructor accepts a ``chunking_strategy`` argument.
+        output_filename: Optional override for the generated-answers filename.
+            Only forwarded to connectors that accept an ``output_filename`` argument.
 
     Returns:
         An instance of the specified connector
@@ -116,10 +127,31 @@ def get_connector(config: Dict[str, Any]) -> connectors.Connector:
     connector_type = config.connector.type
     try:
         connector_class = getattr(connectors, connector_type)
-        return connector_class(config, **config.connector.options)
+
+        # Only forward chunking-related kwargs to connectors that support them,
+        # keeping connectors like VectaraConnector untouched.
+        params = inspect.signature(connector_class.__init__).parameters
+        extra = {}
+        if chunking_strategy is not None and "chunking_strategy" in params:
+            extra["chunking_strategy"] = chunking_strategy
+        if output_filename is not None and "output_filename" in params:
+            extra["output_filename"] = output_filename
+
+        return connector_class(config, **config.connector.options, **extra)
 
     except (ImportError, AttributeError) as e:
         raise ImportError(f"Could not load connector {connector_type}: {str(e)}") from e
+
+
+def _connector_supports_chunking(config: Dict[str, Any]) -> bool:
+    """Return True if the configured connector accepts a chunking_strategy."""
+    if "connector" not in config:
+        return False
+    try:
+        connector_class = getattr(connectors, config.connector.type)
+    except AttributeError:
+        return False
+    return "chunking_strategy" in inspect.signature(connector_class.__init__).parameters
 
 
 def merge_eval_results(results_folder, config, per_evaluator_columns=None):
@@ -361,48 +393,26 @@ def _print_token_usage_summary(results, evaluator_type: str):
         print("=" * 50 + "\n")
 
 
-def run_eval(config_path: str):
-    """
-    Main function to run the evaluation process.
+def _run_evaluators(config, results_folder, rag_results, file_suffix="", plot=True):
+    """Run all configured evaluators over `rag_results` and write per-evaluator CSVs.
+
     Args:
-        config_path: Path to the configuration file
+        config: Loaded evaluation config.
+        results_folder: Folder to write evaluator CSVs and plots into.
+        rag_results: List of MultiRAGResult to evaluate.
+        file_suffix: String inserted before the eval_results_file name, used by
+            the chunking-comparison layer to tag per-strategy output files
+            (e.g. "small-" -> "TRECEvaluator-small-results.csv"). Empty by default
+            for the standard single-pass behavior.
+        plot: When True, write per-evaluator metric plots.
+
+    Returns:
+        A tuple (per_evaluator_columns, results_paths) where per_evaluator_columns
+        maps evaluator type -> consolidated column list (for merging) and
+        results_paths maps evaluator type -> path of its written results CSV.
     """
-    # Load configuration
-    if not Path(config_path).exists():
-        raise FileNotFoundError(f"Config file not found: {config_path}")
-
-    config = OmegaConf.load(config_path)
-
-    # Create output folder.
-    results_folder = config.results_folder
-    if os.path.exists(results_folder):
-        print(f"WARNING: Output folder {results_folder} already exists...")
-    os.makedirs(results_folder, exist_ok=True)
-
-    # Copy the config file from config_path to the output folder.
-    config_file_name = os.path.basename(config_path)
-    shutil.copy2(config_path, os.path.join(results_folder, config_file_name))
-
-    # If connector configured - run it to generate results (or read results)
-    connector = get_connector(config)
-    if connector:
-        connector.fetch_data()
-
-    # Load queries with expected_answer (golden answers) if available
-    queries_df = None
-    if hasattr(config, 'input_queries') and config.input_queries:
-        queries_path = config.input_queries
-        if os.path.exists(queries_path):
-            queries_df = pd.read_csv(queries_path)
-            if 'expected_answer' in queries_df.columns:
-                num_golden = queries_df['expected_answer'].notna().sum()
-                print(f"Loaded {num_golden} golden answers from {queries_path}")
-
-    answer_path = os.path.join(results_folder, config.generated_answers)
-    rag_results = RAGResultsLoader(answer_path, queries_df=queries_df).load()
-
-    # Run evaluation
     per_evaluator_columns = {}
+    results_paths = {}
     precomputed_metric_scores_by_query = {}
 
     # Normalize to list
@@ -447,9 +457,10 @@ def run_eval(config_path: str):
 
         # Save results
         eval_results_path = os.path.join(
-            results_folder, f"{evaluator_type}-{config.eval_results_file}"
+            results_folder, f"{evaluator_type}-{file_suffix}{config.eval_results_file}"
         )
         evaluator.to_csv(results, eval_results_path)
+        results_paths[evaluator_type] = eval_results_path
 
         # Print token usage summary
         _print_token_usage_summary(results, evaluator_type)
@@ -462,22 +473,158 @@ def run_eval(config_path: str):
                 continue
 
             per_evaluator_columns[evaluator_type] = evaluator.get_consolidated_columns()
-            evaluator.plot_metrics(
-                csv_files=[eval_results_path],
-                output_file=os.path.join(
-                    results_folder, f"{evaluator_type}-{config.metrics_file}"
-                ),
-                metrics_to_plot=evaluator.get_metrics_to_plot(),
-            )
-            print(
-                f"Graph saved to {os.path.join(results_folder, f'{evaluator_type}-{config.metrics_file}')}"
-            )
+            if plot:
+                metrics_plot_path = os.path.join(
+                    results_folder, f"{evaluator_type}-{file_suffix}{config.metrics_file}"
+                )
+                evaluator.plot_metrics(
+                    csv_files=[eval_results_path],
+                    output_file=metrics_plot_path,
+                    metrics_to_plot=evaluator.get_metrics_to_plot(),
+                )
+                print(f"Graph saved to {metrics_plot_path}")
         except (FileNotFoundError, EmptyDataError):
             logging.warning(f"Skipping plot: {eval_results_path} not found or empty.")
         except Exception as e:
             logging.exception(
                 f"Failed to read or plot metrics from {eval_results_path}: {str(e)}"
             )
+
+    return per_evaluator_columns, results_paths
+
+
+def _load_queries_df(config):
+    """Load the queries CSV (with optional golden answers), or None if absent."""
+    if hasattr(config, 'input_queries') and config.input_queries:
+        queries_path = config.input_queries
+        if os.path.exists(queries_path):
+            queries_df = pd.read_csv(queries_path)
+            if 'expected_answer' in queries_df.columns:
+                num_golden = queries_df['expected_answer'].notna().sum()
+                print(f"Loaded {num_golden} golden answers from {queries_path}")
+            return queries_df
+    return None
+
+
+def _run_chunking_comparison(config, results_folder, queries_df):
+    """Run the pipeline once per chunking strategy and report the best one.
+
+    For each strategy, the connector re-indexes the documents with that strategy
+    and writes a strategy-tagged answers CSV; evaluators then produce
+    strategy-tagged result CSVs. Strategies are ranked by mean UMBRELA retrieval
+    score, and a comparison plot + JSON report + console summary are emitted.
+    """
+    strategies = parse_chunking_strategies(config.chunking)
+    print(f"Comparing {len(strategies)} chunking strategies: "
+          f"{', '.join(s.name for s in strategies)}")
+
+    strategy_results = []
+    trec_csvs = {}
+    for strategy in strategies:
+        print(f"\n--- Chunking strategy: {strategy.name} "
+              f"(chunk_size={strategy.chunk_size}, chunk_overlap={strategy.chunk_overlap}) ---")
+        answers_filename = f"answers_{strategy.name}.csv"
+
+        # Re-index and generate answers for this strategy.
+        connector = get_connector(
+            config, chunking_strategy=strategy, output_filename=answers_filename
+        )
+        connector.fetch_data()
+
+        answer_path = os.path.join(results_folder, answers_filename)
+        rag_results = RAGResultsLoader(answer_path, queries_df=queries_df).load()
+
+        # Evaluate this strategy; skip per-strategy plots to reduce clutter.
+        _, results_paths = _run_evaluators(
+            config, results_folder, rag_results,
+            file_suffix=f"{strategy.name}-", plot=False,
+        )
+
+        trec_path = results_paths.get("TRECEvaluator")
+        strategy_results.append({
+            "name": strategy.name,
+            "chunk_size": strategy.chunk_size,
+            "chunk_overlap": strategy.chunk_overlap,
+            "results_file": trec_path,
+        })
+        if trec_path:
+            trec_csvs[strategy.name] = trec_path
+
+    # Rank strategies and emit comparison artifacts.
+    ranked = chunking_comparison.rank_strategies(strategy_results)
+    chunking_comparison.print_summary(ranked)
+    json_path = chunking_comparison.write_comparison(results_folder, ranked, __version__)
+    print(f"Chunking comparison report saved to {json_path}")
+
+    # Comparison plot: reuse the TREC grouped-boxplot path with one CSV per strategy.
+    if len(trec_csvs) >= 1:
+        try:
+            plot_path = os.path.join(
+                results_folder, chunking_comparison.COMPARISON_PLOT_FILENAME
+            )
+            evaluators.TRECEvaluator.plot_metrics(
+                csv_files=[trec_csvs[s["name"]] for s in ranked if s["name"] in trec_csvs],
+                output_file=plot_path,
+                metrics_to_plot=[
+                    chunking_comparison.RANKING_METRIC,
+                    "generation_score_vital_nuggetizer_score",
+                ],
+            )
+            print(f"Chunking comparison plot saved to {plot_path}")
+        except Exception as e:
+            logging.exception(f"Failed to plot chunking comparison: {str(e)}")
+
+
+def run_eval(config_path: str):
+    """
+    Main function to run the evaluation process.
+    Args:
+        config_path: Path to the configuration file
+    """
+    # Load configuration
+    if not Path(config_path).exists():
+        raise FileNotFoundError(f"Config file not found: {config_path}")
+
+    config = OmegaConf.load(config_path)
+
+    # Create output folder.
+    results_folder = config.results_folder
+    if os.path.exists(results_folder):
+        print(f"WARNING: Output folder {results_folder} already exists...")
+    os.makedirs(results_folder, exist_ok=True)
+
+    # Copy the config file from config_path to the output folder.
+    config_file_name = os.path.basename(config_path)
+    shutil.copy2(config_path, os.path.join(results_folder, config_file_name))
+
+    # Load queries with expected_answer (golden answers) if available
+    queries_df = _load_queries_df(config)
+
+    # Chunking-comparison mode: run the pipeline once per chunking strategy and
+    # report the best one. Only supported for connectors that control document
+    # chunking (LangChain, LlamaIndex).
+    if "chunking" in config and config.chunking:
+        if _connector_supports_chunking(config):
+            _run_chunking_comparison(config, results_folder, queries_df)
+            return
+        logging.warning(
+            "A 'chunking' block was configured but the connector does not support "
+            "chunking strategies. Running a single standard evaluation instead."
+        )
+
+    # Standard single-pass evaluation.
+    # If connector configured - run it to generate results (or read results)
+    connector = get_connector(config)
+    if connector:
+        connector.fetch_data()
+
+    answer_path = os.path.join(results_folder, config.generated_answers)
+    rag_results = RAGResultsLoader(answer_path, queries_df=queries_df).load()
+
+    # Run evaluation
+    per_evaluator_columns, _ = _run_evaluators(
+        config, results_folder, rag_results
+    )
 
     # Merge results from all evaluators into a single CSV file
     merge_eval_results(

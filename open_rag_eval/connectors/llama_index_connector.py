@@ -1,12 +1,15 @@
 import logging
 import os
+from typing import Optional
 
 from llama_index.core import VectorStoreIndex, SimpleDirectoryReader, Settings
 from llama_index.core.base.base_query_engine import BaseQueryEngine
+from llama_index.core.node_parser import SentenceSplitter
 from llama_index.core.query_engine.citation_query_engine import CitationQueryEngine
 from llama_index.embeddings.openai import OpenAIEmbedding
 from llama_index.llms.openai import OpenAI
 
+from open_rag_eval.chunking import ChunkingStrategy
 from open_rag_eval.connectors.connector import Connector
 from open_rag_eval.utils.constants import NO_ANSWER, API_ERROR
 
@@ -24,12 +27,29 @@ class LlamaIndexConnector(Connector):
             openai_llm_model: str = "gpt-4.1-mini",
             max_workers: int = -1,
             repeat_query: int = 1,  # Add repeat_query parameter
+            chunking_strategy: Optional[ChunkingStrategy] = None,
+            output_filename: Optional[str] = None,
     ) -> BaseQueryEngine:
         Settings.embed_model = OpenAIEmbedding(model=openai_embedding_model)
         Settings.llm = OpenAI(model=openai_llm_model, temperature=0.0)
 
         documents = SimpleDirectoryReader(folder).load_data()
-        index = VectorStoreIndex.from_documents(documents)
+
+        # Build the index, applying the chunking strategy as a node parser when
+        # provided. Without a strategy, LlamaIndex's default node parsing is used.
+        if chunking_strategy:
+            logger.info(
+                "Using chunking strategy '%s' (chunk_size=%d, chunk_overlap=%d).",
+                chunking_strategy.name, chunking_strategy.chunk_size,
+                chunking_strategy.chunk_overlap)
+            node_parser = SentenceSplitter(
+                chunk_size=chunking_strategy.chunk_size,
+                chunk_overlap=chunking_strategy.chunk_overlap,
+            )
+            index = VectorStoreIndex.from_documents(
+                documents, transformations=[node_parser])
+        else:
+            index = VectorStoreIndex.from_documents(documents)
         retriever = index.as_retriever(similarity_top_k=top_k)
         self.top_k = top_k
         self.query_engine = CitationQueryEngine.from_args(
@@ -42,7 +62,9 @@ class LlamaIndexConnector(Connector):
         queries_csv = config.get("input_queries", "")
         results_folder = config.get("results_folder",
                                     ".")  # Default to current directory
-        generated_answers_filename = config.get(
+        # When the chunking-comparison layer drives this connector, it routes
+        # each strategy to its own answers file via output_filename.
+        generated_answers_filename = output_filename or config.get(
             "generated_answers", "llamaindex_generated_answers.csv")
         outputs_csv = os.path.join(results_folder, generated_answers_filename)
 
