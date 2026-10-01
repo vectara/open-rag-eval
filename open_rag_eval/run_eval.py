@@ -6,6 +6,7 @@ import inspect
 import json
 import logging
 import os
+import re
 import shutil
 from datetime import datetime, timezone
 from pathlib import Path
@@ -21,6 +22,8 @@ from open_rag_eval.chunking import ChunkingStrategy, parse_chunking_strategies
 from open_rag_eval import chunking_comparison
 from open_rag_eval.rag_results_loader import RAGResultsLoader
 from open_rag_eval.utils.constants import CONSISTENCY, CONSISTENCYEVALUATOR
+
+RUN_COLUMN_PATTERN = re.compile(r"^run_(\d+)_")
 
 
 def get_evaluator(evaluator_config: Dict[str, Any]) -> evaluators.Evaluator:
@@ -260,10 +263,13 @@ def create_openeval_report(results_folder, eval_results_file):
 
     df = pd.read_csv(csv_file)
 
-    # Identify run-based prefixes
-    run_prefixes = {
-        "_".join(col.split("_")[:2]) for col in df.columns if col.startswith("run_")
+    # Identify run-based prefixes ("run_1_", "run_2_", ...) in numeric order
+    run_numbers = {
+        int(match.group(1))
+        for match in (RUN_COLUMN_PATTERN.match(col) for col in df.columns)
+        if match
     }
+    run_prefixes = [f"run_{run_number}_" for run_number in sorted(run_numbers)]
 
     # Identify consistency metric columns
     consistency_cols = [col for col in df.columns if col.startswith(CONSISTENCY)]
@@ -280,11 +286,11 @@ def create_openeval_report(results_folder, eval_results_file):
         }
 
         # Extract each run
-        for prefix in sorted(run_prefixes):
+        for prefix in run_prefixes:
             run_data = {}
             for col in df.columns:
                 if col.startswith(prefix):
-                    field = col[len(prefix) + 1 :] if col != prefix else col
+                    field = col[len(prefix):]
                     try:
                         run_data[field] = json.loads(row[col])
                     except (json.JSONDecodeError, TypeError):
