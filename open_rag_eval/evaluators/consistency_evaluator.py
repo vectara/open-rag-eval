@@ -178,9 +178,10 @@ class ConsistencyEvaluator(Evaluator):
             str, List[float]]]] = None
     ) -> List[ConsistencyResult]:
         if precomputed_metric_scores_by_query:
-            for metric in precomputed_metric_scores_by_query[list(
-                    precomputed_metric_scores_by_query.keys())[0]].keys():
-                self.metric_names.add(f"{CONSISTENCY}_{metric}")
+            # Queries can have different metrics (e.g. only some have golden answers)
+            for metric_scores in precomputed_metric_scores_by_query.values():
+                for metric in metric_scores:
+                    self.metric_names.add(f"{CONSISTENCY}_{metric}")
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
             eval_scores = list(
                 tqdm(

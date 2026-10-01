@@ -215,6 +215,19 @@ class TestConsistencyEvaluator(unittest.TestCase):
         self.assertAlmostEqual(umbrela_stats_q2["median"], 0.4, places=6)
         self.assertAlmostEqual(umbrela_stats_q2["iqr"], 0.0, places=6)
 
+    def test_metric_names_include_metrics_from_every_query(self):
+        # q1 has no golden answer, so only q2 has semantic_similarity
+        precomputed = {
+            "q1": {"umbrela_score": [0.3, 0.3, 0.3]},
+            "q2": {"umbrela_score": [0.4, 0.4, 0.4], "semantic_similarity": [0.7, 0.8, 0.9]},
+        }
+
+        self.evaluator.evaluate_batch([], precomputed_metric_scores_by_query=precomputed)
+
+        columns = self.evaluator.get_consolidated_columns()
+        self.assertIn("consistency_umbrela_score", columns)
+        self.assertIn("consistency_semantic_similarity", columns)
+
     def test_evaluate_adds_hallucination_if_missing(self):
         evaluator = ConsistencyEvaluator()
         evaluator.hallucination_metric.compute = MagicMock(return_value={"hhem_score": 0.9})
