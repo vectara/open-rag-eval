@@ -302,7 +302,7 @@ def create_openeval_report(results_folder, eval_results_file):
                 # Handle NaN or invalid JSON (e.g., when metric failed)
                 entry["consistency"][metric_name] = None
 
-        structured_output.append(entry)
+        structured_output.append(_omit_empty_consistency(entry))
 
     # Wrap in outer object for versioning
     json_output = {
@@ -312,7 +312,7 @@ def create_openeval_report(results_folder, eval_results_file):
     }
 
     with open(json_path, "w", encoding="utf-8") as f:
-        json.dump(_omit_empty_consistency(json_output), f, indent=2)
+        json.dump(json_output, f, indent=2)
     print(f"Open Evaluation json report saved to {json_path}")
 
 
