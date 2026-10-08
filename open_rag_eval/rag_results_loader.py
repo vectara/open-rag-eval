@@ -46,7 +46,7 @@ class RAGResultsLoader:
         query_results_dict = {}
 
         # Process each query_id and query_run combination
-        for (query_id, run_id), group in df.groupby(["query_id", "query_run"]):
+        for (query_id, run_id), group in df.groupby(["query_id", "query_run"], sort=False):
             # Get the query (same for all rows in group)
             query = group["query"].iloc[0]
 

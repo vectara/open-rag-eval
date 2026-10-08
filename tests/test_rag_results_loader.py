@@ -1,5 +1,6 @@
 import tempfile
 import unittest
+import tempfile
 from pathlib import Path
 
 import pandas as pd
@@ -11,6 +12,24 @@ class TestRAGResultsLoader(unittest.TestCase):
     def setUp(self):
         test_csv_path = Path("tests/test_data/csv_results.csv")
         self.loader = RAGResultsLoader(test_csv_path)
+
+    def test_preserves_csv_query_order(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            test_csv_path = Path(tmpdir) / "results.csv"
+            test_csv_path.write_text(
+                "query_id,query,query_run,passage_id,passage,generated_answer\n"
+                "qid-c,query c,1,[1],passage c,answer c [1]\n"
+                "qid-a,query a,1,[1],passage a,answer a [1]\n"
+                "qid-b,query b,1,[1],passage b,answer b [1]\n",
+                encoding="utf-8",
+            )
+
+            results = RAGResultsLoader(test_csv_path).load()
+
+        self.assertEqual(
+            [result.query_id for result in results],
+            ["qid-c", "qid-a", "qid-b"],
+        )
 
     def test_read_results(self):
         results = self.loader.load()
