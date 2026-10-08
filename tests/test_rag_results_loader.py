@@ -1,5 +1,9 @@
+import tempfile
 import unittest
 from pathlib import Path
+
+import pandas as pd
+
 from open_rag_eval.rag_results_loader import RAGResultsLoader
 from open_rag_eval.data_classes.rag_results import GeneratedAnswerPart
 
@@ -145,6 +149,33 @@ class TestRAGResultsLoader(unittest.TestCase):
             result6_run_2.generation_result.generated_answer,
             [GeneratedAnswerPart(text="There are seven planets with moon", citations=["[1]"])]
         )
+
+    def test_attaches_expected_answers_for_numeric_and_string_query_ids(self):
+        for query_ids in (["1", "2"], ["query_1", "query_2"]):
+            with self.subTest(query_ids=query_ids), tempfile.TemporaryDirectory() as tmpdir:
+                answers_path = Path(tmpdir) / "answers.csv"
+                answers_path.write_text(
+                    "query_id,query,query_run,passage_id,passage,generated_answer\n"
+                    f"{query_ids[0]},What is a blackhole?,1,[1],Blackholes are dense.,Dense [1]\n"
+                    f"{query_ids[1]},How big is the sun?,1,[1],The sun is big.,Big [1]\n",
+                    encoding="utf-8",
+                )
+                queries_path = Path(tmpdir) / "queries.csv"
+                queries_path.write_text(
+                    "query_id,query,expected_answer\n"
+                    f"{query_ids[0]},What is a blackhole?,A dense region of space.\n"
+                    f"{query_ids[1]},How big is the sun?,About 1.4 million km wide.\n",
+                    encoding="utf-8",
+                )
+                # Read like run_eval does
+                queries_df = pd.read_csv(queries_path)
+
+                results = RAGResultsLoader(answers_path, queries_df=queries_df).load()
+
+                self.assertEqual(
+                    [result.expected_answer for result in results],
+                    ["A dense region of space.", "About 1.4 million km wide."],
+                )
 
 
 if __name__ == '__main__':

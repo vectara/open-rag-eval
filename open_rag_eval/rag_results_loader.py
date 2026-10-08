@@ -103,10 +103,10 @@ class RAGResultsLoader:
                 if qid and pd.notna(exp_ans) and str(exp_ans).strip():
                     expected_answers[qid] = str(exp_ans)
 
-            # Apply to MultiRAGResult objects
+            # Apply to MultiRAGResult objects (query_id may be an int)
             for query_id, multi_result in query_results_dict.items():
-                if query_id in expected_answers:
-                    multi_result.expected_answer = expected_answers[query_id]
+                if str(query_id) in expected_answers:
+                    multi_result.expected_answer = expected_answers[str(query_id)]
 
             if expected_answers:
                 logger.info(
