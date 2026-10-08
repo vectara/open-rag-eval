@@ -82,6 +82,7 @@ class GoldenAnswerEvaluator(Evaluator):
             )
         else:
             self.metrics_to_run_consistency = []
+        self.to_repeat = 1
 
     def evaluate(self, multi_rag_result: MultiRAGResult) -> MultiScoredRAGResult:
         """Evaluate RAG results against the golden answer.
@@ -325,11 +326,10 @@ class GoldenAnswerEvaluator(Evaluator):
         """Save golden answer evaluation results to CSV."""
         results_dict = []
 
-        # Calculate max runs across all results for column generation
-        max_runs = 1
+        # Remember the max runs so get_consolidated_columns() covers every run
         for multi_scored_result in scored_results:
             if multi_scored_result.scored_rag_results:
-                max_runs = max(max_runs, len(multi_scored_result.scored_rag_results))
+                self.to_repeat = max(self.to_repeat, len(multi_scored_result.scored_rag_results))
 
         for multi_scored_result in scored_results:
             if not multi_scored_result.scored_rag_results:
@@ -379,15 +379,17 @@ class GoldenAnswerEvaluator(Evaluator):
         if not df.empty:
             print(f"Golden answer scores saved to {output_file}")
 
-    def get_consolidated_columns(self, num_runs: int = 1) -> List[str]:
+    def get_consolidated_columns(self, num_runs: Optional[int] = None) -> List[str]:
         """Return columns for consolidated CSV.
 
         Args:
-            num_runs: Number of runs to include columns for (default 1)
+            num_runs: Number of runs to include columns for. Defaults to the
+                number of runs seen by the last to_csv() call.
 
         Returns:
             List of column names for consolidated output
         """
+        num_runs = num_runs or self.to_repeat
         columns = ["query_id", "query"]
         metrics = [
             "semantic_similarity",

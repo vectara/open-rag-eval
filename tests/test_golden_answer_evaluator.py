@@ -6,9 +6,12 @@ These tests define the expected behavior for the golden answer evaluation featur
 - GoldenAnswerEvaluator: orchestrates all metrics, integrates with consistency
 """
 
+import os
+import tempfile
 import unittest
 
 import numpy as np
+import pandas as pd
 
 from open_rag_eval.data_classes.rag_results import (
     RAGResult,
@@ -389,6 +392,28 @@ class TestGoldenAnswerEvaluator(unittest.TestCase):
         self.assertIsInstance(columns, list)
         self.assertIn("query_id", columns)
         self.assertIn("query", columns)
+
+    def test_get_consolidated_columns_includes_all_runs_after_to_csv(self):
+        """Columns for every run written by to_csv should be kept for the merge."""
+        from open_rag_eval.evaluators.golden_answer_evaluator import GoldenAnswerEvaluator as GAE
+
+        evaluator = GAE(
+            llm_model=self.llm_model,
+            embedding_model=self.embedding_model,
+            options={"run_consistency": True}
+        )
+        scored_result = evaluator.evaluate(
+            create_mock_multi_rag_result(expected_answer="expected", num_results=3)
+        )
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            output_file = os.path.join(tmpdir, "golden.csv")
+            evaluator.to_csv([scored_result], output_file)
+            written_columns = set(pd.read_csv(output_file).columns)
+
+        columns = evaluator.get_consolidated_columns()
+        self.assertIn("run_3_generation_score_semantic_similarity", columns)
+        self.assertIn("run_3_generation_score_semantic_similarity", written_columns)
 
     def test_run_consistency_false_without_empty_metrics_list(self):
         """run_consistency=False should work without specifying metrics_to_run_consistency."""
