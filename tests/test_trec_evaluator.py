@@ -1,6 +1,8 @@
 import unittest
+from unittest.mock import MagicMock
 
 from open_rag_eval.evaluators.base_evaluator import Evaluator
+from open_rag_eval.evaluators.trec_evaluator import TRECEvaluator
 from open_rag_eval.data_classes.rag_results import (
     RAGResult,
     RetrievalResult,
@@ -90,6 +92,44 @@ def create_mock_rag_result(query: str = "test query",
             ],
         ),
     )
+
+
+class TestTRECEvaluator(unittest.TestCase):
+
+    def test_failed_autonugget_is_recorded_as_missing(self):
+        evaluator = TRECEvaluator.__new__(TRECEvaluator)
+        evaluator.run_consistency = False
+        evaluator.k_values = [1]
+        evaluator.retrieval_metric = MagicMock()
+        evaluator.generation_metric = MagicMock()
+        evaluator.hallucination_metric = MagicMock()
+        evaluator.citation_metric = MagicMock()
+        evaluator.no_answer_metric = MagicMock()
+
+        evaluator.retrieval_metric.compute.return_value = {
+            "umbrela_scores": {"doc1": 2},
+            "retrieval_scores": {"precision@1": 1.0},
+        }
+        evaluator.generation_metric.compute.return_value = {}
+        evaluator.hallucination_metric.compute.return_value = {
+            "hhem_score": 0.25
+        }
+        evaluator.citation_metric.compute.return_value = {"f1": 0.75}
+        evaluator.no_answer_metric.compute.return_value = {
+            "query_answered": "yes"
+        }
+
+        result = evaluator.evaluate(create_mock_multi_rag_result())
+        generation_scores = result.scored_rag_results[0].scores.generation_score.scores
+
+        self.assertIsNone(
+            generation_scores["mean_nugget_assignment_score"])
+        self.assertIsNone(generation_scores["vital_nuggetizer_score"])
+        self.assertEqual(generation_scores["hallucination_score"], 0.25)
+        self.assertEqual(generation_scores["citation_f1_score"], 0.75)
+        self.assertEqual(generation_scores["no_answer_score"], {
+            "query_answered": "yes"
+        })
 
 
 class TestBaseEvaluator(unittest.TestCase):
