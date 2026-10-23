@@ -20,6 +20,7 @@ from open_rag_eval.metrics import (AutoNuggetMetric, CitationMetric,
                                    HallucinationMetric, NoAnswerMetric,
                                    UMBRELAMetric)
 from open_rag_eval.models.llm_judges import LLMJudgeModel
+from open_rag_eval.utils.eval_plotting import get_answered_percentage
 
 from .base_evaluator import Evaluator
 
@@ -220,25 +221,6 @@ class TRECEvaluator(Evaluator):
                 "generation_score_citation_f1_score",
                 "questions_answered",
             ]
-
-        def get_answered_percentage(df):
-            answered_count = 0
-            total_valid_rows = 0
-            for idx, row in df.iterrows():
-                value = row.get(
-                    "generation_score_no_answer_score", None) or row.get(
-                        "run_1_generation_score_no_answer_score", None)
-                if pd.isna(value):
-                    continue
-                try:
-                    answer_data = json.loads(value)
-                    total_valid_rows += 1
-                    if answer_data.get("query_answered", "") == "yes":
-                        answered_count += 1
-                except Exception:
-                    logging.error("Invalid JSON at row index %s", idx)
-            return (answered_count /
-                    total_valid_rows) * 100 if total_valid_rows > 0 else 0
 
         def plot_boxplot(ax,
                          data_list,
