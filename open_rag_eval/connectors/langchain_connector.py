@@ -87,7 +87,8 @@ class LangChainConnector(Connector):
         def format_docs(docs):
             return "\n\n".join(doc.page_content for doc in docs)
 
-        llm = ChatOpenAI(model_name="gpt-4o", temperature=0)
+        llm = ChatOpenAI(model_name="gpt-6-luna", temperature=0,
+                         reasoning_effort="none")
         self.rag_chain = ({
             "context": self.retriever | format_docs,
             "question": RunnablePassthrough()
